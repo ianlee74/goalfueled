@@ -89,6 +89,48 @@ public class WeightServiceTests
     }
 
     [Fact]
+    public async Task Record_with_past_date_creates_entry_on_that_date()
+    {
+        using var db = TestHelpers.NewContext();
+        var (user, _, weights) = await SetupAsync(db);
+        var pastDate = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-30);
+
+        var saved = await weights.RecordAsync(user, Entry(185, WeightUnit.Pound, pastDate), default);
+
+        Assert.Equal(pastDate, saved.Date);
+        Assert.Equal(185, saved.Value);
+    }
+
+    [Fact]
+    public async Task Record_with_future_date_throws()
+    {
+        using var db = TestHelpers.NewContext();
+        var (user, _, weights) = await SetupAsync(db);
+        var futureDate = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(1);
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            weights.RecordAsync(user, Entry(180, WeightUnit.Pound, futureDate), default));
+    }
+
+    [Fact]
+    public async Task Recording_same_past_date_twice_updates_rather_than_duplicates()
+    {
+        using var db = TestHelpers.NewContext();
+        var (user, _, weights) = await SetupAsync(db);
+        var pastDate = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-10);
+
+        var first = await weights.RecordAsync(user, Entry(190, WeightUnit.Pound, pastDate), default);
+        var second = await weights.RecordAsync(user, Entry(188, WeightUnit.Pound, pastDate), default);
+
+        Assert.Equal(first.Id, second.Id);
+        Assert.Equal(188, second.Value);
+
+        var history = await weights.ListAsync(user, default);
+        Assert.Single(history);
+        Assert.Equal(188, history[0].Value);
+    }
+
+    [Fact]
     public async Task Users_cannot_see_each_others_entries()
     {
         using var db = TestHelpers.NewContext();

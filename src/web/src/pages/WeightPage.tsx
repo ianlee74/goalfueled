@@ -13,12 +13,13 @@ export function WeightPage() {
   const [entries, setEntries] = useState<WeightEntry[]>([])
   const [value, setValue] = useState('')
   const [unit, setUnit] = useState<WeightUnit>('Pound')
+  const [date, setDate] = useState(todayIso())
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const today = todayIso()
-  const recordedToday = entries.some((e) => e.date === today)
+  const alreadyLogged = entries.some((e) => e.date === date)
 
   useEffect(() => {
     let cancelled = false
@@ -40,13 +41,14 @@ export function WeightPage() {
     if (!(num > 0)) { setError('Enter a weight greater than zero.'); return }
     setSaving(true)
     try {
-      const saved = await weightApi.record({ value: num, unit })
+      const saved = await weightApi.record({ value: num, unit, date })
       // Upsert into the local list by date (most recent first).
       setEntries((prev) => {
         const without = prev.filter((e) => e.date !== saved.date)
         return [saved, ...without].sort((a, b) => (a.date < b.date ? 1 : -1))
       })
       setValue('')
+      setDate(todayIso())
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to record weight.')
     } finally {
@@ -63,7 +65,7 @@ export function WeightPage() {
       {error && <div className="notice error">{error}</div>}
 
       <div className="card stack">
-        <h2>{recordedToday ? "Update today's weight" : 'Record today’s weight'}</h2>
+        <h2>{alreadyLogged ? 'Update weight' : 'Record weight'}</h2>
         <div className="row" style={{ gap: '0.5rem', alignItems: 'flex-end' }}>
           <label className="field" style={{ flex: 1 }}>
             Weight
@@ -84,12 +86,24 @@ export function WeightPage() {
               <option value="Kilogram">{WEIGHT_UNIT_LABELS.Kilogram}</option>
             </select>
           </label>
+          <label className="field">
+            Date
+            <input
+              className="input"
+              type="date"
+              value={date}
+              max={today}
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </label>
         </div>
         <button className="btn btn-primary" disabled={saving} onClick={record}>
-          {saving ? 'Saving…' : recordedToday ? 'Update' : 'Record'}
+          {saving ? 'Saving…' : alreadyLogged ? 'Update' : 'Record'}
         </button>
-        {recordedToday && (
-          <p className="muted small" style={{ margin: 0 }}>You already logged a weight today; saving will update it.</p>
+        {alreadyLogged && (
+          <p className="muted small" style={{ margin: 0 }}>
+            You already logged a weight for {date}; saving will update it.
+          </p>
         )}
       </div>
 

@@ -60,6 +60,8 @@ public sealed class WeightService
             throw new ValidationException("Weight must be greater than zero.");
         if (input.Value > InputLimits.WeightValueMax)
             throw new ValidationException($"Weight must be {InputLimits.WeightValueMax} or less.");
+        if (input.Date is { } date && date > DateOnly.FromDateTime(DateTime.UtcNow))
+            throw new ValidationException("Weight date cannot be in the future.");
     }
 
     private static WeightEntryDto ToDto(WeightEntry w) =>
