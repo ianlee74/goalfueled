@@ -12,8 +12,6 @@ Ignore all files in the `Future Features` section.
 > Build each feature following the Ingredients pattern: Domain model → Data repository → Api service +
 > functions (with RBAC) → React pages.
 
-- [] **Add weight tracking**: we need to be able to track a user's weight in order to be able to track progress. A user should be able to enter their weight once daily if they desire. Before starting a `meal plan` they should be required to enter their current weight.
-
 ## FUTURE FEATURES
 
 >[AI Agent] skip ALL items in this section.

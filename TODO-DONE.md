@@ -6,6 +6,23 @@
 
 ## Completed Items
 
+### Add weight tracking — 2026-06-07 17:10 CDT
+
+- [x] New per-user weight-tracking vertical slice (record daily weight, view history) with a meal-plan creation gate requiring a current weight
+
+**NOTES:**
+- Built following the Ingredients/Meals pattern across all layers:
+  - Domain: `Entities/WeightEntry.cs` (OwnerUserId, DateOnly Date, Value, WeightUnit Unit, timestamps), `WeightUnit { Pound, Kilogram }` enum, `Contracts/WeightDtos.cs` (`WeightEntryDto`, `WeightEntryInput` with optional Date defaulting to today UTC).
+  - Data: `IWeightEntryRepository`/`WeightEntryRepository` (ListForUserAsync most-recent-first, GetForUserAndDateAsync, add/update), `WeightEntries` DbSet + Cosmos container mapping, DI registration.
+  - Api: `WeightService` (user-scoped list + upsert-by-day RecordAsync, validation), `WeightFunctions` (`GET /weights`, `POST /weights`); `InputLimits.WeightValueMax = 5000`; registered in `Program.cs`.
+  - Web: `pages/WeightPage.tsx` (record form + history), `/weight` route, ⚖️ nav entry in `Layout`, `weightApi` + `WeightUnit`/`WeightEntry`/`WeightEntryInput`/`WEIGHT_UNIT_LABELS` types.
+- **Meal-plan weight gate (assumption/decision):** "starting a meal plan" interpreted as creating a NEW meal plan. `PlanFormPage` (new-plan only) requires a weight entry dated **today** (local calendar date). On mount it calls `weightApi.list()`; if none matches today it replaces the form with a blocking "Record your weight first" card linking to `/weight`, and `save()` refuses with an inline error as a backstop. Editing an existing plan is never gated. The check **fails open** if the list request errors (transient failure can't permanently block). Gating is frontend-only.
+- **Weight unit modeling:** dedicated `WeightUnit` enum (not the serving-oriented `UnitOfMeasure`), serialized as string; default `Pound`; form pre-selects the user's last-used unit.
+- **One-per-day upsert:** uniqueness key (OwnerUserId, Date); recording the same day updates in place (preserves Id/CreatedAt, bumps UpdatedAt). DateOnly filtering done in memory (provider-agnostic, mirrors `CountAdminsAsync`).
+- Strictly per-user: no app-level scope, no admin cross-user view.
+- Tests: `WeightServiceTests` (create, same-day update-not-duplicate, multi-day ordering, date defaulting, cross-user isolation, validation) + `DependencyInjectionTests` updated.
+- Verified (conductor re-ran): `dotnet test -c Release` → 96 passed/0 failed; web `npm run build` ✓; `npm run lint` 0 errors (1 pre-existing warning in `AuthContext.tsx`).
+
 ### Move menus to a hamburger menu — 2026-06-07 16:55 CDT
 
 - [x] Removed the persistent bottom navigation bar and moved its links into a hamburger (☰) menu
