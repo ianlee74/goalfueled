@@ -253,10 +253,11 @@ export function RecipeFormPage() {
       </div>
 
       <div className="card stack">
-        <h2>Nutrition <span className="muted small">whole recipe</span></h2>
-        <NutritionLabel amounts={total} />
-        <h2>Nutrition <span className="muted small">per serving</span></h2>
-        <NutritionLabel amounts={perServing} />
+        <h2>Nutrition</h2>
+        <NutritionLabel columns={[
+          { label: 'Whole recipe', amounts: total },
+          { label: 'Per serving', amounts: perServing },
+        ]} />
       </div>
 
       {!readOnly && (

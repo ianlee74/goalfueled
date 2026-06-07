@@ -124,6 +124,8 @@ label.field .hint { font-weight: 400; color: var(--muted); font-size: 0.8rem; }
 .nutri-table td { padding: 0.3rem 0; border-bottom: 1px solid var(--border); }
 .nutri-table td.val { text-align: right; font-variant-numeric: tabular-nums; }
 .nutri-table tr.core td { font-weight: 600; }
+.nutri-table th { padding: 0.3rem 0; border-bottom: 2px solid var(--border); color: var(--muted); font-weight: 600; }
+.nutri-table th.val { text-align: right; }
 
 .goal-grid { display: grid; gap: 0.75rem; }
 .goal-card {
