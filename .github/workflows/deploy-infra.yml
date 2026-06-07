@@ -1,0 +1,42 @@
+name: Deploy Infrastructure
+
+# Manual-only Bicep deployment. Inert until secrets/vars are configured.
+#
+# Required secret:  AZURE_CREDENTIALS  (output of `az ad sp create-for-rbac --sdk-auth`)
+# Required vars:     AZURE_RESOURCE_GROUP, AZURE_LOCATION
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options: [ dev, test, prod ]
+
+jobs:
+  deploy:
+    name: Bicep what-if + deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Ensure resource group
+        run: az group create -n ${{ vars.AZURE_RESOURCE_GROUP }} -l ${{ vars.AZURE_LOCATION }}
+      - name: What-if
+        run: |
+          az deployment group what-if \
+            -g ${{ vars.AZURE_RESOURCE_GROUP }} \
+            -f infra/main.bicep \
+            -p infra/main.parameters.json \
+            -p environment=${{ inputs.environment }}
+      - name: Deploy
+        run: |
+          az deployment group create \
+            -g ${{ vars.AZURE_RESOURCE_GROUP }} \
+            -f infra/main.bicep \
+            -p infra/main.parameters.json \
+            -p environment=${{ inputs.environment }}

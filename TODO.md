@@ -1,0 +1,71 @@
+# Features to do
+
+## Instructions
+
+Ignore all files in the `Future Features` section.
+
+## Tasks
+
+> Context: The MVP scaffold + the **Ingredients** vertical slice are complete (full CRUD, nutrition,
+> app/user scoping, RBAC). Auth seam + local dev login, profile provisioning, first-user-becomes-admin,
+> admin-view toggle, and first-login onboarding are done. The items below are the remaining MVP work.
+> Build each feature following the Ingredients pattern: Domain model → Data repository → Api service +
+> functions (with RBAC) → React pages.
+
+### Meals (models scaffolded; implement end-to-end)
+
+- [ ] `MealService` + `IMealRepository`/`MealRepository`: CRUD with RBAC.
+- [ ] Per-meal **nutrition summary** = sum of recipe portions (servings × recipe per-serving nutrition).
+- [ ] Meal HTTP endpoints (`/api/meals` CRUD) replacing the current stub.
+- [ ] Frontend: meal list, create/edit (add recipe portions with serving counts), nutrition summary.
+- [ ] Tests: meal portion math + RBAC.
+
+### Meal Plans (models scaffolded; implement end-to-end)
+
+- [ ] `MealPlanService` + repository: CRUD with RBAC.
+- [ ] Daily and weekly cadence; scheduled meals (day-of-week + time) and untimed items (e.g. water).
+- [ ] **Daily nutrition summary** of total consumption (timed + untimed) — the doc's core goal-tracking view.
+- [ ] Meal Plan HTTP endpoints (`/api/mealplans` CRUD) replacing the current stub.
+- [ ] Frontend: plan builder (daily/weekly toggle), schedule UI, untimed-items section, daily nutrition summary vs the user's goal.
+- [ ] Tests: schedule + daily-summary aggregation.
+
+### Image upload (Azure Blob Storage)
+
+- [ ] API endpoint to upload images (or issue a short-lived SAS) into the `images` blob container provisioned in `infra/`.
+- [ ] Replace the image-**URL** fields on Ingredient & Recipe forms with a direct **upload** component (preview, validation, size limit).
+- [ ] Store/serve the returned blob URL; handle delete/replace.
+
+### Real authentication (Microsoft Entra External ID)
+
+- [ ] Provision an Entra External ID tenant + user flow; add **Google**, **Microsoft**, **Facebook** social IdPs.
+- [ ] Register the SPA and API app registrations; expose an API scope.
+- [ ] Implement `EntraExternalIdProvider`: validate the Bearer JWT (issuer/audience/signing keys) and map `sub`/`email`/`name` claims; register it in `Program.cs`.
+- [ ] Frontend: MSAL integration; replace the dev login with real social-login buttons; send `Authorization: Bearer <token>` (swap the single `authHeaders()` in `src/web/src/api/client.ts`).
+- [ ] Set `GoalFueled:Auth:EnableDevAuth=false` in deployed environments; keep dev auth local-only.
+- [ ] Account linking: allow one profile reached via multiple providers (the `ExternalLogins`/`LoginKeys` model already supports it).
+
+### Admin features & user management
+
+- [ ] Admin user-management screen: list users, **promote/demote App Admin** role.
+- [ ] Admin views to browse/modify **all** users' data (ingredients/recipes/meals/plans) — RBAC already allows it server-side; add the UI.
+- [ ] Confirm the admin-view toggle hides/shows admin-only UI consistently across new screens.
+
+### Security & polish
+
+- [ ] **Sanitize HTML** in ingredient/recipe descriptions before rendering (they may contain HTML — prevent XSS).
+- [ ] Server-side input limits (string lengths, collection sizes) and consistent validation messages.
+- [ ] Rate-limit/authorize public recipe submission to prevent abuse.
+
+### Deployment & infrastructure activation (infra authored, not yet deployed)
+
+- [ ] Provision Azure resources via `infra/main.bicep` (Cosmos, Storage, Functions, Static Web App, monitoring).
+- [ ] Configure CI/CD secrets/variables and run the deploy workflows (GitHub Actions + Azure DevOps).
+- [ ] Switch the API to the Cosmos provider in cloud envs (`GoalFueled:UseInMemoryStore=false`) and verify against a real Cosmos account.
+- [ ] Tighten the Function App **CORS** to the Static Web App hostname (currently a placeholder).
+- [ ] Move secrets to **Key Vault + managed identity** (replace inline connection strings in `functionApp.bicep`).
+
+## FUTURE FEATURES
+
+[AI Agent] skip ALL items in this section.
+
+- [skip] **Define goals and track progress**: we need to gamify the app by allowing the user to define a `goal` and tracking their progress towards that goal. A goal is a target metric that a user defines that has a target date that it should be achieved. A metric can be weight or a nutritional metric (i.e. calories, protein, vitamin C, etc). The 

@@ -1,0 +1,35 @@
+{
+  // "▶ Run All (API + Web)" starts the Functions host (API) and the Vite dev server (web), then
+  // opens Chrome with the JS debugger. The API just RUNS here (no .NET debugger attached) — that's
+  // reliable and avoids the isolated-debug attach handshake. For C# breakpoints in the API, use the
+  // "Attach to .NET Functions" config instead (Azure Functions extension flow).
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "▶ Run All (API + Web)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/src/web",
+      "preLaunchTask": "dev: api + web",
+      "presentation": { "order": 1 }
+    },
+    {
+      "name": "Web only (Vite + Chrome)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/src/web",
+      "preLaunchTask": "web: dev"
+    },
+    {
+      // C# breakpoint debugging for the API. Starts the host with --dotnet-isolated-debug and
+      // attaches the .NET debugger to the worker. Run this on its own when you need breakpoints.
+      "name": "Attach to .NET Functions",
+      "type": "coreclr",
+      "request": "attach",
+      "processId": "${command:azureFunctions.pickProcess}",
+      "preLaunchTask": "func: host start"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/GoalFueled.Api/GoalFueled.Api.csproj" />
+    <Project Path="src/GoalFueled.Data/GoalFueled.Data.csproj" />
+    <Project Path="src/GoalFueled.Domain/GoalFueled.Domain.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/GoalFueled.Tests/GoalFueled.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,84 @@
+# Azure DevOps pipeline for GoalFueled.
+# Build + test always run. Deploy stage is gated on the main branch and requires a service
+# connection ($(azureServiceConnection)) and variables to be configured — until then it is inert.
+
+trigger:
+  branches:
+    include: [ main, dev ]
+
+pr:
+  branches:
+    include: [ main, dev ]
+
+variables:
+  buildConfiguration: 'Release'
+  # Set these in the pipeline / variable group before enabling deployment:
+  #   azureServiceConnection, functionAppName, staticWebAppToken
+
+stages:
+  - stage: Build
+    displayName: Build & Test
+    jobs:
+      - job: api
+        displayName: API (.NET 8)
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: UseDotNet@2
+            inputs:
+              packageType: 'sdk'
+              version: '8.0.x'
+          - script: dotnet restore GoalFueled.slnx
+            displayName: Restore
+          - script: dotnet build GoalFueled.slnx -c $(buildConfiguration) --no-restore
+            displayName: Build
+          - script: dotnet test GoalFueled.slnx -c $(buildConfiguration) --no-build
+            displayName: Test
+          - script: dotnet publish src/GoalFueled.Api/GoalFueled.Api.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/api
+            displayName: Publish API
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: '$(Build.ArtifactStagingDirectory)/api'
+              artifact: 'api'
+
+      - job: web
+        displayName: Web (React)
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '22.x'
+          - script: npm ci
+            workingDirectory: src/web
+            displayName: Install
+          - script: npm run build
+            workingDirectory: src/web
+            displayName: Build
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: 'src/web/dist'
+              artifact: 'web'
+
+  - stage: Deploy
+    displayName: Deploy (main only)
+    dependsOn: Build
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - deployment: deployApi
+        displayName: Deploy API
+        pool:
+          vmImage: 'ubuntu-latest'
+        environment: 'production'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - download: current
+                  artifact: api
+                - task: AzureFunctionApp@2
+                  inputs:
+                    connectedServiceNameARM: '$(azureServiceConnection)'
+                    appType: 'functionAppLinux'
+                    appName: '$(functionAppName)'
+                    package: '$(Pipeline.Workspace)/api'

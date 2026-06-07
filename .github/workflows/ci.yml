@@ -1,0 +1,46 @@
+name: CI
+
+# Builds and tests both the .NET API and the React web app on every push/PR.
+# No deployment happens here — see deploy.yml / deploy-infra.yml (manual).
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  api:
+    name: API (.NET)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Restore
+        run: dotnet restore GoalFueled.slnx
+      - name: Build
+        run: dotnet build GoalFueled.slnx --configuration Release --no-restore
+      - name: Test
+        run: dotnet test GoalFueled.slnx --configuration Release --no-build --verbosity normal
+
+  web:
+    name: Web (React)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: src/web/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build

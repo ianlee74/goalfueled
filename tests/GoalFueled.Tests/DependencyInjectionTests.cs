@@ -1,0 +1,74 @@
+using GoalFueled.Api.Auth;
+using GoalFueled.Api.Services;
+using GoalFueled.Data;
+using GoalFueled.Data.Repositories;
+using GoalFueled.Data.Seeding;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace GoalFueled.Tests;
+
+/// <summary>
+/// Verifies that the service graph registered by Program.cs actually resolves — catching DI
+/// misconfiguration (missing registrations, captive dependencies) that the host would only hit at runtime.
+/// </summary>
+public class DependencyInjectionTests
+{
+    private static ServiceProvider BuildProvider()
+    {
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["GoalFueled:UseInMemoryStore"] = "true",
+                ["GoalFueled:Auth:EnableDevAuth"] = "true",
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        // The Functions host registers IConfiguration for us; provide it here so the graph matches.
+        services.AddSingleton<IConfiguration>(config);
+
+        // Mirror of Program.cs application registrations.
+        services.AddGoalFueledData(config);
+        services.AddSingleton<IIdentityProvider, DevIdentityProvider>();
+        services.AddScoped<IAuthenticator, Authenticator>();
+        services.AddScoped<IngredientService>();
+        services.AddScoped<RecipeService>();
+
+        return services.BuildServiceProvider(new ServiceProviderOptions
+        {
+            ValidateScopes = true,
+            ValidateOnBuild = true,
+        });
+    }
+
+    [Fact]
+    public void All_core_services_resolve()
+    {
+        using var provider = BuildProvider();
+        using var scope = provider.CreateScope();
+        var sp = scope.ServiceProvider;
+
+        Assert.NotNull(sp.GetRequiredService<IAuthenticator>());
+        Assert.NotNull(sp.GetRequiredService<IngredientService>());
+        Assert.NotNull(sp.GetRequiredService<RecipeService>());
+        Assert.NotNull(sp.GetRequiredService<IUserRepository>());
+        Assert.NotNull(sp.GetRequiredService<IIngredientRepository>());
+        Assert.NotNull(sp.GetRequiredService<IRecipeRepository>());
+        Assert.NotNull(sp.GetRequiredService<DatabaseInitializer>());
+        Assert.NotEmpty(sp.GetServices<IIdentityProvider>());
+    }
+
+    [Fact]
+    public async Task Database_initializer_seeds_app_ingredients()
+    {
+        using var provider = BuildProvider();
+        using var scope = provider.CreateScope();
+
+        await scope.ServiceProvider.GetRequiredService<DatabaseInitializer>().InitializeAsync();
+
+        var db = scope.ServiceProvider.GetRequiredService<GoalFueledDbContext>();
+        Assert.True(db.Ingredients.Any(), "Expected seeded app-level ingredients.");
+    }
+}

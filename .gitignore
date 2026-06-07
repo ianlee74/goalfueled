@@ -55,3 +55,9 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# Azurite storage emulator (local dev) — data lives in .azurite/ (see .vscode/tasks.json)
+.azurite/
+__azurite_db*__.json
+__blobstorage__/
+__queuestorage__/

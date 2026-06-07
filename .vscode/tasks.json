@@ -1,0 +1,233 @@
+{
+  // Background server tasks used by the launch configs in launch.json.
+  // Each runs in its own dedicated terminal so you can watch API and web logs side by side.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build (Api)",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}/src/GoalFueled.Api/GoalFueled.Api.csproj",
+        "/property:GenerateFullPaths=true",
+        "/consoleloggerparameters:NoSummary"
+      ],
+      "problemMatcher": "$msCompile",
+      "presentation": {
+        "reveal": "silent",
+        "group": "goalfueled"
+      }
+    },
+    {
+      // Starts the Azurite storage emulator that the Azure Functions extension requires for debugging.
+      // The app doesn't use storage, but the extension does. Data lives in .azurite/ (gitignored).
+      // Resilient by design: if Azurite is already running (e.g. via the Azurite VS Code extension),
+      // the second instance hits EADDRINUSE — the trailing `|| echo` swallows that so the task exits
+      // success instead of failing the prelaunch, and the endsPattern matches either outcome.
+      "label": "azurite",
+      "type": "shell",
+      "command": "mkdir -p .azurite && azurite --silent --location .azurite || echo Azurite already running, continuing",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "presentation": {
+        "panel": "dedicated",
+        "group": "goalfueled",
+        "reveal": "silent"
+      },
+      "problemMatcher": {
+        "owner": "azurite",
+        "pattern": [
+          {
+            "regexp": "\\b\\B",
+            "file": 1,
+            "location": 2,
+            "message": 3
+          }
+        ],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "(Azurite|service is starting|exec|mkdir)",
+          "endsPattern": "(successfully listening|already in use|EADDRINUSE|already running, continuing)"
+        }
+      }
+    },
+    {
+      // Plain host run (no .NET debugger) used by "▶ Run All". Reliable: the worker starts and
+      // serves immediately without waiting for a debugger to attach.
+      // NOTE: absolute path to the nvm-installed func (machine-specific) so it doesn't depend on the
+      // shell's PATH — VS Code's task shell can carry a stale PATH and pick up a broken `func`.
+      // If your nvm Node changes, update this to match (it's the same target as
+      // azureFunctions.funcCliPath in your user settings).
+      "label": "func: host (run)",
+      "type": "shell",
+      "command": "/c/nvm4w/nodejs/func",
+      "args": [
+        "host",
+        "start"
+      ],
+      "dependsOn": [
+        "azurite"
+      ],
+      "dependsOrder": "sequence",
+      "options": {
+        "cwd": "${workspaceFolder}/src/GoalFueled.Api"
+      },
+      "isBackground": true,
+      "presentation": {
+        "panel": "dedicated",
+        "group": "goalfueled",
+        "reveal": "always"
+      },
+      "problemMatcher": {
+        "owner": "goalfueled-func-run",
+        "pattern": [
+          {
+            "regexp": "\\b\\B",
+            "file": 1,
+            "location": 2,
+            "message": 3
+          }
+        ],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "(Azure Functions Core Tools|Building|Starting|Found .* functions)",
+          "endsPattern": "(Host lock lease acquired|Worker process started and initialized|Application started|http://localhost:7071)"
+        }
+      }
+    },
+    {
+      // Composite used as the "▶ Run All" preLaunchTask: brings up both servers in parallel.
+      "label": "dev: api + web",
+      "dependsOn": [
+        "func: host (run)",
+        "web: dev"
+      ],
+      "dependsOrder": "parallel"
+    },
+    {
+      "label": "web: dev",
+      "type": "shell",
+      "command": "npm",
+      "args": [
+        "run",
+        "dev"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/src/web"
+      },
+      "isBackground": true,
+      "presentation": {
+        "panel": "dedicated",
+        "group": "goalfueled",
+        "reveal": "always"
+      },
+      "problemMatcher": {
+        "owner": "goalfueled-web",
+        "pattern": [
+          {
+            "regexp": "\\b\\B",
+            "file": 1,
+            "location": 2,
+            "message": 3
+          }
+        ],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "(VITE|vite|building|Starting)",
+          "endsPattern": "(ready in|Local:\\s+http|localhost:5173)"
+        }
+      }
+    },
+    {
+      "label": "clean (functions)",
+      "command": "dotnet",
+      "args": [
+        "clean",
+        "/property:GenerateFullPaths=true",
+        "/consoleloggerparameters:NoSummary"
+      ],
+      "type": "process",
+      "problemMatcher": "$msCompile",
+      "options": {
+        "cwd": "${workspaceFolder}/src\\GoalFueled.Api"
+      }
+    },
+    {
+      "label": "build (functions)",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "/property:GenerateFullPaths=true",
+        "/consoleloggerparameters:NoSummary"
+      ],
+      "type": "process",
+      "dependsOn": "clean (functions)",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": "$msCompile",
+      "options": {
+        "cwd": "${workspaceFolder}/src\\GoalFueled.Api"
+      }
+    },
+    {
+      "label": "clean release (functions)",
+      "command": "dotnet",
+      "args": [
+        "clean",
+        "--configuration",
+        "Release",
+        "/property:GenerateFullPaths=true",
+        "/consoleloggerparameters:NoSummary"
+      ],
+      "type": "process",
+      "problemMatcher": "$msCompile",
+      "options": {
+        "cwd": "${workspaceFolder}/src\\GoalFueled.Api"
+      }
+    },
+    {
+      "label": "publish (functions)",
+      "command": "dotnet",
+      "args": [
+        "publish",
+        "--configuration",
+        "Release",
+        "/property:GenerateFullPaths=true",
+        "/consoleloggerparameters:NoSummary"
+      ],
+      "type": "process",
+      "dependsOn": "clean release (functions)",
+      "problemMatcher": "$msCompile",
+      "options": {
+        "cwd": "${workspaceFolder}/src\\GoalFueled.Api"
+      }
+    },
+    {
+      // The Azure Functions extension's debug host task. Starts the worker with
+      // --dotnet-isolated-debug so the debugger (azureFunctions.pickProcess) can attach.
+      // This is the task the "API (Azure Functions)" / "Attach to .NET Functions" configs use.
+      "label": "func: host start",
+      "type": "func",
+      "dependsOn": [
+        "build (functions)",
+        "azurite"
+      ],
+      "dependsOrder": "sequence",
+      "options": {
+        "cwd": "${workspaceFolder}/src\\GoalFueled.Api/bin/Debug/net8.0"
+      },
+      "command": "host start",
+      "args": [
+        "--dotnet-isolated-debug",
+        "--enable-json-output"
+      ],
+      "isBackground": true,
+      "problemMatcher": "$func-dotnet-watch"
+    }
+  ]
+}
