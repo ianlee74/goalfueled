@@ -12,15 +12,6 @@ Ignore all files in the `Future Features` section.
 > Build each feature following the Ingredients pattern: Domain model → Data repository → Api service +
 > functions (with RBAC) → React pages.
 
-### Meal Plans (models scaffolded; implement end-to-end)
-
-- [ ] `MealPlanService` + repository: CRUD with RBAC.
-- [ ] Daily and weekly cadence; scheduled meals (day-of-week + time) and untimed items (e.g. water).
-- [ ] **Daily nutrition summary** of total consumption (timed + untimed) — the doc's core goal-tracking view.
-- [ ] Meal Plan HTTP endpoints (`/api/mealplans` CRUD) replacing the current stub.
-- [ ] Frontend: plan builder (daily/weekly toggle), schedule UI, untimed-items section, daily nutrition summary vs the user's goal.
-- [ ] Tests: schedule + daily-summary aggregation.
-
 ### Image upload (Azure Blob Storage)
 
 - [ ] API endpoint to upload images (or issue a short-lived SAS) into the `images` blob container provisioned in `infra/`.
@@ -62,4 +53,6 @@ Ignore all files in the `Future Features` section.
 
 - [skip] **Define goals and track progress**: we need to gamify the app by allowing the user to define a `goal` and tracking their progress towards that goal. A goal is a target metric that a user defines that has a target date that it should be achieved. A metric can be weight or a nutritional metric (i.e. calories, protein, vitamin C, etc). A goal could be either one-time (ex. "loose 10 lbs by 12/31/2026") or recurring (ex. "consume 2000 calories every 7 days starting on Monday"). There should be a visual (chart? other fun graphic?) that shows progress. A goal should have an option to indicate if exceeding the goal is a positive thing (ex. "you lost 2 more lbs than your goal!") or a negative thing (ex. you're on a weight loss goal and you consumed too many calories). The visual should celebrate appropriately based on a positive or negative final result.
 
-- 
+- [skip] **Add option to add tracking of ad-hoc meals**: if the user eats a snack or other meal that was not part of the plan, then they should be able to easily add that to their daily consumption log.
+
+- [skip] **Integrate with Google Health**: synchronize weight data with Google Health. What else can we sync with it?

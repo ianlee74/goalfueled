@@ -1,7 +1,7 @@
 import { api } from './client'
 import type {
   CurrentUser, GoalType, Ingredient, IngredientInput, Meal, MealInput,
-  NutrientDefinition, Recipe, RecipeInput,
+  MealPlan, MealPlanInput, NutrientDefinition, Recipe, RecipeInput,
 } from './types'
 
 export const userApi = {
@@ -42,6 +42,15 @@ export const mealApi = {
   create: (input: MealInput) => api.post<Meal>('/meals', input),
   update: (id: string, input: MealInput) => api.put<Meal>(`/meals/${id}`, input),
   remove: (id: string) => api.del(`/meals/${id}`),
+}
+
+export const mealPlanApi = {
+  list: (search?: string) =>
+    api.get<MealPlan[]>(`/mealplans${search ? `?search=${encodeURIComponent(search)}` : ''}`),
+  get: (id: string) => api.get<MealPlan>(`/mealplans/${id}`),
+  create: (input: MealPlanInput) => api.post<MealPlan>('/mealplans', input),
+  update: (id: string, input: MealPlanInput) => api.put<MealPlan>(`/mealplans/${id}`, input),
+  remove: (id: string) => api.del(`/mealplans/${id}`),
 }
 
 export const nutrientApi = {

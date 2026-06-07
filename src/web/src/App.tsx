@@ -10,7 +10,8 @@ import { RecipeFormPage } from './pages/RecipeFormPage'
 import { RecipeReviewQueuePage } from './pages/RecipeReviewQueuePage'
 import { MealsPage } from './pages/MealsPage'
 import { MealFormPage } from './pages/MealFormPage'
-import { ComingSoonPage } from './pages/ComingSoonPage'
+import { PlansPage } from './pages/PlansPage'
+import { PlanFormPage } from './pages/PlanFormPage'
 
 export default function App() {
   const { devUser, profile, loading } = useAuth()
@@ -52,20 +53,8 @@ export default function App() {
         <Route path="/recipes/:id" element={<RecipeFormPage />} />
         <Route path="/meals" element={<MealsPage />} />
         <Route path="/meals/:id" element={<MealFormPage />} />
-        <Route
-          path="/plans"
-          element={
-            <ComingSoonPage
-              title="Meal Plans"
-              description="Plan when to consume daily meals — daily or weekly — including untimed items like water, and see a nutritional summary of your day."
-              planned={[
-                'Daily & weekly schedules',
-                'Timed and untimed items',
-                'Daily nutrition summary toward your goal',
-              ]}
-            />
-          }
-        />
+        <Route path="/plans" element={<PlansPage />} />
+        <Route path="/plans/:id" element={<PlanFormPage />} />
         <Route path="*" element={<Navigate to="/ingredients" replace />} />
       </Route>
     </Routes>

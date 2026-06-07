@@ -20,13 +20,13 @@ public sealed class MealService
 {
     private readonly IMealRepository _repo;
     private readonly IRecipeRepository _recipes;
-    private readonly RecipeNutritionCalculator _nutrition;
+    private readonly MealNutritionCalculator _nutrition;
 
     public MealService(IMealRepository repo, IRecipeRepository recipes, IIngredientRepository ingredients)
     {
         _repo = repo;
         _recipes = recipes;
-        _nutrition = new RecipeNutritionCalculator(ingredients);
+        _nutrition = new MealNutritionCalculator(recipes, ingredients);
     }
 
     public async Task<IReadOnlyList<MealDto>> ListAsync(AppUser user, string? search, CancellationToken ct)
@@ -150,55 +150,22 @@ public sealed class MealService
     }
 
     // ---- nutrition roll-up & mapping ----
-
-    /// <summary>
-    /// Sums each portion's nutrition contribution: scale the referenced recipe's per-serving nutrition
-    /// (computed from its ingredients via <see cref="RecipeNutritionCalculator"/>) by the portion's
-    /// serving count. Portions whose recipe is missing are skipped gracefully.
-    /// </summary>
-    private static IReadOnlyList<NutrientAmount> ComputeTotalNutrition(
-        Meal meal,
-        IReadOnlyDictionary<string, Recipe> recipesById,
-        IReadOnlyDictionary<string, Ingredient> ingredientsById)
-    {
-        var contributions = new List<IEnumerable<NutrientAmount>>();
-        foreach (var portion in meal.Portions)
-        {
-            if (!recipesById.TryGetValue(portion.RecipeId, out var recipe)) continue;
-            var perServing = RecipeNutritionCalculator.ComputePerServing(recipe, ingredientsById);
-            contributions.Add(NutritionMath.Scale(perServing, portion.Servings));
-        }
-
-        return NutritionMath.Sum(contributions);
-    }
+    // The actual recipe resolution + portion math lives in MealNutritionCalculator so the Meal Plans
+    // feature can reuse each scheduled meal's total nutrition without duplicating it.
 
     private async Task<IReadOnlyList<MealDto>> ToDtosAsync(
         IReadOnlyList<Meal> meals, AppUser user, CancellationToken ct)
     {
-        var recipesById = await ResolveRecipesAsync(meals, ct);
+        var recipesById = await _nutrition.ResolveRecipesAsync(meals, ct);
         var ingredientsById = await _nutrition.ResolveIngredientsAsync(recipesById.Values.ToList(), ct);
         return meals.Select(m => ToDto(m, user, recipesById, ingredientsById)).ToList();
     }
 
     private async Task<MealDto> ToDtoAsync(Meal meal, AppUser user, CancellationToken ct)
     {
-        var recipesById = await ResolveRecipesAsync(new[] { meal }, ct);
+        var recipesById = await _nutrition.ResolveRecipesAsync(new[] { meal }, ct);
         var ingredientsById = await _nutrition.ResolveIngredientsAsync(recipesById.Values.ToList(), ct);
         return ToDto(meal, user, recipesById, ingredientsById);
-    }
-
-    /// <summary>Loads every recipe referenced by the given meals, keyed by id (deduped).</summary>
-    private async Task<Dictionary<string, Recipe>> ResolveRecipesAsync(
-        IReadOnlyCollection<Meal> meals, CancellationToken ct)
-    {
-        var ids = meals.SelectMany(m => m.Portions).Select(p => p.RecipeId).Distinct();
-        var byId = new Dictionary<string, Recipe>();
-        foreach (var id in ids)
-        {
-            var recipe = await _recipes.GetByIdAsync(id, ct);
-            if (recipe is not null) byId[id] = recipe;
-        }
-        return byId;
     }
 
     private static MealDto ToDto(
@@ -206,7 +173,7 @@ public sealed class MealService
         IReadOnlyDictionary<string, Recipe> recipesById,
         IReadOnlyDictionary<string, Ingredient> ingredientsById)
     {
-        var total = ComputeTotalNutrition(m, recipesById, ingredientsById);
+        var total = MealNutritionCalculator.ComputeTotal(m, recipesById, ingredientsById);
         var portions = m.Portions
             .Select(p => new MealPortionDto(
                 p.RecipeId, p.Servings,

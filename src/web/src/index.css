@@ -136,6 +136,10 @@ label.field .hint { font-weight: 400; color: var(--muted); font-size: 0.8rem; }
 
 .recipe-item-row { display: grid; grid-template-columns: 1fr 80px 1.2fr 40px; gap: 0.5rem; align-items: center; }
 
+/* Meal-plan builder rows: scheduled meal (meal / [day] / time / remove) and untimed item. */
+.plan-scheduled-row { display: grid; grid-template-columns: 1fr auto 110px 40px; gap: 0.5rem; align-items: center; }
+.plan-untimed-row { display: grid; grid-template-columns: 110px 1fr 80px 1fr 40px; gap: 0.5rem; align-items: center; }
+
 /* Larger screens */
 @media (min-width: 768px) {
   .goal-grid { grid-template-columns: repeat(3, 1fr); }

@@ -33,6 +33,7 @@ builder.Services.AddScoped<IAuthenticator, Authenticator>();
 builder.Services.AddScoped<IngredientService>();
 builder.Services.AddScoped<RecipeService>();
 builder.Services.AddScoped<MealService>();
+builder.Services.AddScoped<MealPlanService>();
 
 var host = builder.Build();
 

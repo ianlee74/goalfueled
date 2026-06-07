@@ -143,6 +143,72 @@ export interface MealInput {
   appLevel: boolean
 }
 
+export type MealPlanCadence = 'Daily' | 'Weekly'
+
+export type DayOfWeek =
+  | 'Sunday' | 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday'
+
+export interface ScheduledMeal {
+  mealId: string
+  dayOfWeek?: DayOfWeek
+  // Serialized as "HH:mm:ss" by the API.
+  time?: string
+  mealName?: string
+}
+
+export interface UntimedItem {
+  mealId?: string
+  ingredientId?: string
+  quantity?: number
+  note?: string
+  // Resolved name of the referenced meal or ingredient.
+  name?: string
+}
+
+export interface DailyNutrition {
+  dayOfWeek?: DayOfWeek
+  nutrition: NutrientAmount[]
+}
+
+export interface NutritionSummary {
+  days: DailyNutrition[]
+  weeklyTotal: NutrientAmount[]
+  dailyAverage: NutrientAmount[]
+}
+
+export interface MealPlan {
+  id: string
+  name: string
+  cadence: MealPlanCadence
+  ownerUserId?: string
+  scheduledMeals: ScheduledMeal[]
+  untimedItems: UntimedItem[]
+  summary: NutritionSummary
+  createdAt: string
+  updatedAt: string
+  canEdit: boolean
+}
+
+export interface ScheduledMealInput {
+  mealId: string
+  dayOfWeek?: DayOfWeek
+  time?: string
+}
+
+export interface UntimedItemInput {
+  mealId?: string
+  ingredientId?: string
+  quantity?: number
+  note?: string
+}
+
+export interface MealPlanInput {
+  name: string
+  cadence: MealPlanCadence
+  scheduledMeals: ScheduledMealInput[]
+  untimedItems: UntimedItemInput[]
+}
+
 // Friendly labels for the recipe visibility lifecycle.
 export const RECIPE_VISIBILITY_LABELS: Record<RecipeVisibility, string> = {
   Private: 'Private',
@@ -169,3 +235,12 @@ export const UNIT_LABELS: Record<UnitOfMeasure, string> = {
 export const NUTRIENT_UNIT_ABBR: Record<NutrientUnit, string> = {
   Kcal: 'kcal', Gram: 'g', Milligram: 'mg', Microgram: 'mcg', IU: 'IU',
 }
+
+export const MEAL_PLAN_CADENCE_LABELS: Record<MealPlanCadence, string> = {
+  Daily: 'Daily', Weekly: 'Weekly',
+}
+
+// Days of week in the order .NET's System.DayOfWeek enumerates them (Sunday = 0).
+export const DAYS_OF_WEEK: DayOfWeek[] = [
+  'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
+]
