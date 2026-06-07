@@ -114,6 +114,35 @@ export interface RecipeInput {
   appLevel: boolean
 }
 
+export interface MealPortion {
+  recipeId: string
+  servings: number
+  recipeName?: string
+}
+
+export interface Meal {
+  id: string
+  name: string
+  portions: MealPortion[]
+  scope: OwnershipScope
+  ownerUserId?: string
+  totalNutrition: NutrientAmount[]
+  createdAt: string
+  updatedAt: string
+  canEdit: boolean
+}
+
+export interface MealPortionInput {
+  recipeId: string
+  servings: number
+}
+
+export interface MealInput {
+  name: string
+  portions: MealPortionInput[]
+  appLevel: boolean
+}
+
 // Friendly labels for the recipe visibility lifecycle.
 export const RECIPE_VISIBILITY_LABELS: Record<RecipeVisibility, string> = {
   Private: 'Private',

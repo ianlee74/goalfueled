@@ -6,6 +6,21 @@
 
 ## Completed Items
 
+### Meals feature (end-to-end) — 2026-06-07 09:42 CDT
+
+- [x] `MealService` + `IMealRepository`/`MealRepository` (CRUD, RBAC: owner or acting admin; visible = app-level + own)
+- [x] Per-meal nutrition summary = Σ (portion.Servings × recipe per-serving nutrition)
+- [x] `/api/meals` CRUD endpoints (replaced the stub)
+- [x] Frontend: meal list + create/edit (recipe portions with serving counts) with live nutrition preview
+- [x] Tests: meal portion math + RBAC
+
+**NOTES:**
+- Extracted a shared `RecipeNutritionCalculator` (`Api/Services/RecipeNutritionCalculator.cs`) holding the ingredient-resolution + unit-conversion/scaling math; refactored `RecipeService` to delegate to it (Recipe behavior/tests unchanged) and `MealService` reuses `ComputePerServing` per portioned recipe.
+- Files created: `Api/Services/RecipeNutritionCalculator.cs`, `Api/Services/MealService.cs`, `Api/Functions/MealFunctions.cs`, `Domain/Contracts/MealDtos.cs`, `Data/Repositories/IMealRepository.cs` + `MealRepository.cs`, web `pages/MealsPage.tsx` + `MealFormPage.tsx`, `tests/GoalFueled.Tests/MealServiceTests.cs` (12 tests).
+- Files changed: `RecipeService.cs` (delegates), `Functions/StubFunctions.cs` (removed ListMeals; Plans stub kept), `Program.cs`, `DataServiceCollectionExtensions.cs`, web `api/types.ts`, `api/services.ts`, `App.tsx` (real /meals routes), `DependencyInjectionTests.cs`.
+- Decision: Meals have no review/visibility lifecycle (entity has no Visibility) → meal visibility is simply app-level + own; portions may reference any recipe the caller can see (own/app/public).
+- Verified: `dotnet build -c Release` 0/0; `dotnet test` 45 passed; web build ✓ and lint 0 errors (1 pre-existing warning).
+
 ### Recipes feature (end-to-end) — 2026-06-07 09:33 CDT
 
 - [x] `RecipeService` (CRUD, validation, RBAC: owner or acting admin)

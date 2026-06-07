@@ -32,6 +32,7 @@ builder.Services.AddSingleton<IIdentityProvider, DevIdentityProvider>();
 builder.Services.AddScoped<IAuthenticator, Authenticator>();
 builder.Services.AddScoped<IngredientService>();
 builder.Services.AddScoped<RecipeService>();
+builder.Services.AddScoped<MealService>();
 
 var host = builder.Build();
 

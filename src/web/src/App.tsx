@@ -8,6 +8,8 @@ import { IngredientFormPage } from './pages/IngredientFormPage'
 import { RecipesPage } from './pages/RecipesPage'
 import { RecipeFormPage } from './pages/RecipeFormPage'
 import { RecipeReviewQueuePage } from './pages/RecipeReviewQueuePage'
+import { MealsPage } from './pages/MealsPage'
+import { MealFormPage } from './pages/MealFormPage'
 import { ComingSoonPage } from './pages/ComingSoonPage'
 
 export default function App() {
@@ -48,16 +50,8 @@ export default function App() {
         <Route path="/recipes" element={<RecipesPage />} />
         <Route path="/recipes/review-queue" element={<RecipeReviewQueuePage />} />
         <Route path="/recipes/:id" element={<RecipeFormPage />} />
-        <Route
-          path="/meals"
-          element={
-            <ComingSoonPage
-              title="Meals"
-              description="A meal is a collection of portions of prepared recipes."
-              planned={['Assemble meals from recipe portions', 'Per-meal nutrition summary']}
-            />
-          }
-        />
+        <Route path="/meals" element={<MealsPage />} />
+        <Route path="/meals/:id" element={<MealFormPage />} />
         <Route
           path="/plans"
           element={

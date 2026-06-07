@@ -8,7 +8,7 @@ namespace GoalFueled.Api.Functions;
 
 /// <summary>
 /// Placeholder endpoints for features scaffolded but not yet implemented in this MVP slice
-/// (Meals, Meal Plans). They authenticate like real endpoints and return an empty,
+/// (Meal Plans). They authenticate like real endpoints and return an empty,
 /// "coming soon" payload so the frontend can render its stub screens against a live API.
 /// Replace each with a full feature service following the Ingredients/Recipes pattern.
 /// </summary>
@@ -17,11 +17,6 @@ public sealed class StubFunctions
     private readonly IAuthenticator _auth;
 
     public StubFunctions(IAuthenticator auth) => _auth = auth;
-
-    [Function("ListMeals")]
-    public Task<IActionResult> Meals(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "meals")] HttpRequest req) =>
-        ComingSoon(req, "meals");
 
     [Function("ListMealPlans")]
     public Task<IActionResult> MealPlans(

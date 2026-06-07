@@ -12,14 +12,6 @@ Ignore all files in the `Future Features` section.
 > Build each feature following the Ingredients pattern: Domain model → Data repository → Api service +
 > functions (with RBAC) → React pages.
 
-### Meals (models scaffolded; implement end-to-end)
-
-- [ ] `MealService` + `IMealRepository`/`MealRepository`: CRUD with RBAC.
-- [ ] Per-meal **nutrition summary** = sum of recipe portions (servings × recipe per-serving nutrition).
-- [ ] Meal HTTP endpoints (`/api/meals` CRUD) replacing the current stub.
-- [ ] Frontend: meal list, create/edit (add recipe portions with serving counts), nutrition summary.
-- [ ] Tests: meal portion math + RBAC.
-
 ### Meal Plans (models scaffolded; implement end-to-end)
 
 - [ ] `MealPlanService` + repository: CRUD with RBAC.
@@ -68,4 +60,6 @@ Ignore all files in the `Future Features` section.
 
 [AI Agent] skip ALL items in this section.
 
-- [skip] **Define goals and track progress**: we need to gamify the app by allowing the user to define a `goal` and tracking their progress towards that goal. A goal is a target metric that a user defines that has a target date that it should be achieved. A metric can be weight or a nutritional metric (i.e. calories, protein, vitamin C, etc). The 
+- [skip] **Define goals and track progress**: we need to gamify the app by allowing the user to define a `goal` and tracking their progress towards that goal. A goal is a target metric that a user defines that has a target date that it should be achieved. A metric can be weight or a nutritional metric (i.e. calories, protein, vitamin C, etc). A goal could be either one-time (ex. "loose 10 lbs by 12/31/2026") or recurring (ex. "consume 2000 calories every 7 days starting on Monday"). There should be a visual (chart? other fun graphic?) that shows progress. A goal should have an option to indicate if exceeding the goal is a positive thing (ex. "you lost 2 more lbs than your goal!") or a negative thing (ex. you're on a weight loss goal and you consumed too many calories). The visual should celebrate appropriately based on a positive or negative final result.
+
+- 

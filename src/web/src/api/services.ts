@@ -1,7 +1,7 @@
 import { api } from './client'
 import type {
-  CurrentUser, GoalType, Ingredient, IngredientInput, NutrientDefinition,
-  Recipe, RecipeInput,
+  CurrentUser, GoalType, Ingredient, IngredientInput, Meal, MealInput,
+  NutrientDefinition, Recipe, RecipeInput,
 } from './types'
 
 export const userApi = {
@@ -33,6 +33,15 @@ export const recipeApi = {
   reviewQueue: () => api.get<Recipe[]>('/recipes/review-queue'),
   approve: (id: string) => api.post<Recipe>(`/recipes/${id}/approve`),
   reject: (id: string) => api.post<Recipe>(`/recipes/${id}/reject`),
+}
+
+export const mealApi = {
+  list: (search?: string) =>
+    api.get<Meal[]>(`/meals${search ? `?search=${encodeURIComponent(search)}` : ''}`),
+  get: (id: string) => api.get<Meal>(`/meals/${id}`),
+  create: (input: MealInput) => api.post<Meal>('/meals', input),
+  update: (id: string, input: MealInput) => api.put<Meal>(`/meals/${id}`, input),
+  remove: (id: string) => api.del(`/meals/${id}`),
 }
 
 export const nutrientApi = {

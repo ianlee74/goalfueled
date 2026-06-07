@@ -17,11 +17,13 @@ public sealed class RecipeService
 {
     private readonly IRecipeRepository _repo;
     private readonly IIngredientRepository _ingredients;
+    private readonly RecipeNutritionCalculator _nutrition;
 
     public RecipeService(IRecipeRepository repo, IIngredientRepository ingredients)
     {
         _repo = repo;
         _ingredients = ingredients;
+        _nutrition = new RecipeNutritionCalculator(ingredients);
     }
 
     public async Task<IReadOnlyList<RecipeDto>> ListAsync(AppUser user, string? search, CancellationToken ct)
@@ -244,67 +246,26 @@ public sealed class RecipeService
     }
 
     // ---- nutrition roll-up & mapping ----
-
-    /// <summary>
-    /// Sums each item's nutrition contribution. For an item, if its unit is dimension-compatible with
-    /// the referenced ingredient's serving unit, convert the item quantity into "number of servings"
-    /// of that ingredient (using each unit's base-conversion factor), scale the ingredient's
-    /// per-serving nutrition by that count, and add it in. Items whose ingredient is missing or whose
-    /// unit is incompatible are skipped gracefully.
-    /// </summary>
-    private static IReadOnlyList<NutrientAmount> ComputeTotalNutrition(
-        Recipe recipe, IReadOnlyDictionary<string, Ingredient> byId)
-    {
-        var contributions = new List<IEnumerable<NutrientAmount>>();
-        foreach (var item in recipe.Items)
-        {
-            if (!byId.TryGetValue(item.IngredientId, out var ingredient)) continue;
-            if (ingredient.ServingSize <= 0) continue;
-            if (!Units.AreCompatible(item.Unit, ingredient.Unit)) continue;
-
-            // servings = (qty in base units) / (serving size in base units).
-            var itemBase = item.Quantity * Units.Get(item.Unit).ToBaseFactor;
-            var servingBase = ingredient.ServingSize * Units.Get(ingredient.Unit).ToBaseFactor;
-            if (servingBase <= 0) continue;
-            var servings = itemBase / servingBase;
-
-            contributions.Add(NutritionMath.Scale(ingredient.NutritionPerServing, servings));
-        }
-
-        return NutritionMath.Sum(contributions);
-    }
+    // The actual ingredient resolution + conversion math lives in RecipeNutritionCalculator so the
+    // Meals feature can reuse each recipe's per-serving nutrition without duplicating it.
 
     private async Task<IReadOnlyList<RecipeDto>> ToDtosAsync(
         IReadOnlyList<Recipe> recipes, AppUser user, CancellationToken ct)
     {
-        var byId = await ResolveIngredientsAsync(recipes, ct);
+        var byId = await _nutrition.ResolveIngredientsAsync(recipes, ct);
         return recipes.Select(r => ToDto(r, user, byId)).ToList();
     }
 
     private async Task<RecipeDto> ToDtoAsync(Recipe recipe, AppUser user, CancellationToken ct)
     {
-        var byId = await ResolveIngredientsAsync(new[] { recipe }, ct);
+        var byId = await _nutrition.ResolveIngredientsAsync(new[] { recipe }, ct);
         return ToDto(recipe, user, byId);
-    }
-
-    /// <summary>Loads every ingredient referenced by the given recipes, keyed by id (deduped).</summary>
-    private async Task<Dictionary<string, Ingredient>> ResolveIngredientsAsync(
-        IReadOnlyCollection<Recipe> recipes, CancellationToken ct)
-    {
-        var ids = recipes.SelectMany(r => r.Items).Select(i => i.IngredientId).Distinct();
-        var byId = new Dictionary<string, Ingredient>();
-        foreach (var id in ids)
-        {
-            var ingredient = await _ingredients.GetByIdAsync(id, ct);
-            if (ingredient is not null) byId[id] = ingredient;
-        }
-        return byId;
     }
 
     private static RecipeDto ToDto(Recipe r, AppUser user, IReadOnlyDictionary<string, Ingredient> byId)
     {
-        var total = ComputeTotalNutrition(r, byId);
-        var perServing = r.Servings > 0 ? NutritionMath.Scale(total, 1.0 / r.Servings) : total;
+        var total = RecipeNutritionCalculator.ComputeTotal(r, byId);
+        var perServing = RecipeNutritionCalculator.ComputePerServing(r, byId);
         var items = r.Items
             .Select(i => new RecipeItemDto(
                 i.IngredientId, i.Quantity, i.Unit,
