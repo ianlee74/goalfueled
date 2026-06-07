@@ -10,6 +10,12 @@ public interface IMealPlanRepository
     /// </summary>
     Task<IReadOnlyList<MealPlan>> ListVisibleAsync(string userId, string? search = null, CancellationToken ct = default);
 
+    /// <summary>
+    /// Returns every meal plan regardless of owner. Admin-only ("view all"); callers must gate on
+    /// <c>IsActingAsAdmin</c>. Optionally filters by a case-insensitive name search.
+    /// </summary>
+    Task<IReadOnlyList<MealPlan>> ListAllAsync(string? search = null, CancellationToken ct = default);
+
     Task<MealPlan?> GetByIdAsync(string id, CancellationToken ct = default);
 
     Task<MealPlan> AddAsync(MealPlan plan, CancellationToken ct = default);

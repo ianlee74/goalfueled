@@ -27,6 +27,20 @@ public class IngredientRepository : IIngredientRepository
         return await query.OrderBy(i => i.Name).ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<Ingredient>> ListAllAsync(string? search = null, CancellationToken ct = default)
+    {
+        // Admin "view all": every ingredient regardless of owner/scope.
+        var query = _db.Ingredients.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim().ToLower();
+            query = query.Where(i => i.Name.ToLower().Contains(term));
+        }
+
+        return await query.OrderBy(i => i.Name).ToListAsync(ct);
+    }
+
     public Task<Ingredient?> GetByIdAsync(string id, CancellationToken ct = default) =>
         _db.Ingredients.FirstOrDefaultAsync(i => i.Id == id, ct);
 

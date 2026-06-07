@@ -26,9 +26,17 @@ public sealed class RecipeService
         _nutrition = new RecipeNutritionCalculator(ingredients);
     }
 
-    public async Task<IReadOnlyList<RecipeDto>> ListAsync(AppUser user, string? search, CancellationToken ct)
+    /// <summary>
+    /// Lists recipes visible to the user. When <paramref name="all"/> is set AND the caller is acting
+    /// as an admin, returns every user's recipes; otherwise the flag is ignored and the result stays
+    /// scoped to app-level + the caller's own + public recipes.
+    /// </summary>
+    public async Task<IReadOnlyList<RecipeDto>> ListAsync(
+        AppUser user, string? search, bool all = false, CancellationToken ct = default)
     {
-        var recipes = await _repo.ListVisibleAsync(user.Id, search, ct);
+        var recipes = all && user.IsActingAsAdmin
+            ? await _repo.ListAllAsync(search, ct)
+            : await _repo.ListVisibleAsync(user.Id, search, ct);
         return await ToDtosAsync(recipes, user, ct);
     }
 

@@ -15,4 +15,10 @@ public interface IUserRepository
 
     /// <summary>True if there are no users yet; used to grant the first user the App Admin role.</summary>
     Task<bool> AnyAsync(CancellationToken ct = default);
+
+    /// <summary>All users, ordered by display name. Admin-only — used by the user-management screen.</summary>
+    Task<IReadOnlyList<AppUser>> ListAllAsync(CancellationToken ct = default);
+
+    /// <summary>Count of users holding the App Admin role; used to prevent demoting the last admin.</summary>
+    Task<int> CountAdminsAsync(CancellationToken ct = default);
 }

@@ -10,6 +10,12 @@ public interface IIngredientRepository
     /// </summary>
     Task<IReadOnlyList<Ingredient>> ListVisibleAsync(string userId, string? search = null, CancellationToken ct = default);
 
+    /// <summary>
+    /// Returns every ingredient regardless of owner. Admin-only ("view all"); callers must gate on
+    /// <c>IsActingAsAdmin</c>. Optionally filters by a case-insensitive name search.
+    /// </summary>
+    Task<IReadOnlyList<Ingredient>> ListAllAsync(string? search = null, CancellationToken ct = default);
+
     Task<Ingredient?> GetByIdAsync(string id, CancellationToken ct = default);
 
     Task<Ingredient> AddAsync(Ingredient ingredient, CancellationToken ct = default);

@@ -17,9 +17,17 @@ public sealed class IngredientService
 
     public IngredientService(IIngredientRepository repo) => _repo = repo;
 
-    public async Task<IReadOnlyList<IngredientDto>> ListAsync(AppUser user, string? search, CancellationToken ct)
+    /// <summary>
+    /// Lists ingredients visible to the user. When <paramref name="all"/> is set AND the caller is
+    /// acting as an admin, returns every user's ingredients; otherwise the flag is ignored and the
+    /// result stays scoped to app-level + the caller's own.
+    /// </summary>
+    public async Task<IReadOnlyList<IngredientDto>> ListAsync(
+        AppUser user, string? search, bool all = false, CancellationToken ct = default)
     {
-        var items = await _repo.ListVisibleAsync(user.Id, search, ct);
+        var items = all && user.IsActingAsAdmin
+            ? await _repo.ListAllAsync(search, ct)
+            : await _repo.ListVisibleAsync(user.Id, search, ct);
         return items.Select(i => ToDto(i, user)).ToList();
     }
 

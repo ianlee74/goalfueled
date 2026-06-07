@@ -29,7 +29,9 @@ public sealed class RecipeFunctions
         ApiEndpoint.RunAuthenticated(req, _auth, async user =>
         {
             var search = req.Query["search"].FirstOrDefault();
-            var result = await _recipes.ListAsync(user, search, req.HttpContext.RequestAborted);
+            // Admin "view all": honored only when the caller is acting as an admin (enforced in the service).
+            var all = req.Query["all"].FirstOrDefault() == "true";
+            var result = await _recipes.ListAsync(user, search, all, req.HttpContext.RequestAborted);
             return HttpResults.Ok(result);
         });
 

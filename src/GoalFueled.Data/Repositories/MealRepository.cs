@@ -27,6 +27,20 @@ public class MealRepository : IMealRepository
         return await query.OrderBy(m => m.Name).ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<Meal>> ListAllAsync(string? search = null, CancellationToken ct = default)
+    {
+        // Admin "view all": every meal regardless of owner/scope.
+        var query = _db.Meals.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim().ToLower();
+            query = query.Where(m => m.Name.ToLower().Contains(term));
+        }
+
+        return await query.OrderBy(m => m.Name).ToListAsync(ct);
+    }
+
     public Task<Meal?> GetByIdAsync(string id, CancellationToken ct = default) =>
         _db.Meals.FirstOrDefaultAsync(m => m.Id == id, ct);
 

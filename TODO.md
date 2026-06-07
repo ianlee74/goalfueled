@@ -21,12 +21,6 @@ Ignore all files in the `Future Features` section.
 - [ ] Set `GoalFueled:Auth:EnableDevAuth=false` in deployed environments; keep dev auth local-only.
 - [ ] Account linking: allow one profile reached via multiple providers (the `ExternalLogins`/`LoginKeys` model already supports it).
 
-### Admin features & user management
-
-- [ ] Admin user-management screen: list users, **promote/demote App Admin** role.
-- [ ] Admin views to browse/modify **all** users' data (ingredients/recipes/meals/plans) — RBAC already allows it server-side; add the UI.
-- [ ] Confirm the admin-view toggle hides/shows admin-only UI consistently across new screens.
-
 ### Security & polish
 
 - [ ] **Sanitize HTML** in ingredient/recipe descriptions before rendering (they may contain HTML — prevent XSS).

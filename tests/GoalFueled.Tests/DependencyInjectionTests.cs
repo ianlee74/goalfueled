@@ -41,6 +41,7 @@ public class DependencyInjectionTests
         services.AddScoped<RecipeService>();
         services.AddScoped<MealService>();
         services.AddScoped<MealPlanService>();
+        services.AddScoped<UserAdminService>();
 
         return services.BuildServiceProvider(new ServiceProviderOptions
         {
@@ -62,6 +63,7 @@ public class DependencyInjectionTests
         Assert.NotNull(sp.GetRequiredService<RecipeService>());
         Assert.NotNull(sp.GetRequiredService<MealService>());
         Assert.NotNull(sp.GetRequiredService<MealPlanService>());
+        Assert.NotNull(sp.GetRequiredService<UserAdminService>());
         Assert.NotNull(sp.GetRequiredService<IUserRepository>());
         Assert.NotNull(sp.GetRequiredService<IIngredientRepository>());
         Assert.NotNull(sp.GetRequiredService<IRecipeRepository>());

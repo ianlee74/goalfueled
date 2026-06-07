@@ -45,6 +45,17 @@ export interface CurrentUser {
   hasCompletedOnboarding: boolean
 }
 
+/** A user as shown on the admin user-management screen. */
+export interface AdminUser {
+  id: string
+  email: string
+  displayName: string
+  avatarUrl?: string
+  roles: AppRole[]
+  isAdmin: boolean
+  isSelf: boolean
+}
+
 export interface Ingredient {
   id: string
   name: string

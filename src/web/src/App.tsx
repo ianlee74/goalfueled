@@ -12,6 +12,7 @@ import { MealsPage } from './pages/MealsPage'
 import { MealFormPage } from './pages/MealFormPage'
 import { PlansPage } from './pages/PlansPage'
 import { PlanFormPage } from './pages/PlanFormPage'
+import { UsersPage } from './pages/UsersPage'
 
 export default function App() {
   const { devUser, profile, loading } = useAuth()
@@ -55,6 +56,7 @@ export default function App() {
         <Route path="/meals/:id" element={<MealFormPage />} />
         <Route path="/plans" element={<PlansPage />} />
         <Route path="/plans/:id" element={<PlanFormPage />} />
+        <Route path="/users" element={<UsersPage />} />
         <Route path="*" element={<Navigate to="/ingredients" replace />} />
       </Route>
     </Routes>

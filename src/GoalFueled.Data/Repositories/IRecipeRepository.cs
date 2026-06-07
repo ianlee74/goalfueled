@@ -11,6 +11,12 @@ public interface IRecipeRepository
     Task<IReadOnlyList<Recipe>> ListVisibleAsync(string userId, string? search = null, CancellationToken ct = default);
 
     /// <summary>
+    /// Returns every recipe regardless of owner/visibility. Admin-only ("view all"); callers must gate
+    /// on <c>IsActingAsAdmin</c>. Optionally filters by a case-insensitive name search.
+    /// </summary>
+    Task<IReadOnlyList<Recipe>> ListAllAsync(string? search = null, CancellationToken ct = default);
+
+    /// <summary>
     /// Returns all recipes currently awaiting admin review (the public-recipe review queue).
     /// </summary>
     Task<IReadOnlyList<Recipe>> ListPendingReviewAsync(CancellationToken ct = default);

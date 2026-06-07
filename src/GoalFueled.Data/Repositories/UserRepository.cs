@@ -1,3 +1,4 @@
+using GoalFueled.Domain;
 using GoalFueled.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -32,4 +33,15 @@ public class UserRepository : IUserRepository
     }
 
     public Task<bool> AnyAsync(CancellationToken ct = default) => _db.Users.AnyAsync(ct);
+
+    public async Task<IReadOnlyList<AppUser>> ListAllAsync(CancellationToken ct = default) =>
+        await _db.Users.OrderBy(u => u.DisplayName).ToListAsync(ct);
+
+    public async Task<int> CountAdminsAsync(CancellationToken ct = default)
+    {
+        // Roles is an owned collection, so count the admin role in memory after materializing the
+        // (small) user set rather than relying on provider-specific translation of List.Contains.
+        var users = await _db.Users.ToListAsync(ct);
+        return users.Count(u => u.Roles.Contains(AppRole.AppAdmin));
+    }
 }

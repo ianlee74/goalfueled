@@ -10,6 +10,11 @@ const NAV = [
   { to: '/plans', label: 'Plans', ico: '📅' },
 ]
 
+// Admin-only nav entries, surfaced only while the admin view is enabled.
+const ADMIN_NAV = [
+  { to: '/users', label: 'Users', ico: '👥' },
+]
+
 export function Layout() {
   const { profile, signOut, refresh } = useAuth()
   const [busy, setBusy] = useState(false)
@@ -51,7 +56,8 @@ export function Layout() {
       </main>
 
       <nav className="bottom-nav">
-        {NAV.map((n) => (
+        {/* Admin nav entries appear only while the admin view is enabled. */}
+        {(profile?.isActingAsAdmin ? [...NAV, ...ADMIN_NAV] : NAV).map((n) => (
           <NavLink key={n.to} to={n.to} className={({ isActive }) => (isActive ? 'active' : '')}>
             <span className="ico">{n.ico}</span>
             {n.label}

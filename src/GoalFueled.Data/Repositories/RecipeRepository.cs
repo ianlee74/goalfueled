@@ -28,6 +28,20 @@ public class RecipeRepository : IRecipeRepository
         return await query.OrderBy(r => r.Name).ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<Recipe>> ListAllAsync(string? search = null, CancellationToken ct = default)
+    {
+        // Admin "view all": every recipe regardless of owner/scope/visibility.
+        var query = _db.Recipes.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim().ToLower();
+            query = query.Where(r => r.Name.ToLower().Contains(term));
+        }
+
+        return await query.OrderBy(r => r.Name).ToListAsync(ct);
+    }
+
     public async Task<IReadOnlyList<Recipe>> ListPendingReviewAsync(CancellationToken ct = default)
     {
         return await _db.Recipes

@@ -1,6 +1,6 @@
 import { api } from './client'
 import type {
-  CurrentUser, GoalType, Ingredient, IngredientInput, Meal, MealInput,
+  AdminUser, CurrentUser, GoalType, Ingredient, IngredientInput, Meal, MealInput,
   MealPlan, MealPlanInput, NutrientDefinition, Recipe, RecipeInput,
 } from './types'
 
@@ -12,9 +12,25 @@ export const userApi = {
     api.post<CurrentUser>('/me/admin-view', { enabled }),
 }
 
+// Admin-only user management. Endpoints return 403 unless the caller is acting as an admin.
+export const adminApi = {
+  listUsers: () => api.get<AdminUser[]>('/admin/users'),
+  setAdminRole: (id: string, isAdmin: boolean) =>
+    api.post<AdminUser>(`/admin/users/${id}/admin-role`, { isAdmin }),
+}
+
+// Builds a `?search=…&all=…` query string. `all` is honored server-side only for acting admins.
+function listQuery(search?: string, all?: boolean): string {
+  const params = new URLSearchParams()
+  if (search) params.set('search', search)
+  if (all) params.set('all', 'true')
+  const qs = params.toString()
+  return qs ? `?${qs}` : ''
+}
+
 export const ingredientApi = {
-  list: (search?: string) =>
-    api.get<Ingredient[]>(`/ingredients${search ? `?search=${encodeURIComponent(search)}` : ''}`),
+  list: (search?: string, all?: boolean) =>
+    api.get<Ingredient[]>(`/ingredients${listQuery(search, all)}`),
   get: (id: string) => api.get<Ingredient>(`/ingredients/${id}`),
   create: (input: IngredientInput) => api.post<Ingredient>('/ingredients', input),
   update: (id: string, input: IngredientInput) => api.put<Ingredient>(`/ingredients/${id}`, input),
@@ -22,8 +38,8 @@ export const ingredientApi = {
 }
 
 export const recipeApi = {
-  list: (search?: string) =>
-    api.get<Recipe[]>(`/recipes${search ? `?search=${encodeURIComponent(search)}` : ''}`),
+  list: (search?: string, all?: boolean) =>
+    api.get<Recipe[]>(`/recipes${listQuery(search, all)}`),
   get: (id: string) => api.get<Recipe>(`/recipes/${id}`),
   create: (input: RecipeInput) => api.post<Recipe>('/recipes', input),
   update: (id: string, input: RecipeInput) => api.put<Recipe>(`/recipes/${id}`, input),
@@ -36,8 +52,8 @@ export const recipeApi = {
 }
 
 export const mealApi = {
-  list: (search?: string) =>
-    api.get<Meal[]>(`/meals${search ? `?search=${encodeURIComponent(search)}` : ''}`),
+  list: (search?: string, all?: boolean) =>
+    api.get<Meal[]>(`/meals${listQuery(search, all)}`),
   get: (id: string) => api.get<Meal>(`/meals/${id}`),
   create: (input: MealInput) => api.post<Meal>('/meals', input),
   update: (id: string, input: MealInput) => api.put<Meal>(`/meals/${id}`, input),
@@ -45,8 +61,8 @@ export const mealApi = {
 }
 
 export const mealPlanApi = {
-  list: (search?: string) =>
-    api.get<MealPlan[]>(`/mealplans${search ? `?search=${encodeURIComponent(search)}` : ''}`),
+  list: (search?: string, all?: boolean) =>
+    api.get<MealPlan[]>(`/mealplans${listQuery(search, all)}`),
   get: (id: string) => api.get<MealPlan>(`/mealplans/${id}`),
   create: (input: MealPlanInput) => api.post<MealPlan>('/mealplans', input),
   update: (id: string, input: MealPlanInput) => api.put<MealPlan>(`/mealplans/${id}`, input),

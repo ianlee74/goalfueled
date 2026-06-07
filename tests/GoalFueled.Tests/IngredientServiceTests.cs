@@ -112,6 +112,50 @@ public class IngredientServiceTests
     }
 
     [Fact]
+    public async Task Admin_all_flag_returns_other_users_private_ingredients()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, svc) = await SetupAsync(db);
+
+        var mine = await svc.CreateAsync(user, Input("Secret Sauce"), default);
+
+        // Default (scoped) admin list does not include another user's private item...
+        var scoped = await svc.ListAsync(admin, null, all: false, default);
+        Assert.DoesNotContain(scoped, i => i.Id == mine.Id);
+
+        // ...but the admin "view all" flag surfaces it.
+        var all = await svc.ListAsync(admin, null, all: true, default);
+        Assert.Contains(all, i => i.Id == mine.Id);
+    }
+
+    [Fact]
+    public async Task All_flag_is_ignored_for_non_admins()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, svc) = await SetupAsync(db);
+
+        // Admin owns a private item the user must never see, even when passing all=true.
+        var adminPrivate = await svc.CreateAsync(admin, Input("Admin Private"), default);
+
+        var asUser = await svc.ListAsync(user, null, all: true, default);
+        Assert.DoesNotContain(asUser, i => i.Id == adminPrivate.Id);
+    }
+
+    [Fact]
+    public async Task All_flag_is_ignored_when_admin_view_is_off()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, svc) = await SetupAsync(db);
+
+        var mine = await svc.CreateAsync(user, Input("Secret Sauce"), default);
+
+        // Admin with the admin view turned off behaves like a regular user; all=true is a no-op.
+        admin.AdminViewEnabled = false;
+        var list = await svc.ListAsync(admin, null, all: true, default);
+        Assert.DoesNotContain(list, i => i.Id == mine.Id);
+    }
+
+    [Fact]
     public async Task Validation_rejects_empty_name_and_unknown_nutrient()
     {
         using var db = TestHelpers.NewContext();

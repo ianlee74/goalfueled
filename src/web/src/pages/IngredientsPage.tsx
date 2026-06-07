@@ -1,22 +1,27 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ingredientApi } from '../api/services'
+import { useAuth } from '../auth/AuthContext'
 import { UNIT_LABELS, type Ingredient } from '../api/types'
 
 export function IngredientsPage() {
+  const { profile } = useAuth()
   const [items, setItems] = useState<Ingredient[]>([])
   const [search, setSearch] = useState('')
+  const [showAll, setShowAll] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Debounced search.
+  const isAdmin = !!profile?.isActingAsAdmin
+
+  // Debounced search. The admin "show all" flag is only sent when acting as an admin.
   useEffect(() => {
     let cancelled = false
     const handle = setTimeout(async () => {
       setLoading(true)
       setError(null)
       try {
-        const result = await ingredientApi.list(search.trim() || undefined)
+        const result = await ingredientApi.list(search.trim() || undefined, isAdmin && showAll)
         if (!cancelled) setItems(result)
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load ingredients.')
@@ -25,7 +30,7 @@ export function IngredientsPage() {
       }
     }, 250)
     return () => { cancelled = true; clearTimeout(handle) }
-  }, [search])
+  }, [search, showAll, isAdmin])
 
   return (
     <div className="stack">
@@ -40,6 +45,13 @@ export function IngredientsPage() {
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
+
+      {isAdmin && (
+        <label className="toggle" title="Show items owned by all users">
+          <input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} />
+          Show all users' items
+        </label>
+      )}
 
       {error && <div className="notice error">{error}</div>}
       {loading && items.length === 0 && <p className="muted">Loading…</p>}
