@@ -21,6 +21,9 @@ public class DependencyInjectionTests
             {
                 ["GoalFueled:UseInMemoryStore"] = "true",
                 ["GoalFueled:Auth:EnableDevAuth"] = "true",
+                // ImageStorageService reads this at construction; Azurite's well-known dev value is fine here
+                // (no blob I/O happens — the client is only created, never connected).
+                ["AzureWebJobsStorage"] = "UseDevelopmentStorage=true",
             })
             .Build();
 
@@ -33,6 +36,7 @@ public class DependencyInjectionTests
         services.AddGoalFueledData(config);
         services.AddSingleton<IIdentityProvider, DevIdentityProvider>();
         services.AddScoped<IAuthenticator, Authenticator>();
+        services.AddSingleton<ImageStorageService>();
         services.AddScoped<IngredientService>();
         services.AddScoped<RecipeService>();
         services.AddScoped<MealService>();
@@ -53,6 +57,7 @@ public class DependencyInjectionTests
         var sp = scope.ServiceProvider;
 
         Assert.NotNull(sp.GetRequiredService<IAuthenticator>());
+        Assert.NotNull(sp.GetRequiredService<ImageStorageService>());
         Assert.NotNull(sp.GetRequiredService<IngredientService>());
         Assert.NotNull(sp.GetRequiredService<RecipeService>());
         Assert.NotNull(sp.GetRequiredService<MealService>());

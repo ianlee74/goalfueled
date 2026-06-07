@@ -30,6 +30,7 @@ builder.Services.AddSingleton<IIdentityProvider, DevIdentityProvider>();
 // builder.Services.AddSingleton<IIdentityProvider, EntraExternalIdProvider>(); // enable for real social login
 
 builder.Services.AddScoped<IAuthenticator, Authenticator>();
+builder.Services.AddSingleton<ImageStorageService>();
 builder.Services.AddScoped<IngredientService>();
 builder.Services.AddScoped<RecipeService>();
 builder.Services.AddScoped<MealService>();

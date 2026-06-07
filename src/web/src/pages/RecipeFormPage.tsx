@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ingredientApi, recipeApi } from '../api/services'
+import { ImageUpload } from '../components/ImageUpload'
 import { NutritionLabel } from '../components/NutritionLabel'
 import { useAuth } from '../auth/AuthContext'
 import {
@@ -190,11 +191,7 @@ export function RecipeFormPage() {
             onChange={(e) => setDescription(e.target.value)} />
         </label>
 
-        <label className="field">
-          Image URL <span className="hint">Direct upload to blob storage is a planned enhancement</span>
-          <input className="input" value={imageUrl} disabled={readOnly}
-            onChange={(e) => setImageUrl(e.target.value)} placeholder="https://…" />
-        </label>
+        <ImageUpload value={imageUrl} onChange={setImageUrl} disabled={readOnly} />
 
         <label className="field" style={{ maxWidth: 160 }}>
           Servings

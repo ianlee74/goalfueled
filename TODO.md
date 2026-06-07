@@ -12,12 +12,6 @@ Ignore all files in the `Future Features` section.
 > Build each feature following the Ingredients pattern: Domain model → Data repository → Api service +
 > functions (with RBAC) → React pages.
 
-### Image upload (Azure Blob Storage)
-
-- [ ] API endpoint to upload images (or issue a short-lived SAS) into the `images` blob container provisioned in `infra/`.
-- [ ] Replace the image-**URL** fields on Ingredient & Recipe forms with a direct **upload** component (preview, validation, size limit).
-- [ ] Store/serve the returned blob URL; handle delete/replace.
-
 ### Real authentication (Microsoft Entra External ID)
 
 - [ ] Provision an Entra External ID tenant + user flow; add **Google**, **Microsoft**, **Facebook** social IdPs.

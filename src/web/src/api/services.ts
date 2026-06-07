@@ -56,3 +56,8 @@ export const mealPlanApi = {
 export const nutrientApi = {
   list: () => api.get<NutrientDefinition[]>('/nutrients'),
 }
+
+export const imageApi = {
+  // Uploads an image and returns its public blob URL.
+  upload: (file: File) => api.upload<{ url: string }>('/images', file),
+}

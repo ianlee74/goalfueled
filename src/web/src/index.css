@@ -108,6 +108,10 @@ label.field .hint { font-weight: 400; color: var(--muted); font-size: 0.8rem; }
 }
 .ingredient-thumb img { width: 100%; height: 100%; object-fit: cover; }
 
+.image-upload { display: flex; align-items: center; gap: 0.75rem; }
+.image-upload-preview { width: 72px; height: 72px; }
+.image-upload input[type='file'] { font-size: 0.85rem; }
+
 .toggle { display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.85rem; }
 .toggle input { width: 38px; height: 22px; }
 
