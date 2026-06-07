@@ -6,6 +6,26 @@
 
 ## Completed Items
 
+### Move menus to a hamburger menu — 2026-06-07 16:55 CDT
+
+- [x] Removed the persistent bottom navigation bar and moved its links into a hamburger (☰) menu
+
+**NOTES:**
+- `components/Layout.tsx`: added `menuOpen` state; a `☰` button in the header (left, next to the brand) toggles a `.nav-drawer` rendered just below the header. The drawer renders the same `NAV` links plus `ADMIN_NAV`, still gated on `profile?.isActingAsAdmin`. Each link closes the drawer on click; `NavLink` active styling preserved. Brand, admin-view toggle, and Sign out untouched.
+- `index.css`: replaced `.bottom-nav` rules with `.hamburger` + `.nav-drawer` (sticky below header, active/hover states using existing CSS vars); removed the `.app-shell` `padding-bottom: 64px` and the stale `.bottom-nav` media-query rule.
+- Decision: a temporary nav treatment per the task ("until we decide what the UI design will look like").
+- Verified: web `npm run build` ✓ and `npm run lint` 0 errors (1 pre-existing warning in `AuthContext.tsx`, unrelated).
+
+### Show whole-recipe & per-serving nutrition side-by-side — 2026-06-07 16:55 CDT
+
+- [x] Recipe form now shows a single nutrition table with separate "Whole recipe" and "Per serving" columns instead of two stacked tables
+
+**NOTES:**
+- `components/NutritionLabel.tsx`: extended to a backwards-compatible API — accepts either the legacy `amounts: NutrientAmount[]` prop or a new `columns: { label, amounts }[]` prop. Single-column form is normalized internally to one unlabeled column, so existing callers (`PlanFormPage`, `MealFormPage`) were left unchanged. Rows stay in catalog order (`useNutrients` `ordered`/`byId`) with `core` styling; a `<thead>` with labels renders only when >1 column; missing values per column show a muted dash. Exported `NutritionColumn` interface.
+- `pages/RecipeFormPage.tsx`: replaced the two `<NutritionLabel>` tables with one using the `columns` prop ("Whole recipe" / "Per serving") under a single Nutrition heading.
+- `index.css`: added minimal `.nutri-table th` / `.nutri-table th.val` header styling.
+- Verified: web `npm run build` ✓ and `npm run lint` 0 errors (1 pre-existing warning, unrelated).
+
 ### Security & polish — 2026-06-07 14:30 CDT
 
 - [x] Sanitize HTML in ingredient/recipe descriptions before rendering (XSS prevention)
