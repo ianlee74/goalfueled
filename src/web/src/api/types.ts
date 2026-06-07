@@ -220,6 +220,25 @@ export interface MealPlanInput {
   untimedItems: UntimedItemInput[]
 }
 
+export type WeightUnit = 'Pound' | 'Kilogram'
+
+export interface WeightEntry {
+  id: string
+  // Calendar day, serialized "yyyy-MM-dd".
+  date: string
+  value: number
+  unit: WeightUnit
+  createdAt: string
+  updatedAt: string
+}
+
+export interface WeightEntryInput {
+  value: number
+  unit: WeightUnit
+  // Optional "yyyy-MM-dd"; defaults to today server-side when omitted.
+  date?: string
+}
+
 // Friendly labels for the recipe visibility lifecycle.
 export const RECIPE_VISIBILITY_LABELS: Record<RecipeVisibility, string> = {
   Private: 'Private',
@@ -249,6 +268,10 @@ export const NUTRIENT_UNIT_ABBR: Record<NutrientUnit, string> = {
 
 export const MEAL_PLAN_CADENCE_LABELS: Record<MealPlanCadence, string> = {
   Daily: 'Daily', Weekly: 'Weekly',
+}
+
+export const WEIGHT_UNIT_LABELS: Record<WeightUnit, string> = {
+  Pound: 'lb', Kilogram: 'kg',
 }
 
 // Days of week in the order .NET's System.DayOfWeek enumerates them (Sunday = 0).

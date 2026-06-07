@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { ingredientApi, mealApi, mealPlanApi } from '../api/services'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { ingredientApi, mealApi, mealPlanApi, weightApi } from '../api/services'
 import { NutritionLabel } from '../components/NutritionLabel'
 import { useAuth } from '../auth/AuthContext'
 import {
@@ -26,6 +26,13 @@ interface UntimedRow {
 
 let nextKey = 1
 
+// Today's calendar date as "yyyy-MM-dd" in the user's local time.
+function todayIso(): string {
+  const now = new Date()
+  const offset = now.getTimezoneOffset() * 60_000
+  return new Date(now.getTime() - offset).toISOString().slice(0, 10)
+}
+
 export function PlanFormPage() {
   const { id } = useParams<{ id: string }>()
   const isNew = !id || id === 'new'
@@ -45,6 +52,26 @@ export function PlanFormPage() {
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Weight gate: before *starting* (creating) a meal plan the user must have logged a weight for
+  // today. `null` = not yet checked; once known it gates the whole new-plan form. Editing an existing
+  // plan is never gated.
+  const [weightLoggedToday, setWeightLoggedToday] = useState<boolean | null>(isNew ? null : true)
+
+  // Check the weight gate when creating a new plan: require a weight entry dated today.
+  useEffect(() => {
+    if (!isNew) return
+    let cancelled = false
+    weightApi.list()
+      .then((list) => {
+        if (cancelled) return
+        const today = todayIso()
+        setWeightLoggedToday(list.some((e) => e.date === today))
+      })
+      // If the check fails, fail open so a transient error can't permanently block plan creation.
+      .catch(() => { if (!cancelled) setWeightLoggedToday(true) })
+    return () => { cancelled = true }
+  }, [isNew])
 
   // Load picker options once.
   useEffect(() => {
@@ -146,6 +173,11 @@ export function PlanFormPage() {
 
   async function save(): Promise<string | null> {
     setError(null)
+    // Guard the gate server-trip-free: a new plan can't be started without today's weight.
+    if (isNew && weightLoggedToday === false) {
+      setError('Record your current weight before starting a meal plan.')
+      return null
+    }
     if (!name.trim()) { setError('Name is required.'); return null }
     setSaving(true)
     try {
@@ -180,6 +212,26 @@ export function PlanFormPage() {
   if (loading) return <p className="muted">Loading…</p>
 
   const readOnly = !isNew && !canEdit
+
+  // Gate: starting a new plan requires today's weight to be recorded first.
+  if (isNew && weightLoggedToday === null) return <p className="muted">Loading…</p>
+  if (isNew && weightLoggedToday === false) {
+    return (
+      <div className="stack">
+        <div className="row spread">
+          <h1>New meal plan</h1>
+          <button className="btn btn-sm" onClick={() => navigate(-1)}>Back</button>
+        </div>
+        <div className="card stack">
+          <h2>Record your weight first</h2>
+          <p className="muted" style={{ margin: 0 }}>
+            Before starting a meal plan, log your current weight so we can track your progress.
+          </p>
+          <Link className="btn btn-primary" to="/weight">Go to Weight</Link>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="stack">

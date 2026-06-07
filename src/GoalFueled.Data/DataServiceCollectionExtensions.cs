@@ -36,6 +36,7 @@ public static class DataServiceCollectionExtensions
         services.AddScoped<IRecipeRepository, RecipeRepository>();
         services.AddScoped<IMealRepository, MealRepository>();
         services.AddScoped<IMealPlanRepository, MealPlanRepository>();
+        services.AddScoped<IWeightEntryRepository, WeightEntryRepository>();
         services.AddScoped<DatabaseInitializer>();
 
         return services;

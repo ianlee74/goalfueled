@@ -35,6 +35,9 @@ public static class InputLimits
     /// <summary>Max untimed items in a single meal plan.</summary>
     public const int UntimedItemsMax = 200;
 
+    /// <summary>Upper bound for a recorded weight value (covers any plausible lb or kg figure).</summary>
+    public const double WeightValueMax = 5_000;
+
     /// <summary>Validates a required string is non-empty and within <paramref name="maxLength"/>.</summary>
     public static void RequireText(string? value, int maxLength, string label)
     {

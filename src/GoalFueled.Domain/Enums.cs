@@ -45,6 +45,13 @@ public enum MealPlanCadence
     Weekly = 1
 }
 
+/// <summary>The unit a recorded weight measurement is expressed in.</summary>
+public enum WeightUnit
+{
+    Pound = 0,
+    Kilogram = 1
+}
+
 /// <summary>
 /// Units used to define a single serving of an ingredient. Grouped into mass, volume and count.
 /// Conversions between compatible units live in <see cref="UnitOfMeasureInfo"/>.

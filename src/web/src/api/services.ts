@@ -2,6 +2,7 @@ import { api } from './client'
 import type {
   AdminUser, CurrentUser, GoalType, Ingredient, IngredientInput, Meal, MealInput,
   MealPlan, MealPlanInput, NutrientDefinition, Recipe, RecipeInput,
+  WeightEntry, WeightEntryInput,
 } from './types'
 
 export const userApi = {
@@ -67,6 +68,13 @@ export const mealPlanApi = {
   create: (input: MealPlanInput) => api.post<MealPlan>('/mealplans', input),
   update: (id: string, input: MealPlanInput) => api.put<MealPlan>(`/mealplans/${id}`, input),
   remove: (id: string) => api.del(`/mealplans/${id}`),
+}
+
+export const weightApi = {
+  // The caller's own weight history, most recent first.
+  list: () => api.get<WeightEntry[]>('/weights'),
+  // Records (or, for an existing day, updates) a dated weight entry.
+  record: (input: WeightEntryInput) => api.post<WeightEntry>('/weights', input),
 }
 
 export const nutrientApi = {

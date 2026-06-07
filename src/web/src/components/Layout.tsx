@@ -8,6 +8,7 @@ const NAV = [
   { to: '/recipes', label: 'Recipes', ico: '🍳' },
   { to: '/meals', label: 'Meals', ico: '🍽️' },
   { to: '/plans', label: 'Plans', ico: '📅' },
+  { to: '/weight', label: 'Weight', ico: '⚖️' },
 ]
 
 // Admin-only nav entries, surfaced only while the admin view is enabled.
