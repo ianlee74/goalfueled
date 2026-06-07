@@ -6,6 +6,17 @@
 
 ## Completed Items
 
+### Add date when logging weight — 2026-06-07 17:35 CDT
+
+- [x] Users can choose the measurement date when logging weight (for historical/back-dated entries); still defaults to today
+
+**NOTES:**
+- Backend already accepted an optional `Date` end-to-end (`WeightEntryInput`, `RecordAsync` upsert-by-date), so this was mostly UI plus validation.
+- `pages/WeightPage.tsx`: added a `<input type="date">` (defaults to today via existing `todayIso()`, `max={today}` to block future dates) next to weight/unit; `record()` now passes the selected `date`. Replaced the hard-coded `recordedToday` with an `alreadyLogged` flag derived from `entries.some(e => e.date === date)`, so the heading/button show "Update" vs "Record" for the *selected* date and the hint reflects it. Date resets to today after a successful save; local upsert-by-date (sorted desc) places back-dated entries correctly.
+- `Services/WeightService.cs`: added defense-in-depth `Validate` rule rejecting a future date (`"Weight date cannot be in the future."`) using `DateOnly.FromDateTime(DateTime.UtcNow)`; far-past dates allowed.
+- Tests: `WeightServiceTests` gained past-date-creates-on-that-date, future-date-throws, and same-past-date-twice-updates cases.
+- Verified (conductor re-ran): `dotnet test -c Release` → 99 passed/0 failed; web `npm run build` ✓; `npm run lint` 0 errors (1 pre-existing warning in `AuthContext.tsx`).
+
 ### Add weight tracking — 2026-06-07 17:10 CDT
 
 - [x] New per-user weight-tracking vertical slice (record daily weight, view history) with a meal-plan creation gate requiring a current weight

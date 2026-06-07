@@ -6,12 +6,6 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-> Context: The MVP scaffold + the **Ingredients** vertical slice are complete (full CRUD, nutrition,
-> app/user scoping, RBAC). Auth seam + local dev login, profile provisioning, first-user-becomes-admin,
-> admin-view toggle, and first-login onboarding are done. The items below are the remaining MVP work.
-> Build each feature following the Ingredients pattern: Domain model → Data repository → Api service +
-> functions (with RBAC) → React pages.
-
 ## FUTURE FEATURES
 
 >[AI Agent] skip ALL items in this section.
