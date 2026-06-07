@@ -18,6 +18,8 @@ const ADMIN_NAV = [
 export function Layout() {
   const { profile, signOut, refresh } = useAuth()
   const [busy, setBusy] = useState(false)
+  // Hamburger menu open/closed state. The nav lives in a drawer until the final UI is decided.
+  const [menuOpen, setMenuOpen] = useState(false)
 
   async function toggleAdminView(enabled: boolean) {
     setBusy(true)
@@ -32,8 +34,18 @@ export function Layout() {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <div className="brand">
-          <span className="brand-mark">●</span> GoalFueled
+        <div className="row" style={{ gap: '0.6rem' }}>
+          <button
+            className="hamburger"
+            aria-label="Toggle navigation menu"
+            aria-expanded={menuOpen ? 'true' : 'false'}
+            onClick={() => setMenuOpen((o) => !o)}
+          >
+            ☰
+          </button>
+          <div className="brand">
+            <span className="brand-mark">●</span> GoalFueled
+          </div>
         </div>
         <div className="row" style={{ gap: '0.75rem' }}>
           {profile?.isAdmin && (
@@ -51,19 +63,27 @@ export function Layout() {
         </div>
       </header>
 
+      {/* Navigation drawer toggled by the hamburger button. */}
+      {menuOpen && (
+        <nav className="nav-drawer">
+          {/* Admin nav entries appear only while the admin view is enabled. */}
+          {(profile?.isActingAsAdmin ? [...NAV, ...ADMIN_NAV] : NAV).map((n) => (
+            <NavLink
+              key={n.to}
+              to={n.to}
+              className={({ isActive }) => (isActive ? 'active' : '')}
+              onClick={() => setMenuOpen(false)}
+            >
+              <span className="ico">{n.ico}</span>
+              {n.label}
+            </NavLink>
+          ))}
+        </nav>
+      )}
+
       <main className="app-main">
         <Outlet />
       </main>
-
-      <nav className="bottom-nav">
-        {/* Admin nav entries appear only while the admin view is enabled. */}
-        {(profile?.isActingAsAdmin ? [...NAV, ...ADMIN_NAV] : NAV).map((n) => (
-          <NavLink key={n.to} to={n.to} className={({ isActive }) => (isActive ? 'active' : '')}>
-            <span className="ico">{n.ico}</span>
-            {n.label}
-          </NavLink>
-        ))}
-      </nav>
     </div>
   )
 }
