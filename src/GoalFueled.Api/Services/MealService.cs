@@ -119,8 +119,8 @@ public sealed class MealService
 
     private async Task ValidateAsync(MealInput input, AppUser user, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(input.Name))
-            throw new ValidationException("Name is required.");
+        InputLimits.RequireText(input.Name, InputLimits.NameMaxLength, "Name");
+        InputLimits.LimitCount(input.Portions?.Count ?? 0, InputLimits.MealPortionsMax, "meal portions");
 
         foreach (var portion in input.Portions ?? Array.Empty<MealPortionInput>())
         {

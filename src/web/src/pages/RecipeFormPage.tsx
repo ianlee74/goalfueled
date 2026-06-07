@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ingredientApi, recipeApi } from '../api/services'
 import { ImageUpload } from '../components/ImageUpload'
 import { NutritionLabel } from '../components/NutritionLabel'
+import { SanitizedHtml } from '../components/SanitizedHtml'
 import { useAuth } from '../auth/AuthContext'
 import {
   RECIPE_VISIBILITY_LABELS, UNIT_LABELS,
@@ -190,6 +191,13 @@ export function RecipeFormPage() {
           <textarea className="input" rows={3} value={description} disabled={readOnly}
             onChange={(e) => setDescription(e.target.value)} />
         </label>
+
+        {description.trim() && (
+          <div className="field">
+            Preview <span className="hint">sanitized</span>
+            <SanitizedHtml className="html-preview" html={description} />
+          </div>
+        )}
 
         <ImageUpload value={imageUrl} onChange={setImageUrl} disabled={readOnly} />
 

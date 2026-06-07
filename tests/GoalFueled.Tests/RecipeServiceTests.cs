@@ -170,6 +170,63 @@ public class RecipeServiceTests
                 new RecipeItemInput(flour.Id, 1, UnitOfMeasure.Cup)), default));
     }
 
+    [Fact]
+    public async Task Validation_rejects_oversized_name_description_and_items()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, ingredients, recipes) = await SetupAsync(db);
+
+        // Name over 200 chars.
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            recipes.CreateAsync(user, Recipe(new string('x', 201), 1, false), default));
+
+        // Description over 10,000 chars.
+        var longDesc = new RecipeInput(
+            "Ok", new string('d', 10_001), null, new List<RecipeItemInput>(), 1, false);
+        await Assert.ThrowsAsync<ValidationException>(() => recipes.CreateAsync(user, longDesc, default));
+
+        // More items than allowed (use a real app-level ingredient so only the count cap trips).
+        var flour = await ingredients.CreateAsync(admin, Ingredient("Flour", UnitOfMeasure.Gram, 100, true), default);
+        var manyItems = Enumerable.Range(0, 101)
+            .Select(_ => new RecipeItemInput(flour.Id, 1, UnitOfMeasure.Gram)).ToArray();
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            recipes.CreateAsync(user, Recipe("Too many", 1, false, manyItems), default));
+    }
+
+    [Fact]
+    public async Task Description_is_sanitized_on_save()
+    {
+        using var db = TestHelpers.NewContext();
+        var (_, user, _, recipes) = await SetupAsync(db);
+
+        var input = new RecipeInput(
+            "Dangerous", "<b>Tasty</b><script>steal()</script>", null,
+            new List<RecipeItemInput>(), 1, false);
+        var created = await recipes.CreateAsync(user, input, default);
+
+        Assert.DoesNotContain("<script", created.Description, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Tasty", created.Description);
+    }
+
+    [Fact]
+    public async Task Submit_for_review_is_capped_per_user()
+    {
+        using var db = TestHelpers.NewContext();
+        var (_, user, _, recipes) = await SetupAsync(db);
+
+        // Fill the pending-review queue to the cap (10).
+        for (var i = 0; i < 10; i++)
+        {
+            var r = await recipes.CreateAsync(user, Recipe($"Candidate {i}", 1, false), default);
+            await recipes.SubmitForReviewAsync(user, r.Id, default);
+        }
+
+        // The 11th submission is rejected.
+        var extra = await recipes.CreateAsync(user, Recipe("Over the limit", 1, false), default);
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            recipes.SubmitForReviewAsync(user, extra.Id, default));
+    }
+
     // ---- nutrition roll-up math ----
 
     [Fact]

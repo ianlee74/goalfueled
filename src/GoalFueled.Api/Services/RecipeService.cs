@@ -19,6 +19,12 @@ public sealed class RecipeService
     private readonly IIngredientRepository _ingredients;
     private readonly RecipeNutritionCalculator _nutrition;
 
+    /// <summary>
+    /// How many of a user's recipes may sit in <see cref="RecipeVisibility.PendingReview"/> at once.
+    /// An in-app guard against flooding the review queue (network rate limiting is handled by infra).
+    /// </summary>
+    private const int MaxPendingReviewsPerUser = 10;
+
     public RecipeService(IRecipeRepository repo, IIngredientRepository ingredients)
     {
         _repo = repo;
@@ -63,7 +69,7 @@ public sealed class RecipeService
         var recipe = new Recipe
         {
             Name = input.Name.Trim(),
-            Description = input.Description,
+            Description = HtmlSanitizer.Sanitize(input.Description),
             ImageUrl = input.ImageUrl,
             Items = NormalizeItems(input.Items),
             Servings = input.Servings,
@@ -85,7 +91,7 @@ public sealed class RecipeService
         EnsureCanEdit(recipe, user);
 
         recipe.Name = input.Name.Trim();
-        recipe.Description = input.Description;
+        recipe.Description = HtmlSanitizer.Sanitize(input.Description);
         recipe.ImageUrl = input.ImageUrl;
         recipe.Items = NormalizeItems(input.Items);
         recipe.Servings = input.Servings;
@@ -128,6 +134,13 @@ public sealed class RecipeService
             throw new ValidationException("This recipe is already public.");
         if (recipe.Visibility == RecipeVisibility.PendingReview)
             throw new ValidationException("This recipe is already awaiting review.");
+
+        // Abuse guard: cap how many submissions one user can have in flight at once.
+        var pending = await _repo.CountPendingReviewByOwnerAsync(user.Id, ct);
+        if (pending >= MaxPendingReviewsPerUser)
+            throw new ValidationException(
+                $"You can have at most {MaxPendingReviewsPerUser} recipes awaiting review at a time. " +
+                "Please wait for some to be reviewed before submitting more.");
 
         recipe.Visibility = RecipeVisibility.PendingReview;
         recipe.UpdatedAt = DateTimeOffset.UtcNow;
@@ -210,10 +223,12 @@ public sealed class RecipeService
 
     private async Task ValidateAsync(RecipeInput input, AppUser user, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(input.Name))
-            throw new ValidationException("Name is required.");
+        InputLimits.RequireText(input.Name, InputLimits.NameMaxLength, "Name");
+        InputLimits.LimitText(input.Description, InputLimits.DescriptionMaxLength, "Description");
+        InputLimits.LimitText(input.ImageUrl, InputLimits.UrlMaxLength, "Image URL");
         if (input.Servings <= 0)
             throw new ValidationException("Servings must be greater than zero.");
+        InputLimits.LimitCount(input.Items?.Count ?? 0, InputLimits.RecipeItemsMax, "recipe items");
 
         foreach (var item in input.Items ?? Array.Empty<RecipeItemInput>())
         {

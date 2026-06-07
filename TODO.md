@@ -21,12 +21,6 @@ Ignore all files in the `Future Features` section.
 - [ ] Set `GoalFueled:Auth:EnableDevAuth=false` in deployed environments; keep dev auth local-only.
 - [ ] Account linking: allow one profile reached via multiple providers (the `ExternalLogins`/`LoginKeys` model already supports it).
 
-### Security & polish
-
-- [ ] **Sanitize HTML** in ingredient/recipe descriptions before rendering (they may contain HTML — prevent XSS).
-- [ ] Server-side input limits (string lengths, collection sizes) and consistent validation messages.
-- [ ] Rate-limit/authorize public recipe submission to prevent abuse.
-
 ### Deployment & infrastructure activation (infra authored, not yet deployed)
 
 - [ ] Provision Azure resources via `infra/main.bicep` (Cosmos, Storage, Functions, Static Web App, monitoring).

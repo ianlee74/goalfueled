@@ -167,6 +167,43 @@ public class IngredientServiceTests
     }
 
     [Fact]
+    public async Task Validation_rejects_oversized_name_description_and_nutrition()
+    {
+        using var db = TestHelpers.NewContext();
+        var (_, user, svc) = await SetupAsync(db);
+
+        // Name over 200 chars.
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            svc.CreateAsync(user, Input(new string('x', 201)), default));
+
+        // Description over 10,000 chars.
+        var longDesc = new IngredientInput(
+            "Ok", new string('d', 10_001), null, UnitOfMeasure.Gram, 100, null);
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(user, longDesc, default));
+
+        // More nutrition entries than allowed.
+        var manyNutrients = Enumerable.Range(0, 201)
+            .Select(_ => new NutrientAmount("calories", 1)).ToList();
+        var tooMany = new IngredientInput("Ok", null, null, UnitOfMeasure.Gram, 100, manyNutrients);
+        await Assert.ThrowsAsync<ValidationException>(() => svc.CreateAsync(user, tooMany, default));
+    }
+
+    [Fact]
+    public async Task Description_is_sanitized_on_save()
+    {
+        using var db = TestHelpers.NewContext();
+        var (_, user, svc) = await SetupAsync(db);
+
+        var input = new IngredientInput(
+            "Dangerous", "<p>Hello</p><script>alert('xss')</script>", null,
+            UnitOfMeasure.Gram, 100, null);
+        var created = await svc.CreateAsync(user, input, default);
+
+        Assert.DoesNotContain("<script", created.Description, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Hello", created.Description);
+    }
+
+    [Fact]
     public async Task Search_filters_by_name_case_insensitively()
     {
         using var db = TestHelpers.NewContext();

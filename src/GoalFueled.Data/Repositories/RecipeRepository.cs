@@ -50,6 +50,13 @@ public class RecipeRepository : IRecipeRepository
             .ToListAsync(ct);
     }
 
+    public Task<int> CountPendingReviewByOwnerAsync(string ownerUserId, CancellationToken ct = default) =>
+        _db.Recipes.CountAsync(
+            r => r.Scope == OwnershipScope.User &&
+                 r.OwnerUserId == ownerUserId &&
+                 r.Visibility == RecipeVisibility.PendingReview,
+            ct);
+
     public Task<Recipe?> GetByIdAsync(string id, CancellationToken ct = default) =>
         _db.Recipes.FirstOrDefaultAsync(r => r.Id == id, ct);
 

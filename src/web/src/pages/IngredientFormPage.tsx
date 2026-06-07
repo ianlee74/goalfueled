@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ingredientApi } from '../api/services'
 import { ImageUpload } from '../components/ImageUpload'
+import { SanitizedHtml } from '../components/SanitizedHtml'
 import { useNutrients } from '../hooks/useNutrients'
 import { useAuth } from '../auth/AuthContext'
 import {
@@ -134,6 +135,13 @@ export function IngredientFormPage() {
           <textarea className="input" rows={3} value={description} disabled={readOnly}
             onChange={(e) => setDescription(e.target.value)} />
         </label>
+
+        {description.trim() && (
+          <div className="field">
+            Preview <span className="hint">sanitized</span>
+            <SanitizedHtml className="html-preview" html={description} />
+          </div>
+        )}
 
         <ImageUpload value={imageUrl} onChange={setImageUrl} disabled={readOnly} />
 

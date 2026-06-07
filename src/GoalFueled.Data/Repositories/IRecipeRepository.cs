@@ -21,6 +21,12 @@ public interface IRecipeRepository
     /// </summary>
     Task<IReadOnlyList<Recipe>> ListPendingReviewAsync(CancellationToken ct = default);
 
+    /// <summary>
+    /// Counts the recipes owned by a user that are currently awaiting review. Used to cap how many
+    /// submissions one user can have in flight at once.
+    /// </summary>
+    Task<int> CountPendingReviewByOwnerAsync(string ownerUserId, CancellationToken ct = default);
+
     Task<Recipe?> GetByIdAsync(string id, CancellationToken ct = default);
 
     Task<Recipe> AddAsync(Recipe recipe, CancellationToken ct = default);

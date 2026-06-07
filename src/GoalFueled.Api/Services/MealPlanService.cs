@@ -124,10 +124,11 @@ public sealed class MealPlanService
 
     private async Task ValidateAsync(MealPlanInput input, AppUser user, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(input.Name))
-            throw new ValidationException("Name is required.");
+        InputLimits.RequireText(input.Name, InputLimits.NameMaxLength, "Name");
         if (!Enum.IsDefined(typeof(MealPlanCadence), input.Cadence))
             throw new ValidationException("Unknown meal plan cadence.");
+        InputLimits.LimitCount(input.ScheduledMeals?.Count ?? 0, InputLimits.ScheduledMealsMax, "scheduled meals");
+        InputLimits.LimitCount(input.UntimedItems?.Count ?? 0, InputLimits.UntimedItemsMax, "untimed items");
 
         foreach (var scheduled in input.ScheduledMeals ?? Array.Empty<ScheduledMealInput>())
         {
@@ -144,6 +145,7 @@ public sealed class MealPlanService
 
         foreach (var item in input.UntimedItems ?? Array.Empty<UntimedItemInput>())
         {
+            InputLimits.LimitText(item.Note, InputLimits.NoteMaxLength, "Note");
             var hasMeal = !string.IsNullOrWhiteSpace(item.MealId);
             var hasIngredient = !string.IsNullOrWhiteSpace(item.IngredientId);
             if (hasMeal == hasIngredient)

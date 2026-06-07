@@ -136,6 +136,18 @@ label.field .hint { font-weight: 400; color: var(--muted); font-size: 0.8rem; }
 .center-screen { min-height: 100dvh; display: grid; place-items: center; padding: 1.25rem; }
 .auth-card { width: 100%; max-width: 380px; }
 
+/* Read-only, sanitized rendering of a description that may contain HTML. */
+.html-preview {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface-muted, rgba(0, 0, 0, 0.02));
+  font-weight: 400;
+  font-size: 0.9rem;
+}
+.html-preview > :first-child { margin-top: 0; }
+.html-preview > :last-child { margin-bottom: 0; }
+
 .nutrient-editor-row { display: grid; grid-template-columns: 1fr 96px 40px; gap: 0.5rem; align-items: center; }
 
 .recipe-item-row { display: grid; grid-template-columns: 1fr 80px 1.2fr 40px; gap: 0.5rem; align-items: center; }

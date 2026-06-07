@@ -46,7 +46,7 @@ public sealed class IngredientService
         var ingredient = new Ingredient
         {
             Name = input.Name.Trim(),
-            Description = input.Description,
+            Description = HtmlSanitizer.Sanitize(input.Description),
             ImageUrl = input.ImageUrl,
             Unit = input.Unit,
             ServingSize = input.ServingSize,
@@ -66,7 +66,7 @@ public sealed class IngredientService
         EnsureCanEdit(ingredient, user);
 
         ingredient.Name = input.Name.Trim();
-        ingredient.Description = input.Description;
+        ingredient.Description = HtmlSanitizer.Sanitize(input.Description);
         ingredient.ImageUrl = input.ImageUrl;
         ingredient.Unit = input.Unit;
         ingredient.ServingSize = input.ServingSize;
@@ -115,12 +115,14 @@ public sealed class IngredientService
 
     private static void Validate(IngredientInput input)
     {
-        if (string.IsNullOrWhiteSpace(input.Name))
-            throw new ValidationException("Name is required.");
+        InputLimits.RequireText(input.Name, InputLimits.NameMaxLength, "Name");
+        InputLimits.LimitText(input.Description, InputLimits.DescriptionMaxLength, "Description");
+        InputLimits.LimitText(input.ImageUrl, InputLimits.UrlMaxLength, "Image URL");
         if (input.ServingSize <= 0)
             throw new ValidationException("Serving size must be greater than zero.");
         if (!Enum.IsDefined(typeof(UnitOfMeasure), input.Unit))
             throw new ValidationException("Unknown unit of measure.");
+        InputLimits.LimitCount(input.NutritionPerServing?.Count ?? 0, InputLimits.NutritionEntriesMax, "nutrition entries");
 
         foreach (var amount in input.NutritionPerServing ?? Array.Empty<NutrientAmount>())
         {
