@@ -239,6 +239,67 @@ export interface WeightEntryInput {
   date?: string
 }
 
+export type GoalMetricType = 'Weight' | 'Nutrient'
+
+export type GoalCadence = 'OneTime' | 'Recurring'
+
+export type GoalStatus = 'InProgress' | 'Achieved' | 'Missed' | 'NoData'
+
+export interface GoalProgress {
+  status: GoalStatus
+  baselineValue: number
+  currentValue: number
+  targetValue: number
+  // Progress toward the target, clamped 0..100, for the progress bar.
+  percent: number
+  exceededTarget: boolean
+  // Whether the current standing is good (drives celebrate vs. warn in the visual).
+  outcomePositive: boolean
+  periodLabel: string
+  message: string
+}
+
+export interface Goal {
+  id: string
+  name: string
+  metricType: GoalMetricType
+  nutrientId?: string
+  nutrientName?: string
+  // Unit label for the metric (e.g. "lb/kg", "kcal", "g", "mg").
+  metricUnit: string
+  targetValue: number
+  cadence: GoalCadence
+  // Calendar dates, serialized "yyyy-MM-dd".
+  startDate: string
+  targetDate?: string
+  recurrenceDays?: number
+  exceedingIsPositive: boolean
+  progress: GoalProgress
+  createdAt: string
+  updatedAt: string
+}
+
+export interface GoalInput {
+  name: string
+  metricType: GoalMetricType
+  targetValue: number
+  cadence: GoalCadence
+  exceedingIsPositive: boolean
+  nutrientId?: string
+  // Optional "yyyy-MM-dd"; defaults to today server-side when omitted.
+  startDate?: string
+  targetDate?: string
+  recurrenceDays?: number
+}
+
+export const GOAL_METRIC_LABELS: Record<GoalMetricType, string> = {
+  Weight: 'Weight', Nutrient: 'Nutrient',
+}
+
+export const GOAL_CADENCE_LABELS: Record<GoalCadence, string> = {
+  OneTime: 'One-time (by a date)', Recurring: 'Recurring (every N days)',
+}
+
 // Friendly labels for the recipe visibility lifecycle.
 export const RECIPE_VISIBILITY_LABELS: Record<RecipeVisibility, string> = {
   Private: 'Private',

@@ -10,6 +10,7 @@ const NAV = [
   { to: '/meals', label: 'Meals', ico: '🍽️' },
   { to: '/plans', label: 'Plans', ico: '📅' },
   { to: '/weight', label: 'Weight', ico: '⚖️' },
+  { to: '/goals', label: 'Goals', ico: '🎯' },
 ]
 
 // Admin-only nav entries, surfaced only while the admin view is enabled.

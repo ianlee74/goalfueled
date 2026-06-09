@@ -36,6 +36,7 @@ builder.Services.AddScoped<RecipeService>();
 builder.Services.AddScoped<MealService>();
 builder.Services.AddScoped<MealPlanService>();
 builder.Services.AddScoped<WeightService>();
+builder.Services.AddScoped<GoalService>();
 builder.Services.AddScoped<UserAdminService>();
 
 var host = builder.Build();

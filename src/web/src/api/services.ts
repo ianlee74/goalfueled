@@ -1,6 +1,6 @@
 import { api } from './client'
 import type {
-  AdminUser, CurrentUser, GoalType, Ingredient, IngredientInput, Meal, MealInput,
+  AdminUser, CurrentUser, Goal, GoalInput, GoalType, Ingredient, IngredientInput, Meal, MealInput,
   MealPlan, MealPlanInput, NutrientDefinition, Recipe, RecipeInput,
   WeightEntry, WeightEntryInput,
 } from './types'
@@ -75,6 +75,15 @@ export const weightApi = {
   list: () => api.get<WeightEntry[]>('/weights'),
   // Records (or, for an existing day, updates) a dated weight entry.
   record: (input: WeightEntryInput) => api.post<WeightEntry>('/weights', input),
+}
+
+export const goalApi = {
+  // The caller's own goals, most recently created first, each with a computed progress snapshot.
+  list: () => api.get<Goal[]>('/goals'),
+  get: (id: string) => api.get<Goal>(`/goals/${id}`),
+  create: (input: GoalInput) => api.post<Goal>('/goals', input),
+  update: (id: string, input: GoalInput) => api.put<Goal>(`/goals/${id}`, input),
+  remove: (id: string) => api.del(`/goals/${id}`),
 }
 
 export const nutrientApi = {

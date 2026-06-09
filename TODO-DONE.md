@@ -6,6 +6,29 @@
 
 ## Completed Items
 
+### Define goals and track progress — 2026-06-09 CDT
+
+- [x] New per-user Goals vertical slice: define a weight or nutrient goal (one-time or recurring), with live progress computed from existing data and an SVG progress visual that celebrates/warns based on the positive/negative outcome.
+
+**NOTES:**
+- Built following the WeightEntry/Ingredients/Meals pattern across all layers.
+  - Domain: `Entities/Goal.cs` (OwnerUserId-scoped; MetricType, NutrientId, TargetValue, Cadence, StartDate, TargetDate, RecurrenceDays, ExceedingIsPositive). Enums `GoalMetricType { Weight, Nutrient }` and `GoalCadence { OneTime, Recurring }` in `Enums.cs`. `Contracts/GoalDtos.cs` (`GoalDto`, `GoalInput`, `GoalProgressDto`, `GoalStatus { InProgress, Achieved, Missed, NoData }`).
+  - Data: `IGoalRepository`/`GoalRepository` (ListForUserAsync newest-first, GetById, add/update/delete), `Goals` DbSet + Cosmos container mapping, DI registration.
+  - Api: `Services/GoalService.cs` (CRUD + live progress), `Services/GoalNutritionRollup.cs` (per-day nutrient roll-up extracted from the meal-plan summary logic), `Functions/GoalFunctions.cs` (`GET/POST /goals`, `GET/PUT/DELETE /goals/{id}`). `InputLimits.GoalTargetValueMax`/`GoalRecurrenceDaysMax`. Registered in `Program.cs`.
+  - Web: `pages/GoalsPage.tsx` (define-goal form + list), `components/GoalProgressVisual.tsx` (dependency-free SVG progress ring), `/goals` route in `App.tsx`, 🎯 nav entry in `Layout`, `goalApi` + Goal types/labels in `api/`.
+
+- **Design decisions / assumptions:**
+  - **Per-user only:** goals are entirely private — not even admins get a cross-user view (mirrors WeightEntry). `EnsureOwner` returns 404 for non-owners.
+  - **One-time vs recurring:** one-time requires a `targetDate` deadline; recurring requires `recurrenceDays` (period length). For recurring goals the "active period" is the window containing today, anchored at `startDate`; the visual labels when the current period ends. The conflicting field is nulled server-side based on cadence.
+  - **Weight progress:** baseline = earliest weight recorded on/after `startDate` (fallback: earliest overall); current = latest weight. Percent = travel from baseline→target, clamped 0..100. Direction (increase/decrease) inferred from target vs baseline, so the same logic handles loss and gain goals.
+  - **Nutrient progress:** the app has no ad-hoc consumption log yet, so "actual intake" is derived from the user's **meal plans** (the app's model of planned intake). We sum each plan's per-day average of the target nutrient (reusing the plan daily-average roll-up), then project over the active period (`dailyIntake × periodDays`). One-time nutrient period = start→target span (inclusive); recurring = `recurrenceDays`. Compared against the target from a zero baseline.
+  - **Exceeding positive/negative:** `ExceedingIsPositive` drives `OutcomePositive`. Meeting the target is always positive; beyond that, exceeding is celebrated only when the flag is on (e.g. extra weight lost, more protein) and flagged when off (e.g. over a calorie budget). A passed deadline without hitting target = Missed (negative).
+  - **Visual celebration:** SVG ring tinted green (positive)/red (negative)/grey (no data), with a reactive emoji (🎉 achieved-positive, ⚠️ achieved-but-overshot-a-budget / off-track, 😞 missed, 🚀 in-progress, 📊 no data), a confetti flourish on a positive achievement, and a tone-colored status message. No new npm dependencies.
+  - **NoData states:** weight goal with no entries, or nutrient goal with no meal plan / a plan that doesn't supply the nutrient, report a friendly "add data" prompt instead of fake progress.
+- **API endpoints added:** `GET /goals`, `POST /goals`, `GET /goals/{id}`, `PUT /goals/{id}`, `DELETE /goals/{id}`.
+- **Tests:** `GoalServiceTests` (13 cases: CRUD/ownership, validation for cadence/nutrient/target/dates, weight progress in-progress/achieved-exceeded/missed, nutrient recurring-projection/over-budget/in-progress, resolved nutrient name+unit). Updated `DependencyInjectionTests` to mirror the new registration.
+- **Verified:** `dotnet test -c Release` → 115 passed / 0 failed; web `npm run build` ✓; `npm run lint` 0 errors (1 pre-existing `AuthContext.tsx` warning).
+
 ### Add date when logging weight — 2026-06-07 17:35 CDT
 
 - [x] Users can choose the measurement date when logging weight (for historical/back-dated entries); still defaults to today

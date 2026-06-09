@@ -52,6 +52,26 @@ public enum WeightUnit
     Kilogram = 1
 }
 
+/// <summary>The kind of metric a goal targets.</summary>
+public enum GoalMetricType
+{
+    /// <summary>The user's body weight (tracked via WeightEntry).</summary>
+    Weight = 0,
+
+    /// <summary>A single nutrient from the catalog (calories, protein, vitamin C, …).</summary>
+    Nutrient = 1
+}
+
+/// <summary>Whether a goal is achieved once by a deadline or repeats on a fixed cadence.</summary>
+public enum GoalCadence
+{
+    /// <summary>Reach the target once by a target date (e.g. "lose 10 lbs by 12/31").</summary>
+    OneTime = 0,
+
+    /// <summary>Hit the target every N days starting from the start date (e.g. "2000 kcal every 7 days").</summary>
+    Recurring = 1
+}
+
 /// <summary>
 /// Units used to define a single serving of an ingredient. Grouped into mass, volume and count.
 /// Conversions between compatible units live in <see cref="UnitOfMeasureInfo"/>.

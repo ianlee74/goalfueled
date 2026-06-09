@@ -38,6 +38,12 @@ public static class InputLimits
     /// <summary>Upper bound for a recorded weight value (covers any plausible lb or kg figure).</summary>
     public const double WeightValueMax = 5_000;
 
+    /// <summary>Upper bound for a goal's target value (generous ceiling across weight and nutrient units).</summary>
+    public const double GoalTargetValueMax = 10_000_000;
+
+    /// <summary>Upper bound for a recurring goal's period length, in days (~5 years).</summary>
+    public const int GoalRecurrenceDaysMax = 1_825;
+
     /// <summary>Validates a required string is non-empty and within <paramref name="maxLength"/>.</summary>
     public static void RequireText(string? value, int maxLength, string label)
     {
