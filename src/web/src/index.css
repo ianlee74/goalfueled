@@ -270,6 +270,61 @@ label.field .hint { font-weight: 400; color: var(--muted); font-size: 0.8rem; }
 .plan-scheduled-row { display: grid; grid-template-columns: 1fr auto 110px 40px; gap: 0.5rem; align-items: center; }
 .plan-untimed-row { display: grid; grid-template-columns: 110px 1fr 80px 1fr 40px; gap: 0.5rem; align-items: center; }
 
+/* ---- Weekly meal-plan timeline ---- */
+/* Each day of week is a section; its meals read top-to-bottom as a schedule (earliest first,
+   untimed "Anytime" meals last). Rows are draggable to reorder within the day. */
+.plan-day { padding: 0.5rem 0 0.75rem; border-top: 1px solid var(--border); }
+.plan-day:first-of-type { border-top: 0; }
+.plan-day-head { display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 0.4rem; }
+
+/* The timeline gutter: a vertical line down the left with rows hanging off it. */
+.plan-timeline {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--border);
+  margin-left: 0.35rem;
+}
+.plan-timeline-empty { margin: 0.1rem 0; }
+
+.plan-tl-row {
+  display: grid;
+  grid-template-columns: auto 64px 1fr auto 110px 40px;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.35rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: grab;
+}
+.plan-tl-row.dragging { opacity: 0.45; cursor: grabbing; }
+/* Drop indicator: a highlighted top edge on the row we'd drop before. */
+.plan-tl-row.drop-before { box-shadow: 0 -3px 0 0 var(--primary); }
+
+.plan-tl-handle { color: var(--muted); cursor: grab; -webkit-user-select: none; user-select: none; line-height: 1; font-size: 1.1rem; }
+.plan-tl-time {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* End-of-day drop target: a thin zone so meals can be dropped after the last row. */
+.plan-tl-end { min-height: 0.6rem; border-radius: 6px; }
+.plan-tl-end.drop-before { box-shadow: 0 -3px 0 0 var(--primary); }
+
+.plan-day-add { margin-top: 0.5rem; }
+
+@media (max-width: 640px) {
+  .plan-tl-row { grid-template-columns: auto 56px 1fr 40px; }
+  /* On narrow screens the day/time editors wrap under via the meal selector's row flow. */
+  .plan-tl-row .select, .plan-tl-row .input[type='time'] { min-width: 0; }
+}
+
 /* ---- Theme picker (header control) ---- */
 .theme-picker { display: inline-flex; align-items: center; }
 .theme-picker .select {

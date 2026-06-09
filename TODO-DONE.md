@@ -6,6 +6,19 @@
 
 ## Completed Items
 
+### Better UI for defining weekly meal plans (drag-reorderable timeline) — 2026-06-09 CDT
+
+- [x] The Weekly meal-plan editor is now a day-grouped timeline (meals ordered by time, untimed grouped as "Anytime"), with drag-up/down to reorder within a day
+
+**NOTES:**
+- Frontend-only; **no backend changes** (`dotnet test` still 147/0).
+- `pages/PlanFormPage.tsx`: Weekly cadence renders a "Weekly timeline" card — one section per day (Sun→Sat per the app's existing `DAYS_OF_WEEK`), plus an "Any day" bucket for day-less meals. Within a day: earliest time first, untimed ("Anytime") grouped at the end; each row has a drag handle, time marker, and the meal/day/time editors. Per-day "+ Add meal to {day}" button pins the new row to that day; the row's day selector still lets a meal move days (re-buckets live). Daily cadence keeps the original flat editor. Nutrition summary, per-day breakdown, untimed-items card, save/delete, and weight gate untouched.
+- **Drag mechanism:** native HTML5 DnD (`draggable` + onDragStart/Over/Drop/End), **no new dependency**; `⠿` handle, grab cursor, dragging opacity, drop indicator + end-of-day drop zone; constrained to within one day.
+- **Data-model decision (least-invasive, no schema change):** `ScheduledMeal` has only `MealId`/`DayOfWeek?`/`Time?` — no order field; `MealPlanService` preserves array order verbatim and the roll-up is order-independent. The timeline sorts each day by time with **array order as tiebreaker**; on drop, a timed meal's time is **snapped to its new neighbor** so the time-sort lands it in the dropped slot, and untimed meals reorder purely by array order. Persists via the existing array-order + time round-trip with zero backend/test changes. Extracted a shared `ScheduledMealFields` component (factored for the upcoming multi-day-select + 15-min-picker tasks).
+- `index.css`: purely additive `.plan-day*`/`.plan-timeline`/`.plan-tl-*` styles using existing CSS vars (theme files untouched).
+- **Limitations:** mouse/pointer drag only (no touch/keyboard); dragging a timed meal adjusts its time to slot it (a consequence of having no persisted order field).
+- Verified: `dotnet test -c Release` 147/0; web `npm run build` ✓; `npm run lint` 0 errors (1 pre-existing `AuthContext.tsx` warning).
+
 ### Go back to creating meal plan after entering weight — 2026-06-09 CDT
 
 - [x] After the new-meal-plan weight gate sends you to the weight page, recording your weight now returns you to creating the plan instead of stranding you on the weight page

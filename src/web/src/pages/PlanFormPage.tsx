@@ -16,6 +16,10 @@ interface ScheduledRow {
   time: string // "HH:mm" from the time input, or empty
 }
 
+// The bucket a weekly scheduled meal belongs to in the timeline: a specific day of week,
+// or the day-less "Any day" bucket (applies every day).
+type DayBucket = DayOfWeek | ''
+
 interface UntimedRow {
   key: number
   kind: 'meal' | 'ingredient'
@@ -44,6 +48,12 @@ export function PlanFormPage() {
   const [scheduled, setScheduled] = useState<ScheduledRow[]>([])
   const [untimed, setUntimed] = useState<UntimedRow[]>([])
   const [canEdit, setCanEdit] = useState(true)
+
+  // Drag-reorder state for the weekly timeline: the row being dragged and the row it's hovering
+  // before (the drop indicator). `dragOverEnd` marks hovering past the last row in a day.
+  const [dragKey, setDragKey] = useState<number | null>(null)
+  const [dropBeforeKey, setDropBeforeKey] = useState<number | null>(null)
+  const [dropEndBucket, setDropEndBucket] = useState<DayBucket | null>(null)
 
   // Pickers: the meals/ingredients the user can reference.
   const [meals, setMeals] = useState<Meal[]>([])
@@ -159,6 +169,50 @@ export function PlanFormPage() {
     setScheduled((prev) => prev.filter((s) => s.key !== key))
   }
 
+  // Add a scheduled meal already pinned to a specific day-of-week bucket (used by the weekly timeline,
+  // where "+ Add meal" sits under each day). bucket '' is the day-less "Any day" group.
+  function addScheduledToDay(bucket: DayBucket) {
+    setScheduled((prev) => [...prev, {
+      key: nextKey++, mealId: meals[0]?.id ?? '', dayOfWeek: bucket, time: '',
+    }])
+  }
+
+  // Reorder within a day's timeline: move the dragged row to sit immediately before `beforeKey`
+  // (or to the end of the bucket when beforeKey is null), then snap its time so the timeline's
+  // time-sort keeps it in the dropped position. This is the whole drag-reorder model — see report.
+  function reorderWithinDay(bucket: DayBucket, dragKey: number, beforeKey: number | null) {
+    setScheduled((prev) => {
+      const inBucket = prev.filter((s) => bucketOf(s) === bucket)
+      const ordered = sortTimeline(inBucket)
+      const dragged = ordered.find((s) => s.key === dragKey)
+      if (!dragged) return prev
+
+      const without = ordered.filter((s) => s.key !== dragKey)
+      const insertAt = beforeKey == null ? without.length : without.findIndex((s) => s.key === beforeKey)
+      const target = insertAt < 0 ? without.length : insertAt
+      const before = without[target - 1]
+      const after = without[target]
+
+      // Snap the dragged meal's time so the timeline's time-sort lands it in the dropped position.
+      // The rule: take the predecessor's time when there is one (equal times preserve array order,
+      // so the meal sits right after it); at the very top, take the successor's time so the meal
+      // leads its time group; with no neighbours at all, keep the meal's own time.
+      let newTime: string
+      if (before) newTime = before.time      // slot in just after the predecessor (incl. untimed → '')
+      else if (after) newTime = after.time   // dropped at the very top → share the successor's time
+      else newTime = dragged.time            // only row in the day → unchanged
+
+      // Rebuild this bucket's order; keep all other rows (other buckets) where they are.
+      const newBucketOrder = [
+        ...without.slice(0, target),
+        { ...dragged, time: newTime },
+        ...without.slice(target),
+      ]
+      const queue = [...newBucketOrder]
+      return prev.map((s) => (bucketOf(s) === bucket ? queue.shift()! : s))
+    })
+  }
+
   function addUntimed() {
     setUntimed((prev) => [...prev, {
       key: nextKey++, kind: 'ingredient', refId: ingredients[0]?.id ?? '', quantity: '', note: '',
@@ -269,40 +323,125 @@ export function PlanFormPage() {
         </div>
       </div>
 
-      <div className="card stack">
-        <h2>Scheduled meals</h2>
+      {cadence === 'Weekly' ? (
+        <div className="card stack">
+          <h2>Weekly timeline <span className="muted small">drag meals up or down to reorder a day</span></h2>
 
-        {scheduled.length === 0 && <p className="muted small" style={{ margin: 0 }}>No scheduled meals yet.</p>}
+          {scheduled.length === 0 && (
+            <p className="muted small" style={{ margin: 0 }}>No scheduled meals yet.</p>
+          )}
 
-        {scheduled.map((s) => (
-          <div key={s.key} className="plan-scheduled-row">
-            <select className="select" value={s.mealId} disabled={readOnly}
-              onChange={(e) => updateScheduled(s.key, { mealId: e.target.value })}>
-              <option value="">Select a meal…</option>
-              {meals.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
-            {cadence === 'Weekly' && (
-              <select className="select" value={s.dayOfWeek} disabled={readOnly}
-                onChange={(e) => updateScheduled(s.key, { dayOfWeek: e.target.value as DayOfWeek | '' })}>
-                <option value="">Any day</option>
-                {DAYS_OF_WEEK.map((d) => <option key={d} value={d}>{d}</option>)}
-              </select>
-            )}
-            <input className="input" type="time" value={s.time} disabled={readOnly}
-              onChange={(e) => updateScheduled(s.key, { time: e.target.value })} />
-            {!readOnly && (
-              <button className="btn btn-sm btn-danger" title="Remove"
-                onClick={() => removeScheduled(s.key)}>✕</button>
-            )}
-          </div>
-        ))}
+          {[...DAYS_OF_WEEK, '' as DayBucket].map((bucket) => {
+            const rows = sortTimeline(scheduled.filter((s) => bucketOf(s) === bucket))
+            const label = bucket === '' ? 'Any day' : bucket
+            return (
+              <div key={bucket || '__any'} className="plan-day">
+                <div className="plan-day-head">
+                  <strong>{label}</strong>
+                  {bucket === '' && <span className="muted small">applies to every day</span>}
+                </div>
 
-        {!readOnly && (
-          <button className="btn btn-sm" onClick={addScheduled} disabled={meals.length === 0}>
-            + Add scheduled meal
-          </button>
-        )}
-      </div>
+                <div className="plan-timeline">
+                  {rows.length === 0 && (
+                    <p className="muted small plan-timeline-empty">No meals on this day yet.</p>
+                  )}
+                  {rows.map((s) => (
+                    <div
+                      key={s.key}
+                      className={[
+                        'plan-tl-row',
+                        dragKey === s.key ? 'dragging' : '',
+                        dropBeforeKey === s.key ? 'drop-before' : '',
+                      ].filter(Boolean).join(' ')}
+                      draggable={!readOnly}
+                      onDragStart={(e) => {
+                        setDragKey(s.key)
+                        e.dataTransfer.effectAllowed = 'move'
+                      }}
+                      onDragOver={(e) => {
+                        if (readOnly || dragKey == null) return
+                        // Only allow reordering within the same day bucket.
+                        if (bucketOf(scheduled.find((r) => r.key === dragKey)!) !== bucket) return
+                        e.preventDefault()
+                        setDropBeforeKey(s.key)
+                        setDropEndBucket(null)
+                      }}
+                      onDrop={(e) => {
+                        if (readOnly || dragKey == null) return
+                        e.preventDefault()
+                        reorderWithinDay(bucket, dragKey, s.key)
+                        setDragKey(null); setDropBeforeKey(null); setDropEndBucket(null)
+                      }}
+                      onDragEnd={() => { setDragKey(null); setDropBeforeKey(null); setDropEndBucket(null) }}
+                    >
+                      {!readOnly && <span className="plan-tl-handle" title="Drag to reorder" aria-hidden>⠿</span>}
+                      <span className="plan-tl-time">{s.time || 'Anytime'}</span>
+                      <ScheduledMealFields
+                        row={s} meals={meals} readOnly={readOnly}
+                        showDay onUpdate={(patch) => updateScheduled(s.key, patch)} />
+                      {!readOnly && (
+                        <button className="btn btn-sm btn-danger" title="Remove"
+                          onClick={() => removeScheduled(s.key)}>✕</button>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Drop zone at the end of the day's timeline. */}
+                  {!readOnly && (
+                    <div
+                      className={`plan-tl-end ${dropEndBucket === bucket ? 'drop-before' : ''}`}
+                      onDragOver={(e) => {
+                        if (dragKey == null) return
+                        if (bucketOf(scheduled.find((r) => r.key === dragKey)!) !== bucket) return
+                        e.preventDefault()
+                        setDropBeforeKey(null)
+                        setDropEndBucket(bucket)
+                      }}
+                      onDrop={(e) => {
+                        if (dragKey == null) return
+                        e.preventDefault()
+                        reorderWithinDay(bucket, dragKey, null)
+                        setDragKey(null); setDropBeforeKey(null); setDropEndBucket(null)
+                      }}
+                    />
+                  )}
+                </div>
+
+                {!readOnly && (
+                  <button className="btn btn-sm plan-day-add" onClick={() => addScheduledToDay(bucket)}
+                    disabled={meals.length === 0}>
+                    + Add meal{bucket === '' ? ' (any day)' : ` to ${bucket}`}
+                  </button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        <div className="card stack">
+          <h2>Scheduled meals</h2>
+
+          {scheduled.length === 0 && <p className="muted small" style={{ margin: 0 }}>No scheduled meals yet.</p>}
+
+          {scheduled.map((s) => (
+            <div key={s.key} className="plan-scheduled-row">
+              <ScheduledMealFields
+                row={s} meals={meals} readOnly={readOnly}
+                showDay={false} onUpdate={(patch) => updateScheduled(s.key, patch)} />
+              {!readOnly && (
+                <button className="btn btn-sm btn-danger" title="Remove"
+                  onClick={() => removeScheduled(s.key)}>✕</button>
+              )}
+            </div>
+          ))}
+
+          {!readOnly && (
+            <button className="btn btn-sm" onClick={addScheduled} disabled={meals.length === 0}>
+              + Add scheduled meal
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="card stack">
         <h2>Untimed items <span className="muted small">consumed through the day</span></h2>
@@ -383,6 +522,57 @@ export function PlanFormPage() {
         </div>
       )}
     </div>
+  )
+}
+
+// The timeline bucket a scheduled row belongs to: its day-of-week, or '' for the day-less group.
+function bucketOf(s: ScheduledRow): DayBucket {
+  return s.dayOfWeek
+}
+
+// Order a day's meals as a daily schedule: earliest time first, untimed ("Anytime") meals last.
+// Rows with equal time (and the whole untimed group) keep their current array order — that array
+// order is exactly what drag-reordering manipulates and what persists round-trip.
+function sortTimeline(rows: ScheduledRow[]): ScheduledRow[] {
+  return rows
+    .map((row, i) => ({ row, i }))
+    .sort((a, b) => {
+      const at = a.row.time, bt = b.row.time
+      if (at && bt) return at < bt ? -1 : at > bt ? 1 : a.i - b.i
+      if (at) return -1 // timed before untimed
+      if (bt) return 1
+      return a.i - b.i // both untimed: preserve array order
+    })
+    .map((x) => x.row)
+}
+
+// The meal + (optional) day-of-week + time editing controls for one scheduled meal. Shared by the
+// weekly timeline and the daily flat editor so the add/edit controls stay in one place — making the
+// upcoming multi-day-select and 15-minute time-picker changes a single-spot edit.
+function ScheduledMealFields({ row, meals, readOnly, showDay, onUpdate }: {
+  row: ScheduledRow
+  meals: Meal[]
+  readOnly: boolean
+  showDay: boolean
+  onUpdate: (patch: Partial<ScheduledRow>) => void
+}) {
+  return (
+    <>
+      <select className="select" value={row.mealId} disabled={readOnly} title="Meal"
+        onChange={(e) => onUpdate({ mealId: e.target.value })}>
+        <option value="">Select a meal…</option>
+        {meals.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+      </select>
+      {showDay && (
+        <select className="select" value={row.dayOfWeek} disabled={readOnly} title="Day of week"
+          onChange={(e) => onUpdate({ dayOfWeek: e.target.value as DayOfWeek | '' })}>
+          <option value="">Any day</option>
+          {DAYS_OF_WEEK.map((d) => <option key={d} value={d}>{d}</option>)}
+        </select>
+      )}
+      <input className="input" type="time" value={row.time} disabled={readOnly} title="Time of day"
+        onChange={(e) => onUpdate({ time: e.target.value })} />
+    </>
   )
 }
 
