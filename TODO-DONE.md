@@ -6,6 +6,15 @@
 
 ## Completed Items
 
+### Make `+ New` a hyperlink on the Recipes page — 2026-06-09 CDT
+
+- [x] The `/recipes` empty-state message now links the "+ New" text to the new-recipe page instead of rendering it as plain bold text
+
+**NOTES:**
+- `pages/RecipesPage.tsx`: replaced `<strong>+ New</strong>` in the "No recipes found. Create your first one with …" message with `<Link to="/recipes/new">+ New</Link>`, reusing the already-imported react-router `Link` (same nav approach as the page's header "+ New" button and recipe cards). No new styles introduced; surrounding sentence text unchanged.
+- Route confirmed: there is no literal `/recipes/new` route — `App.tsx` serves the form via the dynamic `/recipes/:id` route where `new` is the `:id` param; `/recipes/new` is the established convention (matches the header button).
+- Verified: web `npm run build` ✓; `npm run lint` 0 errors (1 pre-existing `AuthContext.tsx` warning).
+
 ### Add tracking of ad-hoc meals (daily consumption log) — 2026-06-09 CDT
 
 - [x] New per-user **consumption log** vertical slice: quickly log what was actually eaten on a given day — an existing catalog **Meal** or **Recipe** (with a servings quantity, nutrition computed live from the source) and/or a **free-form** item (name + optional calories) — view a day's entries with rolled-up nutrition totals, and remove an entry.

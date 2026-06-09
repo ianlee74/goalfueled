@@ -63,7 +63,7 @@ export function RecipesPage() {
       {!loading && items.length === 0 && !error && (
         <div className="card">
           <p className="muted" style={{ margin: 0 }}>
-            No recipes found. Create your first one with <strong>+ New</strong>.
+            No recipes found. Create your first one with <Link to="/recipes/new">+ New</Link>.
           </p>
         </div>
       )}

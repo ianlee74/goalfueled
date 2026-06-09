@@ -6,6 +6,8 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
+- [] **Add automatic lookup of ingredient nutrients**: when adding a new `ingredient`, the app should automatically locate and populate nutritional information about the ingredient requested.
+
 - [] **Reflect actual consumption in nutrient-goal progress**: nutrient-metric goals currently compute progress from planned meal *plans* (`GoalService`/`GoalNutritionRollup`), not from what was actually eaten. Now that a daily consumption log exists (`ConsumptionEntry`, `/consumption`), nutrient-goal progress should account for actual logged consumption. Requires a planned-vs-actual design decision (use actual when present and fall back to planned? blend? show both?). Keep existing Goal tests passing.
 
 ## FUTURE FEATURES
