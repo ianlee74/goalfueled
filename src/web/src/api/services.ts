@@ -1,6 +1,7 @@
 import { api } from './client'
 import type {
-  AdminUser, CurrentUser, Goal, GoalInput, GoalType, Ingredient, IngredientInput, Meal, MealInput,
+  AdminUser, ConsumptionDay, ConsumptionEntry, ConsumptionEntryInput,
+  CurrentUser, Goal, GoalInput, GoalType, Ingredient, IngredientInput, Meal, MealInput,
   MealPlan, MealPlanInput, NutrientDefinition, Recipe, RecipeInput,
   WeightEntry, WeightEntryInput,
 } from './types'
@@ -84,6 +85,14 @@ export const goalApi = {
   create: (input: GoalInput) => api.post<Goal>('/goals', input),
   update: (id: string, input: GoalInput) => api.put<Goal>(`/goals/${id}`, input),
   remove: (id: string) => api.del(`/goals/${id}`),
+}
+
+export const consumptionApi = {
+  // The caller's consumption log for a day (defaults to today server-side when date is omitted).
+  day: (date?: string) => api.get<ConsumptionDay>(`/consumption${date ? `?date=${date}` : ''}`),
+  // Logs a consumed item (catalog meal/recipe or free-form).
+  log: (input: ConsumptionEntryInput) => api.post<ConsumptionEntry>('/consumption', input),
+  remove: (id: string) => api.del(`/consumption/${id}`),
 }
 
 export const nutrientApi = {

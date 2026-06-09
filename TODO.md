@@ -6,8 +6,6 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-- [] **Add option to add tracking of ad-hoc meals**: if the user eats a snack or other meal that was not part of the plan, then they should be able to easily add that to their daily consumption log.
-
 ## FUTURE FEATURES
 
 >[AI Agent] skip ALL items in this section.

@@ -292,6 +292,50 @@ export interface GoalInput {
   recurrenceDays?: number
 }
 
+export type ConsumptionSource = 'Meal' | 'Recipe' | 'FreeForm'
+
+export interface ConsumptionEntry {
+  id: string
+  // Calendar day, serialized "yyyy-MM-dd".
+  date: string
+  source: ConsumptionSource
+  // Referenced meal/recipe id for catalog entries; absent for free-form items.
+  sourceId?: string
+  name: string
+  servings: number
+  // Nutrition for this logged item (source per-serving × servings, or inline free-form × servings).
+  nutrition: NutrientAmount[]
+  // True when the referenced catalog item is no longer visible (live nutrition couldn't be resolved).
+  sourceMissing: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ConsumptionDay {
+  // The day this log is for, "yyyy-MM-dd".
+  date: string
+  entries: ConsumptionEntry[]
+  // Sum of every entry's nutrition for the day.
+  totalNutrition: NutrientAmount[]
+}
+
+export interface ConsumptionEntryInput {
+  source: ConsumptionSource
+  // Required for Meal/Recipe sources.
+  sourceId?: string
+  // Required for free-form entries; optional name override for catalog entries.
+  name?: string
+  servings: number
+  // Optional per-serving nutrition for a free-form entry.
+  nutrition?: NutrientAmount[]
+  // Optional "yyyy-MM-dd"; defaults to today server-side when omitted.
+  date?: string
+}
+
+export const CONSUMPTION_SOURCE_LABELS: Record<ConsumptionSource, string> = {
+  Meal: 'Meal', Recipe: 'Recipe', FreeForm: 'Free-form',
+}
+
 export const GOAL_METRIC_LABELS: Record<GoalMetricType, string> = {
   Weight: 'Weight', Nutrient: 'Nutrient',
 }

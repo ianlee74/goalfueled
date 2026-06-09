@@ -52,6 +52,19 @@ public enum WeightUnit
     Kilogram = 1
 }
 
+/// <summary>What a logged consumption entry references for its nutrition.</summary>
+public enum ConsumptionSource
+{
+    /// <summary>An existing catalog <see cref="Entities.Meal"/>; nutrition computed live from the meal.</summary>
+    Meal = 0,
+
+    /// <summary>An existing catalog <see cref="Entities.Recipe"/>; nutrition computed live from the recipe.</summary>
+    Recipe = 1,
+
+    /// <summary>A free-form item not in the catalog; nutrition (if any) is captured inline on the entry.</summary>
+    FreeForm = 2
+}
+
 /// <summary>The kind of metric a goal targets.</summary>
 public enum GoalMetricType
 {

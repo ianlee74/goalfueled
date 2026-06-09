@@ -14,6 +14,7 @@ import { PlansPage } from './pages/PlansPage'
 import { PlanFormPage } from './pages/PlanFormPage'
 import { WeightPage } from './pages/WeightPage'
 import { GoalsPage } from './pages/GoalsPage'
+import { LogPage } from './pages/LogPage'
 import { UsersPage } from './pages/UsersPage'
 
 export default function App() {
@@ -58,6 +59,7 @@ export default function App() {
         <Route path="/meals/:id" element={<MealFormPage />} />
         <Route path="/plans" element={<PlansPage />} />
         <Route path="/plans/:id" element={<PlanFormPage />} />
+        <Route path="/log" element={<LogPage />} />
         <Route path="/weight" element={<WeightPage />} />
         <Route path="/goals" element={<GoalsPage />} />
         <Route path="/users" element={<UsersPage />} />

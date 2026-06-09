@@ -6,6 +6,28 @@
 
 ## Completed Items
 
+### Add tracking of ad-hoc meals (daily consumption log) — 2026-06-09 CDT
+
+- [x] New per-user **consumption log** vertical slice: quickly log what was actually eaten on a given day — an existing catalog **Meal** or **Recipe** (with a servings quantity, nutrition computed live from the source) and/or a **free-form** item (name + optional calories) — view a day's entries with rolled-up nutrition totals, and remove an entry.
+
+**NOTES:**
+- Built following the WeightEntry/Goals pattern across all layers.
+  - Domain: `Entities/ConsumptionEntry.cs` (OwnerUserId-scoped; `DateOnly Date`, `ConsumptionSource Source`, `SourceId?`, `Name`, `Servings`, inline `List<NutrientAmount> Nutrition`, timestamps). New enum `ConsumptionSource { Meal, Recipe, FreeForm }` in `Enums.cs`. `Contracts/ConsumptionDtos.cs` (`ConsumptionEntryDto`, `ConsumptionDayDto`, `ConsumptionEntryInput`).
+  - Data: `IConsumptionEntryRepository`/`ConsumptionEntryRepository` (ListForUserAndDate, GetById, Add, Delete; in-memory date filtering for provider-agnostic `DateOnly`), `ConsumptionEntries` DbSet + Cosmos container mapping (`OwnsMany(Nutrition)`), DI registration.
+  - Api: `Services/ConsumptionService.cs` (per-day list + totals, log, remove; live nutrition roll-up), `Functions/ConsumptionFunctions.cs` (`GET /consumption[?date=]`, `POST /consumption`, `DELETE /consumption/{id}`). `InputLimits.ConsumptionServingsMax`. Registered in `Program.cs`.
+  - Web: `pages/LogPage.tsx` ("Food Log" page: date picker, add-item form with Meal/Recipe/Free-form type selector + catalog dropdown or name+calories, servings, day entries with remove, day-total `NutritionLabel`), `/log` route in `App.tsx`, 🍪 "Food Log" nav entry in `Layout`, `consumptionApi` + consumption types/labels in `api/`.
+
+- **Design decisions / assumptions:**
+  - **Data model:** one row per logged item (NOT a per-day upsert like weight) — a day can have many items; logging appends, removal is by id. An entry is discriminated by `Source`: a catalog `Meal`/`Recipe` reference (nutrition computed live) or a `FreeForm` item (nutrition carried inline). `Servings` scales the source/inline nutrition.
+  - **Free-form vs catalog:** both supported. Catalog entries reference an existing meal/recipe (so nutrition is exact and stays correct), capturing a **name snapshot** at log time so the log still reads sensibly if the source is later renamed/deleted. Free-form entries require a name and accept optional **per-serving calories** (kept deliberately minimal — the schema stores arbitrary `NutrientAmount`s, but the UI exposes only calories to avoid over-building); a free-form item with no nutrition is allowed (still a useful log line).
+  - **Nutrition totals:** computed by **reusing the existing calculators** — `MealNutritionCalculator.ComputeTotal` (whole meal) and `RecipeNutritionCalculator.ComputePerServing` (per recipe serving), each scaled by `Servings` via `NutritionMath.Scale`; the day total is `NutritionMath.Sum` over all entries (same aggregation used everywhere else). If a referenced catalog item is no longer visible/exists, the entry is returned with empty nutrition and `SourceMissing = true` (name still shows) rather than failing the whole day.
+  - **Per-user only:** entries are entirely private — not even admins get a cross-user view (mirrors WeightEntry/Goals); remove returns 404 for non-owners. Catalog references are validated against the caller's visibility (own + app-level + public), reusing the Meals/Recipes visibility rules, so a user can't log another user's private recipe.
+  - **Goals progress left as-is:** `GoalService` still derives nutrient intake from meal **plans** (planned intake). Folding the consumption log into nutrient-goal progress was deemed not a small/clean change (plans project a per-day average over a period vs. the log being actual dated entries — mixing them cleanly needs a planned-vs-actual design decision), so Goals was intentionally not touched, to avoid breaking the existing Goal tests. Noted here for a future follow-up.
+  - **Date:** optional, defaults to today (UTC) server-side; future dates rejected. `GET /consumption?date=yyyy-MM-dd` selects a day (defaults to today).
+- **API endpoints added:** `GET /consumption[?date=yyyy-MM-dd]`, `POST /consumption`, `DELETE /consumption/{id}`.
+- **Tests:** `ConsumptionServiceTests` (15 cases: log recipe/meal with scaled nutrition, free-form with/without inline nutrition, day totals summed across entries, per-day & default-today scoping, removal, per-user isolation + can't-log-another's-recipe, validation of missing source-id/free-form name/servings/future-date, and source-removed → `SourceMissing`). Updated `DependencyInjectionTests` to mirror the new service + repository registration.
+- **Verified:** `dotnet test -c Release` → 130 passed / 0 failed (was 115, +15 new); web `npm run build` ✓; `npm run lint` → 0 errors (1 pre-existing `AuthContext.tsx` warning).
+
 ### Define goals and track progress — 2026-06-09 CDT
 
 - [x] New per-user Goals vertical slice: define a weight or nutrient goal (one-time or recurring), with live progress computed from existing data and an SVG progress visual that celebrates/warns based on the positive/negative outcome.

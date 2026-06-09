@@ -9,6 +9,7 @@ const NAV = [
   { to: '/recipes', label: 'Recipes', ico: '🍳' },
   { to: '/meals', label: 'Meals', ico: '🍽️' },
   { to: '/plans', label: 'Plans', ico: '📅' },
+  { to: '/log', label: 'Food Log', ico: '🍪' },
   { to: '/weight', label: 'Weight', ico: '⚖️' },
   { to: '/goals', label: 'Goals', ico: '🎯' },
 ]

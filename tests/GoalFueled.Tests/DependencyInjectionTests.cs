@@ -43,6 +43,7 @@ public class DependencyInjectionTests
         services.AddScoped<MealPlanService>();
         services.AddScoped<WeightService>();
         services.AddScoped<GoalService>();
+        services.AddScoped<ConsumptionService>();
         services.AddScoped<UserAdminService>();
 
         return services.BuildServiceProvider(new ServiceProviderOptions
@@ -67,6 +68,7 @@ public class DependencyInjectionTests
         Assert.NotNull(sp.GetRequiredService<MealPlanService>());
         Assert.NotNull(sp.GetRequiredService<WeightService>());
         Assert.NotNull(sp.GetRequiredService<GoalService>());
+        Assert.NotNull(sp.GetRequiredService<ConsumptionService>());
         Assert.NotNull(sp.GetRequiredService<UserAdminService>());
         Assert.NotNull(sp.GetRequiredService<IUserRepository>());
         Assert.NotNull(sp.GetRequiredService<IIngredientRepository>());
@@ -75,6 +77,7 @@ public class DependencyInjectionTests
         Assert.NotNull(sp.GetRequiredService<IMealPlanRepository>());
         Assert.NotNull(sp.GetRequiredService<IWeightEntryRepository>());
         Assert.NotNull(sp.GetRequiredService<IGoalRepository>());
+        Assert.NotNull(sp.GetRequiredService<IConsumptionEntryRepository>());
         Assert.NotNull(sp.GetRequiredService<DatabaseInitializer>());
         Assert.NotEmpty(sp.GetServices<IIdentityProvider>());
     }
