@@ -1,5 +1,6 @@
 using GoalFueled.Api.Auth;
 using GoalFueled.Api.Services;
+using GoalFueled.Api.Services.Nutrition;
 using GoalFueled.Data;
 using GoalFueled.Data.Repositories;
 using GoalFueled.Data.Seeding;
@@ -45,6 +46,8 @@ public class DependencyInjectionTests
         services.AddScoped<GoalService>();
         services.AddScoped<ConsumptionService>();
         services.AddScoped<UserAdminService>();
+        services.AddHttpClient<IFdcNutritionClient, FdcNutritionClient>();
+        services.AddScoped<NutritionLookupService>();
 
         return services.BuildServiceProvider(new ServiceProviderOptions
         {
@@ -70,6 +73,8 @@ public class DependencyInjectionTests
         Assert.NotNull(sp.GetRequiredService<GoalService>());
         Assert.NotNull(sp.GetRequiredService<ConsumptionService>());
         Assert.NotNull(sp.GetRequiredService<UserAdminService>());
+        Assert.NotNull(sp.GetRequiredService<NutritionLookupService>());
+        Assert.NotNull(sp.GetRequiredService<IFdcNutritionClient>());
         Assert.NotNull(sp.GetRequiredService<IUserRepository>());
         Assert.NotNull(sp.GetRequiredService<IIngredientRepository>());
         Assert.NotNull(sp.GetRequiredService<IRecipeRepository>());

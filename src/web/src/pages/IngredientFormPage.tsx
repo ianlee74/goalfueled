@@ -32,6 +32,11 @@ export function IngredientFormPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Automatic nutrition lookup (USDA via the backend).
+  const [lookingUp, setLookingUp] = useState(false)
+  const [lookupError, setLookupError] = useState<string | null>(null)
+  const [lookupInfo, setLookupInfo] = useState<string | null>(null)
+
   useEffect(() => {
     if (isNew) return
     // `loading` is already true for edit mode (initialized from !isNew), so the fetch starts
@@ -67,6 +72,36 @@ export function IngredientFormPage() {
   }
   function removeNutrient(nutrientId: string) {
     setAmounts((prev) => prev.filter((a) => a.nutrientId !== nutrientId))
+  }
+
+  // Fetches nutrition for the typed name and pre-fills the (still editable) nutrient fields. The
+  // looked-up values are per 100 g, so we also set the serving basis to 100 g to keep them correct.
+  // Lookup never auto-saves and never blocks manual entry — failures just surface a message.
+  async function lookupNutrition() {
+    setLookupError(null)
+    setLookupInfo(null)
+    const query = name.trim()
+    if (!query) { setLookupError('Enter an ingredient name first.'); return }
+
+    setLookingUp(true)
+    try {
+      const result = await ingredientApi.nutritionLookup(query)
+      const known = result.nutritionPer100g.filter((a) => byId.has(a.nutrientId))
+      if (known.length === 0) {
+        setLookupError(`Found "${result.matchedName}" but it had no nutrients we track. Enter values manually.`)
+        return
+      }
+      // Looked-up data is per 100 g; align the serving basis so the stored values stay meaningful.
+      setUnit('Gram')
+      setServingSize('100')
+      setAmounts(known.map((a) => ({ nutrientId: a.nutrientId, value: a.value })))
+      setLookupInfo(`Filled ${known.length} nutrient${known.length === 1 ? '' : 's'} from ${result.source} ` +
+        `("${result.matchedName}", per 100 g). Review and edit before saving.`)
+    } catch (e) {
+      setLookupError(e instanceof Error ? e.message : 'Lookup failed. Enter values manually.')
+    } finally {
+      setLookingUp(false)
+    }
   }
 
   async function save() {
@@ -126,9 +161,21 @@ export function IngredientFormPage() {
       <div className="card stack">
         <label className="field">
           Name
-          <input className="input" value={name} disabled={readOnly}
-            onChange={(e) => setName(e.target.value)} placeholder="e.g. Greek Yogurt" />
+          <div className="lookup-row">
+            <input className="input" value={name} disabled={readOnly}
+              onChange={(e) => setName(e.target.value)} placeholder="e.g. Greek Yogurt" />
+            {!readOnly && (
+              <button type="button" className="btn btn-sm" disabled={lookingUp || !name.trim()}
+                title="Auto-fill nutrition for this name from USDA FoodData Central"
+                onClick={lookupNutrition}>
+                {lookingUp ? 'Looking up…' : 'Look up nutrition'}
+              </button>
+            )}
+          </div>
         </label>
+
+        {lookupError && <div className="notice error">{lookupError}</div>}
+        {lookupInfo && <div className="notice info">{lookupInfo}</div>}
 
         <label className="field">
           Description <span className="hint">HTML allowed</span>

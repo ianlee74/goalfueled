@@ -81,6 +81,14 @@ export interface IngredientInput {
   appLevel: boolean
 }
 
+/** Result of an automatic nutrition lookup; amounts are per 100 g, mapped to the app's catalog. */
+export interface NutritionLookupResult {
+  matchedName: string
+  source: string
+  basisGrams: number
+  nutritionPer100g: NutrientAmount[]
+}
+
 export type RecipeVisibility = 'Private' | 'PendingReview' | 'Public' | 'Rejected'
 
 export interface RecipeItem {

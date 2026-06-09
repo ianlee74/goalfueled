@@ -1,6 +1,7 @@
 using Azure.Monitor.OpenTelemetry.Exporter;
 using GoalFueled.Api.Auth;
 using GoalFueled.Api.Services;
+using GoalFueled.Api.Services.Nutrition;
 using GoalFueled.Data;
 using GoalFueled.Data.Seeding;
 using Microsoft.Azure.Functions.Worker;
@@ -39,6 +40,12 @@ builder.Services.AddScoped<WeightService>();
 builder.Services.AddScoped<GoalService>();
 builder.Services.AddScoped<ConsumptionService>();
 builder.Services.AddScoped<UserAdminService>();
+
+// Automatic ingredient nutrition lookup (USDA FoodData Central). The HTTP call is done server-side
+// via IHttpClientFactory so the API key stays off the client and CORS is a non-issue.
+builder.Services.AddHttpClient<IFdcNutritionClient, FdcNutritionClient>(http =>
+    http.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddScoped<NutritionLookupService>();
 
 var host = builder.Build();
 

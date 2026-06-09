@@ -1,6 +1,7 @@
 using GoalFueled.Api.Auth;
 using GoalFueled.Api.Common;
 using GoalFueled.Api.Services;
+using GoalFueled.Api.Services.Nutrition;
 using GoalFueled.Domain.Contracts;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -12,11 +13,14 @@ namespace GoalFueled.Api.Functions;
 public sealed class IngredientFunctions
 {
     private readonly IngredientService _ingredients;
+    private readonly NutritionLookupService _nutritionLookup;
     private readonly IAuthenticator _auth;
 
-    public IngredientFunctions(IngredientService ingredients, IAuthenticator auth)
+    public IngredientFunctions(
+        IngredientService ingredients, NutritionLookupService nutritionLookup, IAuthenticator auth)
     {
         _ingredients = ingredients;
+        _nutritionLookup = nutritionLookup;
         _auth = auth;
     }
 
@@ -29,6 +33,16 @@ public sealed class IngredientFunctions
             // Admin "view all": honored only when the caller is acting as an admin (enforced in the service).
             var all = req.Query["all"].FirstOrDefault() == "true";
             var result = await _ingredients.ListAsync(user, search, all, req.HttpContext.RequestAborted);
+            return HttpResults.Ok(result);
+        });
+
+    [Function("LookupIngredientNutrition")]
+    public Task<IActionResult> NutritionLookup(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "ingredients/nutrition-lookup")] HttpRequest req) =>
+        ApiEndpoint.RunAuthenticated(req, _auth, async _ =>
+        {
+            var query = req.Query["query"].FirstOrDefault();
+            var result = await _nutritionLookup.LookupAsync(query, req.HttpContext.RequestAborted);
             return HttpResults.Ok(result);
         });
 

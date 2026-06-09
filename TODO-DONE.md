@@ -6,6 +6,20 @@
 
 ## Completed Items
 
+### Add automatic lookup of ingredient nutrients — 2026-06-09 CDT
+
+- [x] When creating/editing an ingredient, a "Look up nutrition" button fetches nutrition from USDA FoodData Central by name and pre-fills the (still-editable) nutrient fields
+
+**NOTES:**
+- **New API endpoint:** `GET /api/ingredients/nutrition-lookup?query=<name>` (authenticated, existing `RunAuthenticated`/`HttpResults`/`ApiException` conventions), registered before the `ingredients/{id}` route so the literal segment wins. Returns `NutritionLookupResultDto { matchedName, source, basisGrams (100), nutritionPer100g[] }`.
+- **External source (server-side):** USDA FoodData Central `/foods/search`, called from the backend via `IHttpClientFactory` (`AddHttpClient<IFdcNutritionClient, FdcNutritionClient>`, 15s timeout) so the key stays off the browser and there's no CORS issue. Config (both optional with defaults): `GoalFueled:Nutrition:FdcApiKey` → default `DEMO_KEY` (USDA's public rate-limited key; no personal key required), `GoalFueled:Nutrition:FdcBaseUrl` → default `https://api.nal.usda.gov/fdc/v1/`. Documented in `README.md`.
+- **Mapping:** `FdcNutrientMap` keys on the stable USDA nutrient **number** (e.g. 203=protein, 208=energy) → app catalog id (~45 mapped; untracked ignored). Units reconciled (G/MG/UG/KCAL/IU) via a microgram base to each nutrient's canonical unit; incompatible/IU-vs-mass readings dropped rather than misstored. USDA reports per 100 g and the app stores per 100 g → 1:1 after unit reconciliation. `NutritionLookupService` parses/maps/dedups (first valid reading wins), preserving catalog order.
+- **Fails gracefully:** client swallows network errors/timeouts/non-success/malformed bodies to null (logged); service throws a friendly NotFound ("enter values manually"); empty query → validation error. Lookup never blocks manual entry and never auto-saves — it only pre-fills editable fields (basis set to 100 g).
+- **Frontend:** `IngredientFormPage.tsx` adds a "Look up nutrition" button next to Name (disabled while loading or name empty) with loading/error/success notices reusing existing classes; `api/types.ts` `NutritionLookupResult`; `api/services.ts` `ingredientApi.nutritionLookup(query)`; one `.lookup-row` CSS rule (no theme files touched).
+- **Tests:** `NutritionLookupServiceTests` (12 cases) using a faked `IFdcNutritionClient` + sample USDA JSON (NO network): mapping, g→mg conversion, catalog ordering, dropping untracked/negative/bad-unit, dedup, trimming, and all failure modes; `DependencyInjectionTests` updated.
+- New files: `Domain/Contracts/NutritionLookupDtos.cs`, `Api/Services/Nutrition/{FdcModels,IFdcNutritionClient,FdcNutritionClient,FdcNutrientMap,NutritionLookupService}.cs`, `tests/.../NutritionLookupServiceTests.cs`.
+- Verified (subagent): `dotnet test -c Release` → 142 passed/0 failed (130 + 12); web `npm run build` ✓; `npm run lint` 0 errors (1 pre-existing `AuthContext.tsx` warning).
+
 ### Make `+ New` a hyperlink on the Recipes page — 2026-06-09 CDT
 
 - [x] The `/recipes` empty-state message now links the "+ New" text to the new-recipe page instead of rendering it as plain bold text

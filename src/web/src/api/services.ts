@@ -2,7 +2,7 @@ import { api } from './client'
 import type {
   AdminUser, ConsumptionDay, ConsumptionEntry, ConsumptionEntryInput,
   CurrentUser, Goal, GoalInput, GoalType, Ingredient, IngredientInput, Meal, MealInput,
-  MealPlan, MealPlanInput, NutrientDefinition, Recipe, RecipeInput,
+  MealPlan, MealPlanInput, NutrientDefinition, NutritionLookupResult, Recipe, RecipeInput,
   WeightEntry, WeightEntryInput,
 } from './types'
 
@@ -34,6 +34,9 @@ export const ingredientApi = {
   list: (search?: string, all?: boolean) =>
     api.get<Ingredient[]>(`/ingredients${listQuery(search, all)}`),
   get: (id: string) => api.get<Ingredient>(`/ingredients/${id}`),
+  // Auto-fill nutrition from an external source (USDA), per 100 g, mapped to the app's catalog.
+  nutritionLookup: (query: string) =>
+    api.get<NutritionLookupResult>(`/ingredients/nutrition-lookup?query=${encodeURIComponent(query)}`),
   create: (input: IngredientInput) => api.post<Ingredient>('/ingredients', input),
   update: (id: string, input: IngredientInput) => api.put<Ingredient>(`/ingredients/${id}`, input),
   remove: (id: string) => api.del(`/ingredients/${id}`),

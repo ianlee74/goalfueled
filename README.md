@@ -117,6 +117,21 @@ with. Sign in as one of the preset dev users — **the first user to sign in bec
    The emulator connection string is already filled in (the well-known emulator endpoint/key).
 3. Restart `func start`. The database and containers are created automatically.
 
+### Automatic ingredient nutrition lookup
+
+The ingredient form has a **Look up nutrition** button that auto-fills nutrient values from the free,
+public [USDA FoodData Central](https://fdc.nal.usda.gov/api-guide.html) API. The external HTTP call is
+made server-side (via `IHttpClientFactory`) so the API key stays off the browser and there's no CORS.
+
+- `GoalFueled:Nutrition:FdcApiKey` — defaults to USDA's public, rate-limited `DEMO_KEY`. Set a personal
+  key (free, from the USDA site) for higher limits. No key is required to use the feature.
+- `GoalFueled:Nutrition:FdcBaseUrl` — defaults to `https://api.nal.usda.gov/fdc/v1/`.
+
+USDA reports nutrients per 100 g; the app stores per-serving values, so applying a lookup sets the
+serving basis to 100 g and fills the matching catalog nutrients (1:1, with unit conversion). Only
+nutrients the app tracks are populated; the lookup pre-fills editable fields and never auto-saves, and
+it fails gracefully (network/no-key/rate-limit/no-result) so manual entry is always available.
+
 ## Authentication & authorization
 
 Auth is built behind a provider seam (`IIdentityProvider`) so the local dev login can be swapped for
