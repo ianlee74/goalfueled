@@ -319,6 +319,36 @@ label.field .hint { font-weight: 400; color: var(--muted); font-size: 0.8rem; }
 
 .plan-day-add { margin-top: 0.5rem; }
 
+/* "Add a meal to multiple days" form at the top of the weekly timeline. */
+.plan-multi-add {
+  gap: 0.5rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.plan-multi-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.plan-multi-controls .select { flex: 1 1 12rem; min-width: 0; }
+.plan-multi-days { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.plan-day-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.plan-day-chip.on { border-color: var(--primary); color: var(--primary); font-weight: 600; }
+
 @media (max-width: 640px) {
   .plan-tl-row { grid-template-columns: auto 56px 1fr 40px; }
   /* On narrow screens the day/time editors wrap under via the meal selector's row flow. */

@@ -55,6 +55,12 @@ export function PlanFormPage() {
   const [dropBeforeKey, setDropBeforeKey] = useState<number | null>(null)
   const [dropEndBucket, setDropEndBucket] = useState<DayBucket | null>(null)
 
+  // "Add meal to multiple days" form (Weekly only): pick a meal + optional time once, check the
+  // days to add it to, then create one independent scheduled-meal row per checked day.
+  const [multiMealId, setMultiMealId] = useState('')
+  const [multiTime, setMultiTime] = useState('')
+  const [multiDays, setMultiDays] = useState<Set<DayOfWeek>>(new Set())
+
   // Pickers: the meals/ingredients the user can reference.
   const [meals, setMeals] = useState<Meal[]>([])
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
@@ -175,6 +181,29 @@ export function PlanFormPage() {
     setScheduled((prev) => [...prev, {
       key: nextKey++, mealId: meals[0]?.id ?? '', dayOfWeek: bucket, time: '',
     }])
+  }
+
+  // "Add meal to multiple days": create one independent scheduled-meal row per checked day, all
+  // sharing the chosen meal + time. Each row is a fresh object (own `key`), so editing or removing
+  // one day's row later never affects the others. Resets the form on success.
+  function addScheduledToMultipleDays() {
+    if (!multiMealId || multiDays.size === 0) return
+    setScheduled((prev) => [
+      ...prev,
+      ...DAYS_OF_WEEK.filter((d) => multiDays.has(d)).map((d) => ({
+        key: nextKey++, mealId: multiMealId, dayOfWeek: d as DayOfWeek | '', time: multiTime,
+      })),
+    ])
+    setMultiDays(new Set())
+  }
+
+  function toggleMultiDay(day: DayOfWeek) {
+    setMultiDays((prev) => {
+      const next = new Set(prev)
+      if (next.has(day)) next.delete(day)
+      else next.add(day)
+      return next
+    })
   }
 
   // Reorder within a day's timeline: move the dragged row to sit immediately before `beforeKey`
@@ -329,6 +358,38 @@ export function PlanFormPage() {
 
           {scheduled.length === 0 && (
             <p className="muted small" style={{ margin: 0 }}>No scheduled meals yet.</p>
+          )}
+
+          {!readOnly && (
+            <div className="plan-multi-add stack">
+              <strong className="small">Add a meal to multiple days</strong>
+              <div className="plan-multi-controls">
+                <select className="select" value={multiMealId} title="Meal"
+                  onChange={(e) => setMultiMealId(e.target.value)}>
+                  <option value="">Select a meal…</option>
+                  {meals.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </select>
+                <input className="input" type="time" value={multiTime} title="Time of day (optional)"
+                  onChange={(e) => setMultiTime(e.target.value)} />
+                <button className="btn btn-sm btn-primary" type="button"
+                  disabled={!multiMealId || multiDays.size === 0}
+                  onClick={addScheduledToMultipleDays}>
+                  Add to {multiDays.size || 'selected'} day{multiDays.size === 1 ? '' : 's'}
+                </button>
+              </div>
+              <div className="plan-multi-days">
+                {DAYS_OF_WEEK.map((d) => (
+                  <label key={d} className={`plan-day-chip ${multiDays.has(d) ? 'on' : ''}`}>
+                    <input type="checkbox" checked={multiDays.has(d)}
+                      onChange={() => toggleMultiDay(d)} />
+                    {d.slice(0, 3)}
+                  </label>
+                ))}
+              </div>
+              <span className="muted small">
+                Adds one entry per selected day. Each can be moved or re-timed independently afterward.
+              </span>
+            </div>
           )}
 
           {[...DAYS_OF_WEEK, '' as DayBucket].map((bucket) => {

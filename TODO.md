@@ -6,8 +6,6 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-- [] **When adding a meal to a meal plan allow multiple day selection**: if the user wants to eat the same meal on multiple days at the same time, they should be able to add them all at once. Once added, they should be able to adjust the time for individual days if they desire.
-
 - [] **The time picker should only show minutes in 15 minute intervals**: when using the time picker, it should only show minute options in 15 minute intervals (0, 15, 30, 45) instead of one minute intervals.
 
 

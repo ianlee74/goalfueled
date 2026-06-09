@@ -6,6 +6,18 @@
 
 ## Completed Items
 
+### Add a meal to multiple days at once — 2026-06-09 CDT
+
+- [x] The Weekly meal-plan editor can add the same meal to several days at once (meal + optional time + multi-day chips); each created day-entry is independent and its time can be adjusted separately afterward
+
+**NOTES:**
+- Frontend-only, no backend changes.
+- `pages/PlanFormPage.tsx`: new "Add a meal to multiple days" form at the top of the Weekly timeline card (Weekly cadence only, hidden when read-only): a meal `<select>`, the existing `<input type="time">` (optional → untimed), and a Sun→Sat row of toggle chips (checkbox-backed labels, `.on` when selected). "Add to N days" button is disabled until a meal + ≥1 day are chosen. `addScheduledToMultipleDays` pushes one freshly-constructed `ScheduledRow` per checked day, each with its own unique `key` and value-copied meal/time strings — so re-timing or removing one day's entry never affects the others (verified: per-row edits go through `updateScheduled(key, patch)` with an immutable `.map`). After adding, the day selection clears but meal/time persist for quick repeat batches.
+- **Single-day path kept:** the per-day "+ Add meal to {day}" quick buttons are untouched; the multi-day form is additive above them.
+- Deliberately reused the existing time input (the 15-minute-interval picker is the next task, to be refined centrally).
+- `index.css`: additive `.plan-multi-add`/`.plan-multi-controls`/`.plan-multi-days`/`.plan-day-chip`(`.on`) using existing CSS vars; theme files untouched.
+- Verified: web `npm run build` ✓; `npm run lint` 0 errors (1 pre-existing `AuthContext.tsx` warning).
+
 ### Better UI for defining weekly meal plans (drag-reorderable timeline) — 2026-06-09 CDT
 
 - [x] The Weekly meal-plan editor is now a day-grouped timeline (meals ordered by time, untimed grouped as "Anytime"), with drag-up/down to reorder within a day
