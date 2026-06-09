@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ingredientApi, mealApi, mealPlanApi, weightApi } from '../api/services'
 import { NutritionLabel } from '../components/NutritionLabel'
+import { TimePicker } from '../components/TimePicker'
 import { useAuth } from '../auth/AuthContext'
 import {
   DAYS_OF_WEEK, GOAL_LABELS, UNIT_LABELS,
@@ -369,8 +370,8 @@ export function PlanFormPage() {
                   <option value="">Select a meal…</option>
                   {meals.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
                 </select>
-                <input className="input" type="time" value={multiTime} title="Time of day (optional)"
-                  onChange={(e) => setMultiTime(e.target.value)} />
+                <TimePicker value={multiTime} title="Time of day (optional)"
+                  onChange={setMultiTime} />
                 <button className="btn btn-sm btn-primary" type="button"
                   disabled={!multiMealId || multiDays.size === 0}
                   onClick={addScheduledToMultipleDays}>
@@ -631,8 +632,8 @@ function ScheduledMealFields({ row, meals, readOnly, showDay, onUpdate }: {
           {DAYS_OF_WEEK.map((d) => <option key={d} value={d}>{d}</option>)}
         </select>
       )}
-      <input className="input" type="time" value={row.time} disabled={readOnly} title="Time of day"
-        onChange={(e) => onUpdate({ time: e.target.value })} />
+      <TimePicker value={row.time} disabled={readOnly} title="Time of day"
+        onChange={(time) => onUpdate({ time })} />
     </>
   )
 }

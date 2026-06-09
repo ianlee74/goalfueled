@@ -6,6 +6,18 @@
 
 ## Completed Items
 
+### Time picker restricted to 15-minute intervals — 2026-06-09 CDT
+
+- [x] Meal/plan time pickers now only offer minutes in 15-minute intervals (:00/:15/:30/:45) via a reusable TimePicker component
+
+**NOTES:**
+- **Approach:** a single reusable `<select>` component (`components/TimePicker.tsx`) with 96 options spanning 00:00…23:45 in 15-min steps. Chosen over hour+minute selects or native `step={900}` because a select is deterministic across browsers (native `<input type="time">` `step` only affects validation/spinner granularity, not the dropdown UX), and avoids hour/minute reconciliation. Options show friendly 12-hour labels ("8:30 AM") while values stay machine-format.
+- **Replaced both (and only) `type="time"` inputs in `src/web/src`** (grep-confirmed, both in `pages/PlanFormPage.tsx`): the "Add a meal to multiple days" form time (`multiTime`) and the per-row time inside the shared `ScheduledMealFields` (`row.time`). No other page uses a time input.
+- **Format/blank preserved:** value prop and onChange emit the same `"HH:mm"` strings wired to the same state; the page's existing `"HH:mm:ss"`↔`"HH:mm"` load/save conversion is untouched, so round-trip is unchanged. Untimed state preserved via a blank first option (`Anytime` → empty string).
+- **Legacy off-grid times:** a non-empty value not on a 15-min boundary (e.g. older `08:20`) is rendered as an extra selectable option labeled "… (custom)" — nothing is snapped or dropped, so editing an old plan can't lose its saved time.
+- No CSS changes (reuses existing `.select`); theme files untouched.
+- Verified: web `npm run build` ✓; `npm run lint` 0 errors (1 pre-existing `AuthContext.tsx` warning).
+
 ### Add a meal to multiple days at once — 2026-06-09 CDT
 
 - [x] The Weekly meal-plan editor can add the same meal to several days at once (meal + optional time + multi-day chips); each created day-entry is independent and its time can be adjusted separately afterward

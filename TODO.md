@@ -6,10 +6,6 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-- [] **The time picker should only show minutes in 15 minute intervals**: when using the time picker, it should only show minute options in 15 minute intervals (0, 15, 30, 45) instead of one minute intervals.
-
-
-
 ## FUTURE FEATURES
 
 >[AI Agent] skip ALL items in this section.
