@@ -35,6 +35,7 @@ public sealed class GoalService
     private readonly IMealRepository _meals;
     private readonly IIngredientRepository _ingredients;
     private readonly MealNutritionCalculator _mealNutrition;
+    private readonly ConsumptionService _consumption;
 
     public GoalService(
         IGoalRepository repo,
@@ -42,7 +43,8 @@ public sealed class GoalService
         IMealPlanRepository plans,
         IMealRepository meals,
         IRecipeRepository recipes,
-        IIngredientRepository ingredients)
+        IIngredientRepository ingredients,
+        ConsumptionService consumption)
     {
         _repo = repo;
         _weights = weights;
@@ -50,6 +52,7 @@ public sealed class GoalService
         _meals = meals;
         _ingredients = ingredients;
         _mealNutrition = new MealNutritionCalculator(recipes, ingredients);
+        _consumption = consumption;
     }
 
     /// <summary>The caller's own goals, most recently created first, each with a fresh progress snapshot.</summary>
@@ -214,12 +217,31 @@ public sealed class GoalService
     /// <summary>Number of days in the active period, used to scale projected nutrient intake.</summary>
     private static int PeriodDays(Goal goal)
     {
+        var (start, end) = PeriodWindow(goal);
+        return Math.Max(1, end.DayNumber - start.DayNumber + 1);
+    }
+
+    /// <summary>
+    /// The inclusive calendar-day window the nutrient roll-up covers, matching <see cref="PeriodFor"/>:
+    /// for one-time goals it is start→target (or start→start when there is no target); for recurring goals
+    /// it is the recurrence period that contains today, anchored at the start date. <see cref="PeriodDays"/>
+    /// is this window's length, so the planned-only projection is unchanged.
+    /// </summary>
+    private static (DateOnly Start, DateOnly End) PeriodWindow(Goal goal)
+    {
         if (goal.Cadence == GoalCadence.Recurring)
-            return goal.RecurrenceDays is > 0 ? goal.RecurrenceDays!.Value : 1;
-        // One-time: the whole span from start to target (inclusive), at least one day.
-        if (goal.TargetDate is { } target)
-            return Math.Max(1, target.DayNumber - goal.StartDate.DayNumber + 1);
-        return 1;
+        {
+            var days = goal.RecurrenceDays is > 0 ? goal.RecurrenceDays!.Value : 1;
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var elapsed = today.DayNumber - goal.StartDate.DayNumber;
+            var periodIndex = elapsed < 0 ? 0 : elapsed / days;
+            var periodStart = goal.StartDate.AddDays(periodIndex * days);
+            return (periodStart, periodStart.AddDays(days - 1));
+        }
+
+        // One-time: the whole span from start to target (inclusive); start→start when no target.
+        var end = goal.TargetDate is { } target && target >= goal.StartDate ? target : goal.StartDate;
+        return (goal.StartDate, end);
     }
 
     private async Task<GoalProgressDto> ComputeWeightProgressAsync(Goal goal, AppUser user, CancellationToken ct)
@@ -243,24 +265,50 @@ public sealed class GoalService
     {
         var (deadline, label) = PeriodFor(goal);
         var nutrientId = goal.NutrientId!;
+        var (windowStart, windowEnd) = PeriodWindow(goal);
+
+        // Planned intake: the per-day average of this nutrient across all of the user's meal plans.
         var plans = await _plans.ListVisibleAsync(user.Id, search: null, ct);
-
-        if (plans.Count == 0)
-            return NoData(goal, label, "Create a meal plan to track this nutrient goal.");
-
-        // Sum the per-day average of this nutrient across all of the user's meal plans (planned intake).
-        var dailyIntake = 0.0;
+        var plannedDaily = 0.0;
         foreach (var plan in plans)
-            dailyIntake += await PlanDailyNutrientAsync(plan, nutrientId, ct);
+            plannedDaily += await PlanDailyNutrientAsync(plan, nutrientId, ct);
 
-        if (dailyIntake <= 0)
-            return NoData(goal, label,
-                "Your meal plans don't supply this nutrient yet — add foods that contain it.");
+        // Actual intake: what the user actually logged, summed per day over the goal's active window.
+        var actualByDay = await _consumption.DailyNutritionInRangeAsync(user, windowStart, windowEnd, ct);
 
-        // Project intake over the active period; nutrient goals accumulate from zero.
-        var periodIntake = dailyIntake * PeriodDays(goal);
-        return BuildProgress(goal, baseline: 0, current: periodIntake, deadline, label);
+        // No data at all (no plans supplying it AND nothing logged) → keep the planned-only "no data" UX.
+        if (plannedDaily <= 0 && actualByDay.Count == 0)
+        {
+            return plans.Count == 0
+                ? NoData(goal, label, "Create a meal plan or log a meal to track this nutrient goal.")
+                : NoData(goal, label,
+                    "Your meal plans don't supply this nutrient yet — add foods that contain it, or log a meal.");
+        }
+
+        // Merge actual-over-planned per day: for each day in the active window, prefer the actual logged
+        // amount when that day has any consumption entries; otherwise fall back to the planned daily intake.
+        // This makes the goal reflect reality as the user logs it while still projecting un-logged days.
+        var periodIntake = 0.0;
+        var anyActual = false;
+        for (var day = windowStart; day <= windowEnd; day = day.AddDays(1))
+        {
+            if (actualByDay.TryGetValue(day, out var logged))
+            {
+                anyActual = true;
+                periodIntake += NutrientValue(logged, nutrientId);
+            }
+            else
+            {
+                periodIntake += plannedDaily;
+            }
+        }
+
+        var progress = BuildProgress(goal, baseline: 0, current: periodIntake, deadline, label);
+        return anyActual ? progress with { BasedOnLoggedConsumption = true } : progress;
     }
+
+    private static double NutrientValue(IReadOnlyList<NutrientAmount> amounts, string nutrientId) =>
+        amounts.FirstOrDefault(a => string.Equals(a.NutrientId, nutrientId, StringComparison.OrdinalIgnoreCase))?.Value ?? 0;
 
     /// <summary>The per-day amount of one nutrient a plan supplies (its daily-average roll-up value).</summary>
     private async Task<double> PlanDailyNutrientAsync(MealPlan plan, string nutrientId, CancellationToken ct)

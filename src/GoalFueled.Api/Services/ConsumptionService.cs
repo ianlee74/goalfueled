@@ -103,6 +103,33 @@ public sealed class ConsumptionService
         return await ToDtoAsync(entry, user, ct);
     }
 
+    /// <summary>
+    /// The caller's <em>actual</em> logged nutrition, summed per calendar day over the inclusive date range
+    /// <paramref name="from"/>..<paramref name="to"/>, keyed by date. Only days that have at least one logged
+    /// entry appear in the result; each day's value is the sum of every entry's computed nutrition (the same
+    /// per-entry computation the day view uses), so it is on the same basis as the meal-plan roll-up.
+    ///
+    /// <para>Used by <see cref="GoalService"/> to let nutrient-goal progress reflect what was actually eaten,
+    /// falling back to planned intake only for days the user has not logged.</para>
+    /// </summary>
+    public async Task<IReadOnlyDictionary<DateOnly, IReadOnlyList<NutrientAmount>>> DailyNutritionInRangeAsync(
+        AppUser user, DateOnly from, DateOnly to, CancellationToken ct)
+    {
+        var entries = await _repo.ListForUserInRangeAsync(user.Id, from, to, ct);
+        var byDay = new Dictionary<DateOnly, List<IReadOnlyList<NutrientAmount>>>();
+        foreach (var entry in entries)
+        {
+            var nutrition = await ComputeNutritionAsync(entry, user, ct);
+            if (!byDay.TryGetValue(entry.Date, out var list))
+                byDay[entry.Date] = list = new List<IReadOnlyList<NutrientAmount>>();
+            list.Add(nutrition);
+        }
+
+        return byDay.ToDictionary(
+            kvp => kvp.Key,
+            kvp => NutritionMath.Sum(kvp.Value));
+    }
+
     /// <summary>Removes one of the caller's logged entries.</summary>
     public async Task RemoveAsync(AppUser user, string id, CancellationToken ct)
     {
@@ -167,51 +194,50 @@ public sealed class ConsumptionService
 
     private async Task<ConsumptionEntryDto> ToDtoAsync(ConsumptionEntry entry, AppUser user, CancellationToken ct)
     {
-        IReadOnlyList<NutrientAmount> nutrition;
-        var sourceMissing = false;
+        var (nutrition, sourceMissing) = await ComputeWithSourceAsync(entry, user, ct);
+        return new ConsumptionEntryDto(
+            entry.Id, entry.Date, entry.Source, entry.SourceId, entry.Name, entry.Servings,
+            nutrition, sourceMissing, entry.CreatedAt, entry.UpdatedAt);
+    }
 
+    /// <summary>An entry's computed nutrition total (no missing-source flag), for roll-ups.</summary>
+    private async Task<IReadOnlyList<NutrientAmount>> ComputeNutritionAsync(
+        ConsumptionEntry entry, AppUser user, CancellationToken ct) =>
+        (await ComputeWithSourceAsync(entry, user, ct)).Nutrition;
+
+    /// <summary>
+    /// Computes a logged entry's nutrition total (source per-serving nutrition × servings for catalog
+    /// entries, or inline free-form nutrition × servings), plus whether a catalog source is no longer
+    /// visible. A missing/invisible catalog source yields empty nutrition (it cannot be resolved).
+    /// </summary>
+    private async Task<(IReadOnlyList<NutrientAmount> Nutrition, bool SourceMissing)> ComputeWithSourceAsync(
+        ConsumptionEntry entry, AppUser user, CancellationToken ct)
+    {
         switch (entry.Source)
         {
             case ConsumptionSource.Meal:
             {
                 var meal = entry.SourceId is not null ? await _meals.GetByIdAsync(entry.SourceId, ct) : null;
                 if (meal is null || !CanUseMeal(meal, user))
-                {
-                    nutrition = Array.Empty<NutrientAmount>();
-                    sourceMissing = true;
-                }
-                else
-                {
-                    var recipesById = await _mealNutrition.ResolveRecipesAsync(new[] { meal }, ct);
-                    var ingredientsById = await _mealNutrition.ResolveIngredientsAsync(recipesById.Values.ToList(), ct);
-                    var perMeal = MealNutritionCalculator.ComputeTotal(meal, recipesById, ingredientsById);
-                    nutrition = NutritionMath.Scale(perMeal, entry.Servings);
-                }
-                break;
+                    return (Array.Empty<NutrientAmount>(), true);
+
+                var recipesById = await _mealNutrition.ResolveRecipesAsync(new[] { meal }, ct);
+                var ingredientsById = await _mealNutrition.ResolveIngredientsAsync(recipesById.Values.ToList(), ct);
+                var perMeal = MealNutritionCalculator.ComputeTotal(meal, recipesById, ingredientsById);
+                return (NutritionMath.Scale(perMeal, entry.Servings), false);
             }
             case ConsumptionSource.Recipe:
             {
                 var recipe = entry.SourceId is not null ? await _recipes.GetByIdAsync(entry.SourceId, ct) : null;
                 if (recipe is null || !CanUseRecipe(recipe, user))
-                {
-                    nutrition = Array.Empty<NutrientAmount>();
-                    sourceMissing = true;
-                }
-                else
-                {
-                    var ingredientsById = await _recipeNutrition.ResolveIngredientsAsync(new[] { recipe }, ct);
-                    var perServing = RecipeNutritionCalculator.ComputePerServing(recipe, ingredientsById);
-                    nutrition = NutritionMath.Scale(perServing, entry.Servings);
-                }
-                break;
+                    return (Array.Empty<NutrientAmount>(), true);
+
+                var ingredientsById = await _recipeNutrition.ResolveIngredientsAsync(new[] { recipe }, ct);
+                var perServing = RecipeNutritionCalculator.ComputePerServing(recipe, ingredientsById);
+                return (NutritionMath.Scale(perServing, entry.Servings), false);
             }
             default: // FreeForm: inline per-serving nutrition × servings.
-                nutrition = NutritionMath.Scale(entry.Nutrition, entry.Servings);
-                break;
+                return (NutritionMath.Scale(entry.Nutrition, entry.Servings), false);
         }
-
-        return new ConsumptionEntryDto(
-            entry.Id, entry.Date, entry.Source, entry.SourceId, entry.Name, entry.Servings,
-            nutrition, sourceMissing, entry.CreatedAt, entry.UpdatedAt);
     }
 }

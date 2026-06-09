@@ -62,6 +62,12 @@ public enum GoalStatus
 /// </param>
 /// <param name="PeriodLabel">Human label for the active period (e.g. "by Dec 31, 2026" or "every 7 days").</param>
 /// <param name="Message">A short, friendly status message for the visual to display.</param>
+/// <param name="BasedOnLoggedConsumption">
+/// True for a nutrient goal whose progress incorporates the user's <em>actual</em> logged consumption for
+/// at least one day in the active period (days without a log fall back to planned meal-plan intake). False
+/// for weight goals and for nutrient goals projected purely from meal plans. Lets the visual hint that the
+/// figure reflects what was really eaten.
+/// </param>
 public sealed record GoalProgressDto(
     GoalStatus Status,
     double BaselineValue,
@@ -71,7 +77,8 @@ public sealed record GoalProgressDto(
     bool ExceededTarget,
     bool OutcomePositive,
     string PeriodLabel,
-    string Message);
+    string Message,
+    bool BasedOnLoggedConsumption = false);
 
 /// <summary>Payload for creating or updating a goal.</summary>
 public sealed record GoalInput(

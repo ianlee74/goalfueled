@@ -23,6 +23,20 @@ public class ConsumptionEntryRepository : IConsumptionEntryRepository
             .ToList();
     }
 
+    public async Task<IReadOnlyList<ConsumptionEntry>> ListForUserInRangeAsync(
+        string userId, DateOnly from, DateOnly to, CancellationToken ct = default)
+    {
+        // As above: materialize the user's (few) entries then filter the date range in memory so this
+        // does not depend on the provider's translation of DateOnly comparisons (Cosmos vs in-memory).
+        var entries = await _db.ConsumptionEntries
+            .Where(c => c.OwnerUserId == userId)
+            .ToListAsync(ct);
+        return entries
+            .Where(c => c.Date >= from && c.Date <= to)
+            .OrderByDescending(c => c.CreatedAt)
+            .ToList();
+    }
+
     public Task<ConsumptionEntry?> GetByIdAsync(string id, CancellationToken ct = default) =>
         _db.ConsumptionEntries.FirstOrDefaultAsync(c => c.Id == id, ct);
 

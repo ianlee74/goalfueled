@@ -74,6 +74,11 @@ export function GoalProgressVisual({ goal }: { goal: Goal }) {
           {fmt(p.currentValue)} / {fmt(p.targetValue)} {goal.metricUnit} · {p.periodLabel}
         </p>
       )}
+      {p.basedOnLoggedConsumption && (
+        <p className="small muted" style={{ margin: '0.15rem 0 0' }} title="Days you logged use your actual intake; un-logged days fall back to your meal plan.">
+          📋 based on logged consumption
+        </p>
+      )}
     </div>
   )
 }

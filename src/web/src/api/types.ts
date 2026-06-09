@@ -265,6 +265,10 @@ export interface GoalProgress {
   outcomePositive: boolean
   periodLabel: string
   message: string
+  // True when a nutrient goal's progress incorporates the user's actual logged consumption for at least
+  // one day in the active period (un-logged days fall back to planned meal-plan intake). False for weight
+  // goals and for nutrient goals projected purely from meal plans.
+  basedOnLoggedConsumption: boolean
 }
 
 export interface Goal {

@@ -6,6 +6,19 @@
 
 ## Completed Items
 
+### Reflect actual consumption in nutrient-goal progress — 2026-06-09 CDT
+
+- [x] Nutrient-goal progress now uses actual logged consumption (per day), falling back to planned meal-plan intake only for days with no log entries
+
+**NOTES:**
+- **Approach (decision):** *actual-overrides-planned, per day, with planned fallback.* For each calendar day in the goal's active period: if the day has any `ConsumptionEntry`, use that day's summed logged nutrition for the goal's nutrient; otherwise fall back to the planned daily intake (existing per-day plan roll-up). Reflects reality as the user logs it while still projecting un-logged days. Cleanly generalizes the old planned-only behavior (nothing logged ⇒ identical projection) and now also tracks a goal with **no meal plan** when the user logs consumption.
+- **Aggregation/merge:** added `ConsumptionService.DailyNutritionInRangeAsync(user, from, to)` → per-day nutrient sums, reusing the exact per-entry nutrition computation the day view uses (refactored the entry switch into shared `ComputeWithSourceAsync`/`ComputeNutritionAsync`), so actual and planned share basis + nutrient ids. Added `IConsumptionEntryRepository.ListForUserInRangeAsync` (same materialize-then-filter-in-memory `DateOnly` pattern as the per-day method). `GoalService.ComputeNutrientProgressAsync` now derives the inclusive day window via a new `PeriodWindow(goal)` helper (recurring: period containing today anchored at start; one-time: start→target inclusive); `PeriodDays` delegates to it so the window length — and the planned-only projection — is byte-for-byte unchanged.
+- **DTO/UI:** `GoalProgressDto` gained `bool BasedOnLoggedConsumption` (default false; set true only when a nutrient goal incorporates ≥1 logged day). `types.ts` mirrors it; `GoalProgressVisual.tsx` shows a minimal "📋 based on logged consumption" hint (with tooltip) only when true. No theme files touched.
+- **No-regression guarantees:** weight goals never touch consumption (`ComputeWeightProgressAsync` unchanged, flag defaults false); no-consumption case yields `plannedDaily * PeriodDays` exactly as before with flag false (covered by an explicit test); "no data" UX preserved (now also satisfiable by logged consumption alone).
+- DI unchanged (`GoalService` ctor injects the already-registered `ConsumptionService`).
+- **Tests:** `GoalServiceTests` +5 (actual-overrides-planned, planned fallback for unlogged days, pure-actual when fully logged, no-regression when nothing logged, consumption-only with no plan) + updated setup.
+- Verified (subagent): `dotnet test -c Release` → 147 passed/0 failed (142 + 5); web `npm run build` ✓; `npm run lint` 0 errors (1 pre-existing `AuthContext.tsx` warning).
+
 ### Add automatic lookup of ingredient nutrients — 2026-06-09 CDT
 
 - [x] When creating/editing an ingredient, a "Look up nutrition" button fetches nutrition from USDA FoodData Central by name and pre-fills the (still-editable) nutrient fields

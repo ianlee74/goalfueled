@@ -16,7 +16,8 @@ public class GoalServiceTests
 
     private static async Task<(AppUser admin, AppUser user, AppUser other,
         WeightService weights, IngredientService ingredients, RecipeService recipes,
-        MealService meals, MealPlanService plans, GoalService goals)> SetupAsync(GoalFueledDbContext db)
+        MealService meals, MealPlanService plans, GoalService goals,
+        ConsumptionService consumption)> SetupAsync(GoalFueledDbContext db)
     {
         var admin = await TestHelpers.NewAuthenticator(db,
             new AuthenticatedIdentity("dev", "admin", "admin@dev.local", "Admin"))
@@ -35,11 +36,14 @@ public class GoalServiceTests
         var plans = new MealPlanService(
             new MealPlanRepository(db), new MealRepository(db),
             new RecipeRepository(db), new IngredientRepository(db));
+        var consumption = new ConsumptionService(
+            new ConsumptionEntryRepository(db), new MealRepository(db),
+            new RecipeRepository(db), new IngredientRepository(db));
         var goals = new GoalService(
             new GoalRepository(db), new WeightEntryRepository(db), new MealPlanRepository(db),
-            new MealRepository(db), new RecipeRepository(db), new IngredientRepository(db));
+            new MealRepository(db), new RecipeRepository(db), new IngredientRepository(db), consumption);
 
-        return (admin!, user!, other!, weights, ingredients, recipes, meals, plans, goals);
+        return (admin!, user!, other!, weights, ingredients, recipes, meals, plans, goals, consumption);
     }
 
     private static GoalInput WeightGoal(
@@ -78,7 +82,7 @@ public class GoalServiceTests
     public async Task Create_persists_goal_owned_by_user()
     {
         using var db = TestHelpers.NewContext();
-        var (_, user, _, _, _, _, _, _, goals) = await SetupAsync(db);
+        var (_, user, _, _, _, _, _, _, goals, _) = await SetupAsync(db);
 
         var created = await goals.CreateAsync(user,
             WeightGoal(170, targetDate: Today.AddDays(30)), default);
@@ -95,7 +99,7 @@ public class GoalServiceTests
     public async Task Users_cannot_see_or_get_each_others_goals()
     {
         using var db = TestHelpers.NewContext();
-        var (_, user, other, _, _, _, _, _, goals) = await SetupAsync(db);
+        var (_, user, other, _, _, _, _, _, goals, _) = await SetupAsync(db);
 
         var mine = await goals.CreateAsync(user, WeightGoal(170, targetDate: Today.AddDays(30)), default);
         await goals.CreateAsync(other, WeightGoal(200, targetDate: Today.AddDays(30)), default);
@@ -110,7 +114,7 @@ public class GoalServiceTests
     public async Task Update_and_delete_only_by_owner()
     {
         using var db = TestHelpers.NewContext();
-        var (_, user, other, _, _, _, _, _, goals) = await SetupAsync(db);
+        var (_, user, other, _, _, _, _, _, goals, _) = await SetupAsync(db);
         var mine = await goals.CreateAsync(user, WeightGoal(170, targetDate: Today.AddDays(30)), default);
 
         await Assert.ThrowsAsync<NotFoundException>(() =>
@@ -130,7 +134,7 @@ public class GoalServiceTests
     public async Task OneTime_goal_requires_target_date()
     {
         using var db = TestHelpers.NewContext();
-        var (_, user, _, _, _, _, _, _, goals) = await SetupAsync(db);
+        var (_, user, _, _, _, _, _, _, goals, _) = await SetupAsync(db);
         await Assert.ThrowsAsync<ValidationException>(() =>
             goals.CreateAsync(user, WeightGoal(170, GoalCadence.OneTime, targetDate: null), default));
     }
@@ -139,7 +143,7 @@ public class GoalServiceTests
     public async Task Recurring_goal_requires_recurrence_days()
     {
         using var db = TestHelpers.NewContext();
-        var (_, user, _, _, _, _, _, _, goals) = await SetupAsync(db);
+        var (_, user, _, _, _, _, _, _, goals, _) = await SetupAsync(db);
         await Assert.ThrowsAsync<ValidationException>(() =>
             goals.CreateAsync(user, WeightGoal(170, GoalCadence.Recurring, recurrenceDays: null), default));
     }
@@ -148,7 +152,7 @@ public class GoalServiceTests
     public async Task Nutrient_goal_requires_known_nutrient()
     {
         using var db = TestHelpers.NewContext();
-        var (_, user, _, _, _, _, _, _, goals) = await SetupAsync(db);
+        var (_, user, _, _, _, _, _, _, goals, _) = await SetupAsync(db);
         await Assert.ThrowsAsync<ValidationException>(() =>
             goals.CreateAsync(user, NutrientGoal("not_a_nutrient", 2000, GoalCadence.Recurring, false, recurrenceDays: 7), default));
     }
@@ -157,7 +161,7 @@ public class GoalServiceTests
     public async Task Validation_rejects_non_positive_target_and_bad_dates()
     {
         using var db = TestHelpers.NewContext();
-        var (_, user, _, _, _, _, _, _, goals) = await SetupAsync(db);
+        var (_, user, _, _, _, _, _, _, goals, _) = await SetupAsync(db);
 
         await Assert.ThrowsAsync<ValidationException>(() =>
             goals.CreateAsync(user, WeightGoal(0, targetDate: Today.AddDays(10)), default));
@@ -172,7 +176,7 @@ public class GoalServiceTests
     public async Task Weight_goal_with_no_entries_reports_no_data()
     {
         using var db = TestHelpers.NewContext();
-        var (_, user, _, _, _, _, _, _, goals) = await SetupAsync(db);
+        var (_, user, _, _, _, _, _, _, goals, _) = await SetupAsync(db);
 
         var goal = await goals.CreateAsync(user, WeightGoal(170, targetDate: Today.AddDays(30)), default);
         Assert.Equal(GoalStatus.NoData, goal.Progress.Status);
@@ -182,7 +186,7 @@ public class GoalServiceTests
     public async Task Weight_loss_goal_tracks_progress_from_baseline()
     {
         using var db = TestHelpers.NewContext();
-        var (_, user, _, weights, _, _, _, _, goals) = await SetupAsync(db);
+        var (_, user, _, weights, _, _, _, _, goals, _) = await SetupAsync(db);
 
         // Baseline 200, currently 190, target 170 → 30% of the way (200→170 = 30 lbs span, lost 10).
         await weights.RecordAsync(user, new WeightEntryInput(200, WeightUnit.Pound, Today.AddDays(-10)), default);
@@ -202,7 +206,7 @@ public class GoalServiceTests
     public async Task Weight_loss_goal_achieved_and_exceeded_celebrates_when_exceeding_positive()
     {
         using var db = TestHelpers.NewContext();
-        var (_, user, _, weights, _, _, _, _, goals) = await SetupAsync(db);
+        var (_, user, _, weights, _, _, _, _, goals, _) = await SetupAsync(db);
 
         await weights.RecordAsync(user, new WeightEntryInput(200, WeightUnit.Pound, Today.AddDays(-10)), default);
         await weights.RecordAsync(user, new WeightEntryInput(165, WeightUnit.Pound, Today), default); // below 170
@@ -220,7 +224,7 @@ public class GoalServiceTests
     public async Task Weight_goal_missed_after_deadline_is_negative_outcome()
     {
         using var db = TestHelpers.NewContext();
-        var (_, user, _, weights, _, _, _, _, goals) = await SetupAsync(db);
+        var (_, user, _, weights, _, _, _, _, goals, _) = await SetupAsync(db);
 
         await weights.RecordAsync(user, new WeightEntryInput(200, WeightUnit.Pound, Today.AddDays(-30)), default);
         await weights.RecordAsync(user, new WeightEntryInput(195, WeightUnit.Pound, Today), default);
@@ -239,7 +243,7 @@ public class GoalServiceTests
     public async Task Nutrient_goal_with_no_plan_reports_no_data()
     {
         using var db = TestHelpers.NewContext();
-        var (_, user, _, _, _, _, _, _, goals) = await SetupAsync(db);
+        var (_, user, _, _, _, _, _, _, goals, _) = await SetupAsync(db);
 
         var goal = await goals.CreateAsync(user,
             NutrientGoal("calories", 2000, GoalCadence.Recurring, exceedingPositive: false, recurrenceDays: 7), default);
@@ -251,7 +255,7 @@ public class GoalServiceTests
     public async Task Recurring_calorie_goal_projects_planned_intake_over_period()
     {
         using var db = TestHelpers.NewContext();
-        var (admin, user, _, _, ingredients, recipes, meals, plans, goals) = await SetupAsync(db);
+        var (admin, user, _, _, ingredients, recipes, meals, plans, goals, _) = await SetupAsync(db);
 
         // Plan supplies 2000 kcal/day; goal is 14000 kcal every 7 days → exactly on target.
         await BuildCaloricDailyPlanAsync(admin, user, ingredients, recipes, meals, plans, 2000);
@@ -269,7 +273,7 @@ public class GoalServiceTests
     public async Task Calorie_budget_overshoot_is_negative_when_exceeding_is_bad()
     {
         using var db = TestHelpers.NewContext();
-        var (admin, user, _, _, ingredients, recipes, meals, plans, goals) = await SetupAsync(db);
+        var (admin, user, _, _, ingredients, recipes, meals, plans, goals, _) = await SetupAsync(db);
 
         // Plan supplies 2500 kcal/day; weekly budget 14000 → 17500 projected, over budget.
         await BuildCaloricDailyPlanAsync(admin, user, ingredients, recipes, meals, plans, 2500);
@@ -285,7 +289,7 @@ public class GoalServiceTests
     public async Task Protein_target_in_progress_when_below_target()
     {
         using var db = TestHelpers.NewContext();
-        var (admin, user, _, _, ingredients, recipes, meals, plans, goals) = await SetupAsync(db);
+        var (admin, user, _, _, ingredients, recipes, meals, plans, goals, _) = await SetupAsync(db);
 
         // Build a plan supplying 50 g protein/day.
         var ing = await ingredients.CreateAsync(admin,
@@ -313,12 +317,112 @@ public class GoalServiceTests
     public async Task DTO_includes_resolved_nutrient_name_and_unit()
     {
         using var db = TestHelpers.NewContext();
-        var (_, user, _, _, _, _, _, _, goals) = await SetupAsync(db);
+        var (_, user, _, _, _, _, _, _, goals, _) = await SetupAsync(db);
 
         var goal = await goals.CreateAsync(user,
             NutrientGoal("vitamin_c", 90, GoalCadence.Recurring, exceedingPositive: true, recurrenceDays: 1), default);
 
         Assert.Equal("Vitamin C", goal.NutrientName);
         Assert.Equal("mg", goal.MetricUnit);
+    }
+
+    // ---- nutrient progress reflects actual logged consumption ----
+
+    // Logs a free-form item supplying `calories` kcal (1 serving) on `date` for `user`.
+    private static Task LogCaloriesAsync(ConsumptionService consumption, AppUser user, double calories, DateOnly date) =>
+        consumption.LogAsync(user, new ConsumptionEntryInput(
+            ConsumptionSource.FreeForm, Name: "logged", Servings: 1,
+            Nutrition: new List<NutrientAmount> { new("calories", calories) }, Date: date), default);
+
+    [Fact]
+    public async Task Actual_logged_consumption_overrides_planned_for_a_logged_day()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, _, _, ingredients, recipes, meals, plans, goals, consumption) = await SetupAsync(db);
+
+        // Plan would project 2000 kcal today, but the user actually logged 1500 kcal today.
+        await BuildCaloricDailyPlanAsync(admin, user, ingredients, recipes, meals, plans, 2000);
+        await LogCaloriesAsync(consumption, user, 1500, Today);
+
+        // Daily (1-day) recurring goal → the window is just today, so actual (1500) is used, not planned (2000).
+        var goal = await goals.CreateAsync(user,
+            NutrientGoal("calories", 2000, GoalCadence.Recurring, exceedingPositive: false, recurrenceDays: 1), default);
+
+        Assert.Equal(1500, goal.Progress.CurrentValue, 1);
+        Assert.True(goal.Progress.BasedOnLoggedConsumption);
+    }
+
+    [Fact]
+    public async Task Unlogged_days_fall_back_to_planned_intake()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, _, _, ingredients, recipes, meals, plans, goals, consumption) = await SetupAsync(db);
+
+        // Plan projects 2000 kcal/day. A 3-day window (start..target inclusive): today is logged at 1500,
+        // the other two days have no log and fall back to planned → 1500 + 2000 + 2000 = 5500.
+        await BuildCaloricDailyPlanAsync(admin, user, ingredients, recipes, meals, plans, 2000);
+        await LogCaloriesAsync(consumption, user, 1500, Today);
+
+        var goal = await goals.CreateAsync(user, NutrientGoal(
+            "calories", 6000, GoalCadence.OneTime, exceedingPositive: false,
+            start: Today, targetDate: Today.AddDays(2)), default);
+
+        Assert.Equal(5500, goal.Progress.CurrentValue, 1);
+        Assert.True(goal.Progress.BasedOnLoggedConsumption); // at least one day used actual data
+    }
+
+    [Fact]
+    public async Task Fully_logged_period_uses_pure_actual_consumption()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, _, _, ingredients, recipes, meals, plans, goals, consumption) = await SetupAsync(db);
+
+        // Plan projects 2000 kcal/day, but every day of a 3-day window is logged → planned is never used.
+        await BuildCaloricDailyPlanAsync(admin, user, ingredients, recipes, meals, plans, 2000);
+        await LogCaloriesAsync(consumption, user, 1000, Today.AddDays(-2));
+        await LogCaloriesAsync(consumption, user, 1100, Today.AddDays(-1));
+        await LogCaloriesAsync(consumption, user, 1200, Today);
+
+        var goal = await goals.CreateAsync(user, NutrientGoal(
+            "calories", 4000, GoalCadence.OneTime, exceedingPositive: false,
+            start: Today.AddDays(-2), targetDate: Today), default);
+
+        // 1000 + 1100 + 1200 = 3300 actual; planned 2000/day (would be 6000) is entirely ignored.
+        Assert.Equal(3300, goal.Progress.CurrentValue, 1);
+        Assert.True(goal.Progress.BasedOnLoggedConsumption);
+    }
+
+    [Fact]
+    public async Task No_consumption_logged_matches_planned_only_behavior()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, _, _, ingredients, recipes, meals, plans, goals, _) = await SetupAsync(db);
+
+        // Identical to the planned-only projection test: nothing logged → pure planned, flag stays false.
+        await BuildCaloricDailyPlanAsync(admin, user, ingredients, recipes, meals, plans, 2000);
+
+        var goal = await goals.CreateAsync(user,
+            NutrientGoal("calories", 14000, GoalCadence.Recurring, exceedingPositive: false, recurrenceDays: 7), default);
+
+        Assert.Equal(GoalStatus.Achieved, goal.Progress.Status);
+        Assert.Equal(14000, goal.Progress.CurrentValue, 1);
+        Assert.False(goal.Progress.BasedOnLoggedConsumption);
+    }
+
+    [Fact]
+    public async Task Logged_consumption_alone_tracks_a_goal_with_no_meal_plan()
+    {
+        using var db = TestHelpers.NewContext();
+        var (_, user, _, _, _, _, _, _, goals, consumption) = await SetupAsync(db);
+
+        // No meal plan at all, but the user logged 1800 kcal today → the goal tracks from actual data.
+        await LogCaloriesAsync(consumption, user, 1800, Today);
+
+        var goal = await goals.CreateAsync(user,
+            NutrientGoal("calories", 2000, GoalCadence.Recurring, exceedingPositive: false, recurrenceDays: 1), default);
+
+        Assert.Equal(GoalStatus.InProgress, goal.Progress.Status);
+        Assert.Equal(1800, goal.Progress.CurrentValue, 1);
+        Assert.True(goal.Progress.BasedOnLoggedConsumption);
     }
 }
