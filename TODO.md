@@ -6,6 +6,8 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
+- [] **Reflect actual consumption in nutrient-goal progress**: nutrient-metric goals currently compute progress from planned meal *plans* (`GoalService`/`GoalNutritionRollup`), not from what was actually eaten. Now that a daily consumption log exists (`ConsumptionEntry`, `/consumption`), nutrient-goal progress should account for actual logged consumption. Requires a planned-vs-actual design decision (use actual when present and fall back to planned? blend? show both?). Keep existing Goal tests passing.
+
 ## FUTURE FEATURES
 
 >[AI Agent] skip ALL items in this section.
