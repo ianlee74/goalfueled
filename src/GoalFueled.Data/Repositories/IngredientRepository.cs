@@ -13,32 +13,34 @@ public class IngredientRepository : IIngredientRepository
     public async Task<IReadOnlyList<Ingredient>> ListVisibleAsync(
         string userId, string? search = null, CancellationToken ct = default)
     {
-        // Visible = app-level ingredients + the caller's own.
-        var query = _db.Ingredients
+        // Visible = app-level ingredients + the caller's own. The scope filter is a translatable
+        // equality predicate; the name search and ordering run in memory because the Cosmos provider
+        // can't translate ToLower()/Contains reliably.
+        var visible = await _db.Ingredients
             .Where(i => i.Scope == OwnershipScope.App ||
-                        (i.Scope == OwnershipScope.User && i.OwnerUserId == userId));
+                        (i.Scope == OwnershipScope.User && i.OwnerUserId == userId))
+            .ToListAsync(ct);
 
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var term = search.Trim().ToLower();
-            query = query.Where(i => i.Name.ToLower().Contains(term));
-        }
-
-        return await query.OrderBy(i => i.Name).ToListAsync(ct);
+        return Refine(visible, search);
     }
 
     public async Task<IReadOnlyList<Ingredient>> ListAllAsync(string? search = null, CancellationToken ct = default)
     {
         // Admin "view all": every ingredient regardless of owner/scope.
-        var query = _db.Ingredients.AsQueryable();
+        var all = await _db.Ingredients.ToListAsync(ct);
+        return Refine(all, search);
+    }
 
+    /// <summary>Applies the optional case-insensitive name search and a stable name ordering in memory.</summary>
+    private static IReadOnlyList<Ingredient> Refine(List<Ingredient> ingredients, string? search)
+    {
+        IEnumerable<Ingredient> result = ingredients;
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var term = search.Trim().ToLower();
-            query = query.Where(i => i.Name.ToLower().Contains(term));
+            var term = search.Trim();
+            result = result.Where(i => i.Name.Contains(term, StringComparison.OrdinalIgnoreCase));
         }
-
-        return await query.OrderBy(i => i.Name).ToListAsync(ct);
+        return result.OrderBy(i => i.Name, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     public Task<Ingredient?> GetByIdAsync(string id, CancellationToken ct = default) =>

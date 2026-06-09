@@ -1,5 +1,8 @@
+using GoalFueled.Domain;
 using GoalFueled.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace GoalFueled.Data;
 
@@ -12,6 +15,19 @@ namespace GoalFueled.Data;
 public class GoalFueledDbContext : DbContext
 {
     public GoalFueledDbContext(DbContextOptions<GoalFueledDbContext> options) : base(options) { }
+
+    /// <summary>Maps <see cref="AppUser.Roles"/> (a list of enums, unsupported by Cosmos) to/from a comma-joined string of role names.</summary>
+    private static readonly ValueConverter<List<AppRole>, string> RolesConverter = new(
+        v => string.Join(',', v.Select(r => r.ToString())),
+        v => string.IsNullOrEmpty(v)
+            ? new List<AppRole>()
+            : v.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(Enum.Parse<AppRole>).ToList());
+
+    /// <summary>Lets EF track changes to the converted <see cref="AppUser.Roles"/> list correctly.</summary>
+    private static readonly ValueComparer<List<AppRole>> RolesComparer = new(
+        (a, b) => (a ?? new List<AppRole>()).SequenceEqual(b ?? new List<AppRole>()),
+        v => v.Aggregate(0, (h, r) => HashCode.Combine(h, (int)r)),
+        v => v.ToList());
 
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<Ingredient> Ingredients => Set<Ingredient>();
@@ -31,8 +47,11 @@ public class GoalFueledDbContext : DbContext
             e.HasPartitionKey(u => u.Id);
             e.HasKey(u => u.Id);
             e.OwnsMany(u => u.ExternalLogins);
-            // Roles is a List<enum>; the Cosmos provider serializes primitive collections directly.
-            e.Property(u => u.Roles);
+            // The Cosmos provider (and the relational providers) can't map a List<enum> directly, so
+            // store the roles as their comma-joined string names via a value converter. Role membership
+            // is only ever evaluated after the user is materialized (e.g. CountAdminsAsync), so no
+            // server-side query depends on this column's shape.
+            e.Property(u => u.Roles).HasConversion(RolesConverter, RolesComparer);
         });
 
         // --- Ingredients ---

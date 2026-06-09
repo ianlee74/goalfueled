@@ -55,6 +55,28 @@
       }
     },
     {
+      // Auto-starts the Azure Cosmos DB Emulator (the persistent local store) if it isn't already
+      // running, mirroring the `azurite` task. Resilient: no-ops when the emulator is already up or
+      // when GoalFueled:UseInMemoryStore=true, and never fails the launch. First cold start blocks
+      // ~30-60s while the gateway comes up; subsequent runs return immediately. See start-cosmos.ps1.
+      "label": "cosmos",
+      "type": "process",
+      "command": "pwsh",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/.vscode/start-cosmos.ps1"
+      ],
+      "presentation": {
+        "panel": "dedicated",
+        "group": "goalfueled",
+        "reveal": "silent"
+      },
+      "problemMatcher": []
+    },
+    {
       // Plain host run (no .NET debugger) used by "▶ Run All". Reliable: the worker starts and
       // serves immediately without waiting for a debugger to attach.
       // NOTE: absolute path to the nvm-installed func (machine-specific) so it doesn't depend on the
@@ -69,7 +91,8 @@
         "start"
       ],
       "dependsOn": [
-        "azurite"
+        "azurite",
+        "cosmos"
       ],
       "dependsOrder": "sequence",
       "options": {
@@ -215,7 +238,8 @@
       "type": "func",
       "dependsOn": [
         "build (functions)",
-        "azurite"
+        "azurite",
+        "cosmos"
       ],
       "dependsOrder": "sequence",
       "options": {

@@ -20,7 +20,9 @@ public class DatabaseInitializer
         // Creates the Cosmos database + containers (or the in-memory store). Idempotent.
         await _db.Database.EnsureCreatedAsync(ct);
 
-        if (await _db.Ingredients.AnyAsync(ct)) return;
+        // The Cosmos provider can't translate a bare Any(); a Take(1) read is the portable existence check.
+        var alreadySeeded = (await _db.Ingredients.Take(1).ToListAsync(ct)).Count != 0;
+        if (alreadySeeded) return;
 
         _db.Ingredients.AddRange(SeedIngredients());
         await _db.SaveChangesAsync(ct);

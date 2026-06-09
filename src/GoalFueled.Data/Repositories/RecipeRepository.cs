@@ -14,48 +14,55 @@ public class RecipeRepository : IRecipeRepository
         string userId, string? search = null, CancellationToken ct = default)
     {
         // Visible = app-level recipes + the caller's own (any visibility) + every public recipe.
-        var query = _db.Recipes
+        // The scope filter is a translatable equality predicate; the name search and ordering are
+        // applied in memory because the Cosmos provider can't translate ToLower()/Contains reliably.
+        var visible = await _db.Recipes
             .Where(r => r.Scope == OwnershipScope.App ||
                         (r.Scope == OwnershipScope.User && r.OwnerUserId == userId) ||
-                        r.Visibility == RecipeVisibility.Public);
+                        r.Visibility == RecipeVisibility.Public)
+            .ToListAsync(ct);
 
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var term = search.Trim().ToLower();
-            query = query.Where(r => r.Name.ToLower().Contains(term));
-        }
-
-        return await query.OrderBy(r => r.Name).ToListAsync(ct);
+        return Refine(visible, search);
     }
 
     public async Task<IReadOnlyList<Recipe>> ListAllAsync(string? search = null, CancellationToken ct = default)
     {
         // Admin "view all": every recipe regardless of owner/scope/visibility.
-        var query = _db.Recipes.AsQueryable();
-
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var term = search.Trim().ToLower();
-            query = query.Where(r => r.Name.ToLower().Contains(term));
-        }
-
-        return await query.OrderBy(r => r.Name).ToListAsync(ct);
+        var all = await _db.Recipes.ToListAsync(ct);
+        return Refine(all, search);
     }
 
     public async Task<IReadOnlyList<Recipe>> ListPendingReviewAsync(CancellationToken ct = default)
     {
-        return await _db.Recipes
+        // Order in memory: the Cosmos provider's ORDER BY on DateTimeOffset is unreliable.
+        var pending = await _db.Recipes
             .Where(r => r.Visibility == RecipeVisibility.PendingReview)
-            .OrderBy(r => r.UpdatedAt)
             .ToListAsync(ct);
+        return pending.OrderBy(r => r.UpdatedAt).ToList();
     }
 
-    public Task<int> CountPendingReviewByOwnerAsync(string ownerUserId, CancellationToken ct = default) =>
-        _db.Recipes.CountAsync(
-            r => r.Scope == OwnershipScope.User &&
-                 r.OwnerUserId == ownerUserId &&
-                 r.Visibility == RecipeVisibility.PendingReview,
-            ct);
+    public async Task<int> CountPendingReviewByOwnerAsync(string ownerUserId, CancellationToken ct = default)
+    {
+        // Materialize the (small) owner-scoped set; the Cosmos provider can't translate Count() here.
+        var pending = await _db.Recipes
+            .Where(r => r.Scope == OwnershipScope.User &&
+                        r.OwnerUserId == ownerUserId &&
+                        r.Visibility == RecipeVisibility.PendingReview)
+            .ToListAsync(ct);
+        return pending.Count;
+    }
+
+    /// <summary>Applies the optional case-insensitive name search and a stable name ordering in memory.</summary>
+    private static IReadOnlyList<Recipe> Refine(List<Recipe> recipes, string? search)
+    {
+        IEnumerable<Recipe> result = recipes;
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            result = result.Where(r => r.Name.Contains(term, StringComparison.OrdinalIgnoreCase));
+        }
+        return result.OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase).ToList();
+    }
 
     public Task<Recipe?> GetByIdAsync(string id, CancellationToken ct = default) =>
         _db.Recipes.FirstOrDefaultAsync(r => r.Id == id, ct);

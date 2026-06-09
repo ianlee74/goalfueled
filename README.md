@@ -112,10 +112,14 @@ with. Sign in as one of the preset dev users — **the first user to sign in bec
 
 ### Using the Cosmos DB Emulator instead of in-memory
 
-1. Install and start the Azure Cosmos DB Emulator.
+Unlike the in-memory store, the emulator persists your recipes, meals, and plans across restarts.
+
+1. Install the Azure Cosmos DB Emulator (`winget install Microsoft.Azure.CosmosEmulator`).
 2. In `src/GoalFueled.Api/local.settings.json`, set `GoalFueled:UseInMemoryStore` to `false`.
    The emulator connection string is already filled in (the well-known emulator endpoint/key).
-3. Restart `func start`. The database and containers are created automatically.
+3. Restart the app. The `cosmos` prelaunch task (see `.vscode/start-cosmos.ps1`) auto-starts the
+   emulator if it isn't already running — the first cold start blocks ~30–60s while it comes up. The
+   database and containers are created automatically. (To skip it, set `UseInMemoryStore` back to `true`.)
 
 ### Automatic ingredient nutrition lookup
 
