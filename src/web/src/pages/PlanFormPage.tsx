@@ -227,7 +227,7 @@ export function PlanFormPage() {
           <p className="muted" style={{ margin: 0 }}>
             Before starting a meal plan, log your current weight so we can track your progress.
           </p>
-          <Link className="btn btn-primary" to="/weight">Go to Weight</Link>
+          <Link className="btn btn-primary" to="/weight?returnTo=/plans/new">Go to Weight</Link>
         </div>
       </div>
     )

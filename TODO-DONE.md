@@ -6,6 +6,18 @@
 
 ## Completed Items
 
+### Go back to creating meal plan after entering weight — 2026-06-09 CDT
+
+- [x] After the new-meal-plan weight gate sends you to the weight page, recording your weight now returns you to creating the plan instead of stranding you on the weight page
+
+**NOTES:**
+- `pages/PlanFormPage.tsx`: the gate's "Record your weight first" link changed from `to="/weight"` to `to="/weight?returnTo=/plans/new"` (carries the new-plan route, served by `/plans/:id` with id `new`).
+- `pages/WeightPage.tsx`: reads `returnTo` via `useSearchParams`; after the existing successful `record()` path it does `if (returnTo) navigate(returnTo)`. A `safeReturnTo()` helper only honors app-internal relative paths (single leading `/`, rejects `//host` protocol-relative and any scheme), preventing open redirects.
+- **Behavior preserved for direct visitors:** the redirect is fully gated behind `if (returnTo)`, so visitors who go to `/weight` directly (no param) keep the existing behavior — form resets, stay on page.
+- **Round-trip re-passes the gate:** `navigate('/plans/new')` re-mounts `PlanFormPage`, whose weight-gate `useEffect` re-runs `weightApi.list()` on mount; the just-recorded today entry is found, so the form renders instead of the gate card.
+- **Mechanism choice:** query param (not router state) — simplest/robust, survives reload, matches the codebase's plain react-router usage.
+- Verified: web `npm run build` ✓; `npm run lint` 0 errors (1 pre-existing `AuthContext.tsx` warning).
+
 ### Reflect actual consumption in nutrient-goal progress — 2026-06-09 CDT
 
 - [x] Nutrient-goal progress now uses actual logged consumption (per day), falling back to planned meal-plan intake only for days with no log entries

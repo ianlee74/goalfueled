@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { weightApi } from '../api/services'
 import { WEIGHT_UNIT_LABELS, type WeightEntry, type WeightUnit } from '../api/types'
 
@@ -9,7 +10,18 @@ function todayIso(): string {
   return new Date(now.getTime() - offset).toISOString().slice(0, 10)
 }
 
+// Only honor app-internal relative paths to avoid open redirects: a single leading
+// slash, but not "//host" (protocol-relative) or anything containing a scheme.
+function safeReturnTo(raw: string | null): string | null {
+  if (!raw) return null
+  if (!raw.startsWith('/') || raw.startsWith('//')) return null
+  return raw
+}
+
 export function WeightPage() {
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const returnTo = safeReturnTo(searchParams.get('returnTo'))
   const [entries, setEntries] = useState<WeightEntry[]>([])
   const [value, setValue] = useState('')
   const [unit, setUnit] = useState<WeightUnit>('Pound')
@@ -49,6 +61,9 @@ export function WeightPage() {
       })
       setValue('')
       setDate(todayIso())
+      // If we arrived here via the meal-plan weight gate, head back to where we came
+      // from so the user can continue what they were doing. Direct visitors stay put.
+      if (returnTo) { navigate(returnTo); return }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to record weight.')
     } finally {
