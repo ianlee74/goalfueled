@@ -4,9 +4,25 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#2f9e6f" />
+    <meta name="theme-color" content="#14a85a" />
     <meta name="description" content="GoalFueled — define and track meal plans to reach your health goals." />
     <title>GoalFueled</title>
+    <!-- Apply the saved theme before first paint to avoid a flash of the wrong theme.
+         Mirrors the logic in src/theme/theme.ts (kept tiny and dependency-free). -->
+    <script>
+      (function () {
+        try {
+          var pref = localStorage.getItem('gf.theme') || 'system'
+          var theme = pref
+          if (pref === 'system') {
+            theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+          }
+          document.documentElement.setAttribute('data-theme', theme)
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'light')
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

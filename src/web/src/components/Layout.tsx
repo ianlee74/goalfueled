@@ -2,6 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { userApi } from '../api/services'
+import { ThemePicker } from '../theme/ThemePicker'
 
 const NAV = [
   { to: '/ingredients', label: 'Ingredients', ico: '🥕' },
@@ -45,10 +46,12 @@ export function Layout() {
             ☰
           </button>
           <div className="brand">
-            <span className="brand-mark">●</span> GoalFueled
+            <span className="brand-mark" aria-hidden="true">🚀</span>
+            <span className="brand-name">GoalFueled</span>
           </div>
         </div>
         <div className="row" style={{ gap: '0.75rem' }}>
+          <ThemePicker />
           {profile?.isAdmin && (
             <label className="toggle" title="Toggle whether you see admin features">
               <input

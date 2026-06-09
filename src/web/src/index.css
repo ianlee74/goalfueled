@@ -1,19 +1,97 @@
+/* ============================================================
+   Theme system — inspired by the GoalFueled logo: a green
+   check-rocket blasting off with a flame-orange exhaust.
+   Emerald green = primary/brand, flame orange = accent/energy.
+   Themes are selected via [data-theme] on <html> (see ThemeContext).
+   :root holds shared tokens + the Light palette (the default).
+   ============================================================ */
 :root {
-  --bg: #f6f7f9;
-  --surface: #ffffff;
-  --border: #e3e6ea;
-  --text: #1c2330;
-  --muted: #6b7480;
-  --primary: #2f9e6f;
-  --primary-dark: #25805a;
-  --primary-soft: #e7f5ee;
-  --danger: #d6453d;
-  --danger-soft: #fbeae9;
-  --accent: #f3a712;
+  /* Shape & motion tokens (shared across all themes) */
   --radius: 12px;
-  --shadow: 0 1px 3px rgba(16, 24, 40, 0.06), 0 1px 2px rgba(16, 24, 40, 0.04);
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   color: var(--text);
+
+  /* ---- Light theme (default) ---- */
+  --bg: #f1f8f4;
+  --surface: #ffffff;
+  --surface-muted: #eaf3ee;
+  --border: #d8e6df;
+  --text: #122318;
+  --muted: #5c7268;
+  --primary: #14a85a;
+  --primary-dark: #0c7d40;
+  --primary-soft: #dcf4e6;
+  --on-primary: #ffffff;
+  --accent: #ff7a18;
+  --accent-soft: #ffe7d2;
+  --danger: #e23b34;
+  --danger-soft: #fce8e7;
+  --danger-border: #f3c5c2;
+  --hover: #e7f1ec;
+  --input-bg: #ffffff;
+  --badge-bg: #e6eef0;
+  --badge-mine-bg: #fff1db;
+  --badge-mine-text: #9a5a00;
+  --focus-ring: #14a85a;
+  --shadow: 0 1px 3px rgba(12, 40, 26, 0.08), 0 1px 2px rgba(12, 40, 26, 0.05);
+  --brand-gradient: linear-gradient(135deg, #14a85a 0%, #ff7a18 100%);
+  color-scheme: light;
+}
+
+/* ---- Dark theme — night-launch: deep green-black sky, glowing emerald ---- */
+:root[data-theme='dark'] {
+  --bg: #0b1310;
+  --surface: #14201a;
+  --surface-muted: #1c2b23;
+  --border: #294034;
+  --text: #e9f3ed;
+  --muted: #8ea79a;
+  --primary: #2fd472;
+  --primary-dark: #28bb64;
+  --primary-soft: #16291f;
+  --on-primary: #07140d;
+  --accent: #ff9242;
+  --accent-soft: #3a2112;
+  --danger: #ff6b61;
+  --danger-soft: #381a1a;
+  --danger-border: #5a2a28;
+  --hover: #21342b;
+  --input-bg: #101a15;
+  --badge-bg: #21342b;
+  --badge-mine-bg: #3a2a12;
+  --badge-mine-text: #ffc774;
+  --focus-ring: #2fd472;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.35);
+  --brand-gradient: linear-gradient(135deg, #2fd472 0%, #ff9242 100%);
+  color-scheme: dark;
+}
+
+/* ---- High-contrast (accessible) — pure black/white, WCAG-AAA hues ---- */
+:root[data-theme='high-contrast'] {
+  --bg: #000000;
+  --surface: #000000;
+  --surface-muted: #0d0d0d;
+  --border: #ffffff;
+  --text: #ffffff;
+  --muted: #dcdcdc;
+  --primary: #00e676;
+  --primary-dark: #00e676;
+  --primary-soft: #00301a;
+  --on-primary: #000000;
+  --accent: #ffab1f;
+  --accent-soft: #2e1d00;
+  --danger: #ff5b5b;
+  --danger-soft: #2e0000;
+  --danger-border: #ff5b5b;
+  --hover: #1a1a1a;
+  --input-bg: #000000;
+  --badge-bg: #1a1a1a;
+  --badge-mine-bg: #2e1d00;
+  --badge-mine-text: #ffd479;
+  --focus-ring: #ffd400;
+  --shadow: none;
+  --brand-gradient: linear-gradient(135deg, #00e676 0%, #ffab1f 100%);
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -42,8 +120,21 @@ p { line-height: 1.5; }
   background: var(--surface); border-bottom: 1px solid var(--border);
   position: sticky; top: 0; z-index: 10;
 }
-.brand { display: flex; align-items: center; gap: 0.5rem; font-weight: 700; font-size: 1.1rem; }
-.brand-mark { color: var(--primary); }
+.brand { display: flex; align-items: center; gap: 0.5rem; font-weight: 800; font-size: 1.1rem; }
+.brand-mark { font-size: 1.25rem; line-height: 1; filter: saturate(1.1); }
+/* Energizing flame-to-emerald wordmark gradient. */
+.brand-name {
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  letter-spacing: -0.01em;
+}
+/* High-contrast theme: gradient text fails contrast, so fall back to solid. */
+:root[data-theme='high-contrast'] .brand-name {
+  background: none;
+  color: var(--text);
+}
 .app-main { flex: 1; width: 100%; max-width: 880px; margin: 0 auto; padding: 1rem; }
 
 /* Hamburger button + navigation drawer (temporary nav while the final UI is decided) */
@@ -53,7 +144,7 @@ p { line-height: 1.5; }
   line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
   transition: background .15s, border-color .15s;
 }
-.hamburger:hover { background: #f0f2f4; }
+.hamburger:hover { background: var(--hover); }
 
 .nav-drawer {
   position: sticky; top: 57px; z-index: 9;
@@ -67,7 +158,7 @@ p { line-height: 1.5; }
   border-bottom: 1px solid var(--border);
 }
 .nav-drawer a:last-child { border-bottom: none; }
-.nav-drawer a:hover { background: #f0f2f4; text-decoration: none; }
+.nav-drawer a:hover { background: var(--hover); text-decoration: none; }
 .nav-drawer a.active { color: var(--primary-dark); font-weight: 600; background: var(--primary-soft); }
 .nav-drawer .ico { font-size: 1.2rem; }
 
@@ -82,34 +173,38 @@ p { line-height: 1.5; }
 .spread { justify-content: space-between; }
 .muted { color: var(--muted); }
 .small { font-size: 0.85rem; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
 
 .btn {
   appearance: none; border: 1px solid var(--border); background: var(--surface);
   color: var(--text); padding: 0.55rem 0.9rem; border-radius: 10px; font-size: 0.95rem;
   cursor: pointer; font-weight: 600; transition: background .15s, border-color .15s;
 }
-.btn:hover { background: #f0f2f4; }
+.btn:hover { background: var(--hover); }
 .btn:disabled { opacity: 0.55; cursor: not-allowed; }
-.btn-primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+.btn-primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
 .btn-primary:hover { background: var(--primary-dark); }
-.btn-danger { background: var(--danger-soft); border-color: #f0c4c1; color: var(--danger); }
+.btn-danger { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
 .btn-block { width: 100%; }
 .btn-sm { padding: 0.35rem 0.6rem; font-size: 0.85rem; }
 
 .input, .select, textarea.input {
   width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--border);
-  border-radius: 10px; font-size: 0.95rem; background: #fff; color: var(--text);
+  border-radius: 10px; font-size: 0.95rem; background: var(--input-bg); color: var(--text);
 }
-.input:focus, .select:focus { outline: 2px solid var(--primary-soft); border-color: var(--primary); }
+.input:focus, .select:focus { outline: 2px solid var(--focus-ring); outline-offset: 1px; border-color: var(--primary); }
 label.field { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.9rem; font-weight: 600; }
 label.field .hint { font-weight: 400; color: var(--muted); font-size: 0.8rem; }
 
 .badge {
   display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 2px 8px;
-  border-radius: 999px; background: #eef1f4; color: var(--muted);
+  border-radius: 999px; background: var(--badge-bg); color: var(--muted);
 }
 .badge.app { background: var(--primary-soft); color: var(--primary-dark); }
-.badge.mine { background: #fff4e0; color: #9a6a00; }
+.badge.mine { background: var(--badge-mine-bg); color: var(--badge-mine-text); }
 
 .list { display: flex; flex-direction: column; gap: 0.6rem; }
 .ingredient-item { display: flex; gap: 0.75rem; align-items: center; }
@@ -169,6 +264,46 @@ label.field .hint { font-weight: 400; color: var(--muted); font-size: 0.8rem; }
 /* Meal-plan builder rows: scheduled meal (meal / [day] / time / remove) and untimed item. */
 .plan-scheduled-row { display: grid; grid-template-columns: 1fr auto 110px 40px; gap: 0.5rem; align-items: center; }
 .plan-untimed-row { display: grid; grid-template-columns: 110px 1fr 80px 1fr 40px; gap: 0.5rem; align-items: center; }
+
+/* ---- Theme picker (header control) ---- */
+.theme-picker { display: inline-flex; align-items: center; }
+.theme-picker .select {
+  width: auto; padding: 0.35rem 1.6rem 0.35rem 0.6rem; font-size: 0.85rem; font-weight: 600;
+  border-radius: 10px; cursor: pointer; background-color: var(--surface);
+}
+.theme-picker .select:hover { background-color: var(--hover); }
+
+/* ---- Smooth, gentle transition when switching themes ---- */
+body,
+.app-header,
+.nav-drawer,
+.card,
+.btn,
+.input,
+.select,
+.goal-card,
+.hamburger {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+
+/* ---- High-contrast refinements: bolder borders, always-underlined links,
+   and a vivid focus ring so keyboard focus is unmistakable. ---- */
+:root[data-theme='high-contrast'] a { text-decoration: underline; }
+:root[data-theme='high-contrast'] .card,
+:root[data-theme='high-contrast'] .btn,
+:root[data-theme='high-contrast'] .input,
+:root[data-theme='high-contrast'] .select,
+:root[data-theme='high-contrast'] textarea.input,
+:root[data-theme='high-contrast'] .hamburger,
+:root[data-theme='high-contrast'] .app-header,
+:root[data-theme='high-contrast'] .nav-drawer { border-width: 2px; }
+:root[data-theme='high-contrast'] *:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
 
 /* Larger screens */
 @media (min-width: 768px) {
