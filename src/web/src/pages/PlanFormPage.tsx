@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ingredientApi, mealApi, mealPlanApi, weightApi } from '../api/services'
 import { NutritionLabel } from '../components/NutritionLabel'
@@ -55,6 +55,16 @@ export function PlanFormPage() {
   const [dragKey, setDragKey] = useState<number | null>(null)
   const [dropBeforeKey, setDropBeforeKey] = useState<number | null>(null)
   const [dropEndBucket, setDropEndBucket] = useState<DayBucket | null>(null)
+
+  // The live (non-rendered) state of an in-progress pointer drag. Held in a ref so the
+  // pointermove/up handlers read the current drag synchronously without stale-closure issues:
+  // `key` is the dragged row, `bucket` the day it's constrained to, `target` the resolved drop
+  // location updated on each move (used on pointerup to decide the reorder).
+  const dragRef = useRef<{
+    key: number
+    bucket: DayBucket
+    target: { beforeKey: number | null } | null
+  } | null>(null)
 
   // "Add meal to multiple days" form (Weekly only): pick a meal + optional time once, check the
   // days to add it to, then create one independent scheduled-meal row per checked day.
@@ -243,6 +253,115 @@ export function PlanFormPage() {
     })
   }
 
+  // ---- pointer-based drag reorder (works for touch, mouse and pen) ----
+  // We drive the drag from the row's ⠿ handle. On pointerdown we capture the pointer on the handle
+  // element, so every subsequent move/up event is delivered to that same element regardless of what's
+  // under the finger — no global window listeners needed, and capture is auto-released on pointerup.
+
+  // Resolve where a pointer position maps to within the active drag's day bucket. Returns the key of
+  // the row we'd drop BEFORE, null for end-of-day, or undefined when the pointer isn't over a valid
+  // target in this bucket (drag should show no indicator / a drop here is a no-op).
+  function resolveDropTarget(clientX: number, clientY: number): { beforeKey: number | null } | undefined {
+    const drag = dragRef.current
+    if (!drag) return undefined
+    let el = document.elementFromPoint(clientX, clientY) as HTMLElement | null
+    while (el) {
+      if (el.hasAttribute('data-tl-row') || el.hasAttribute('data-tl-end')) break
+      el = el.parentElement
+    }
+    if (!el) return undefined
+    // Constrain to the same day bucket as the dragged row.
+    if (el.getAttribute('data-bucket') !== drag.bucket) return undefined
+
+    if (el.hasAttribute('data-tl-end')) return { beforeKey: null }
+
+    const overKey = Number(el.getAttribute('data-row-key'))
+    if (overKey === drag.key) return undefined // over itself: no change
+    // Top half → drop before this row; bottom half → drop before the next row (or end of day).
+    const rect = el.getBoundingClientRect()
+    const inTopHalf = clientY < rect.top + rect.height / 2
+    if (inTopHalf) return { beforeKey: overKey }
+    // Bottom half: find the row that follows `overKey` in this bucket's rendered order.
+    const ordered = sortTimeline(scheduled.filter((s) => bucketOf(s) === drag.bucket))
+    const idx = ordered.findIndex((s) => s.key === overKey)
+    const next = ordered.slice(idx + 1).find((s) => s.key !== drag.key)
+    return { beforeKey: next ? next.key : null }
+  }
+
+  function handleDragPointerDown(e: React.PointerEvent, key: number, bucket: DayBucket) {
+    if (readOnly) return
+    e.preventDefault()
+    e.stopPropagation()
+    dragRef.current = { key, bucket, target: null }
+    try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* ignore */ }
+    setDragKey(key)
+    setDropBeforeKey(null)
+    setDropEndBucket(null)
+  }
+
+  function handleDragPointerMove(e: React.PointerEvent) {
+    const drag = dragRef.current
+    if (!drag) return
+    e.preventDefault()
+    const target = resolveDropTarget(e.clientX, e.clientY)
+    drag.target = target ?? null
+    if (target === undefined) {
+      // Not over a valid target in this bucket: clear the indicators but keep dragging.
+      setDropBeforeKey(null)
+      setDropEndBucket(null)
+    } else if (target.beforeKey == null) {
+      setDropBeforeKey(null)
+      setDropEndBucket(drag.bucket)
+    } else {
+      setDropBeforeKey(target.beforeKey)
+      setDropEndBucket(null)
+    }
+  }
+
+  function endDrag(commit: boolean) {
+    const drag = dragRef.current
+    dragRef.current = null
+    if (commit && drag && drag.target) {
+      reorderWithinDay(drag.bucket, drag.key, drag.target.beforeKey)
+    }
+    setDragKey(null)
+    setDropBeforeKey(null)
+    setDropEndBucket(null)
+  }
+
+  function handleDragPointerUp(e: React.PointerEvent) {
+    if (!dragRef.current) return
+    e.preventDefault()
+    try { e.currentTarget.releasePointerCapture(e.pointerId) } catch { /* ignore */ }
+    endDrag(true)
+  }
+
+  function handleDragPointerCancel(e: React.PointerEvent) {
+    if (!dragRef.current) return
+    try { e.currentTarget.releasePointerCapture(e.pointerId) } catch { /* ignore */ }
+    endDrag(false)
+  }
+
+  // Keyboard reorder: with the handle focused, ArrowUp/ArrowDown move the row within its day.
+  function handleHandleKeyDown(e: React.KeyboardEvent, key: number, bucket: DayBucket) {
+    if (readOnly) return
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
+    e.preventDefault()
+    const ordered = sortTimeline(scheduled.filter((s) => bucketOf(s) === bucket))
+    const idx = ordered.findIndex((s) => s.key === key)
+    if (idx < 0) return
+    if (e.key === 'ArrowUp') {
+      if (idx === 0) return
+      // Move before the row currently above us.
+      reorderWithinDay(bucket, key, ordered[idx - 1].key)
+    } else {
+      if (idx >= ordered.length - 1) return
+      // Move after the row currently below us: i.e. before the row two positions down (or end).
+      const after = ordered[idx + 2]
+      reorderWithinDay(bucket, key, after ? after.key : null)
+    }
+  }
+
   function addUntimed() {
     setUntimed((prev) => [...prev, {
       key: nextKey++, kind: 'ingredient', refId: ingredients[0]?.id ?? '', quantity: '', note: '',
@@ -410,33 +529,29 @@ export function PlanFormPage() {
                   {rows.map((s) => (
                     <div
                       key={s.key}
+                      data-tl-row
+                      data-row-key={s.key}
+                      data-bucket={bucket}
                       className={[
                         'plan-tl-row',
                         dragKey === s.key ? 'dragging' : '',
                         dropBeforeKey === s.key ? 'drop-before' : '',
                       ].filter(Boolean).join(' ')}
-                      draggable={!readOnly}
-                      onDragStart={(e) => {
-                        setDragKey(s.key)
-                        e.dataTransfer.effectAllowed = 'move'
-                      }}
-                      onDragOver={(e) => {
-                        if (readOnly || dragKey == null) return
-                        // Only allow reordering within the same day bucket.
-                        if (bucketOf(scheduled.find((r) => r.key === dragKey)!) !== bucket) return
-                        e.preventDefault()
-                        setDropBeforeKey(s.key)
-                        setDropEndBucket(null)
-                      }}
-                      onDrop={(e) => {
-                        if (readOnly || dragKey == null) return
-                        e.preventDefault()
-                        reorderWithinDay(bucket, dragKey, s.key)
-                        setDragKey(null); setDropBeforeKey(null); setDropEndBucket(null)
-                      }}
-                      onDragEnd={() => { setDragKey(null); setDropBeforeKey(null); setDropEndBucket(null) }}
                     >
-                      {!readOnly && <span className="plan-tl-handle" title="Drag to reorder" aria-hidden>⠿</span>}
+                      {!readOnly && (
+                        <span
+                          className="plan-tl-handle"
+                          title="Drag to reorder"
+                          role="button"
+                          tabIndex={0}
+                          aria-label="Drag to reorder meal"
+                          onPointerDown={(e) => handleDragPointerDown(e, s.key, bucket)}
+                          onPointerMove={handleDragPointerMove}
+                          onPointerUp={handleDragPointerUp}
+                          onPointerCancel={handleDragPointerCancel}
+                          onKeyDown={(e) => handleHandleKeyDown(e, s.key, bucket)}
+                        >⠿</span>
+                      )}
                       <span className="plan-tl-time">{s.time || 'Anytime'}</span>
                       <ScheduledMealFields
                         row={s} meals={meals} readOnly={readOnly}
@@ -448,23 +563,12 @@ export function PlanFormPage() {
                     </div>
                   ))}
 
-                  {/* Drop zone at the end of the day's timeline. */}
+                  {/* End-of-day drop target: drop a row here to move it to the end of the day. */}
                   {!readOnly && (
                     <div
+                      data-tl-end
+                      data-bucket={bucket}
                       className={`plan-tl-end ${dropEndBucket === bucket ? 'drop-before' : ''}`}
-                      onDragOver={(e) => {
-                        if (dragKey == null) return
-                        if (bucketOf(scheduled.find((r) => r.key === dragKey)!) !== bucket) return
-                        e.preventDefault()
-                        setDropBeforeKey(null)
-                        setDropEndBucket(bucket)
-                      }}
-                      onDrop={(e) => {
-                        if (dragKey == null) return
-                        e.preventDefault()
-                        reorderWithinDay(bucket, dragKey, null)
-                        setDragKey(null); setDropBeforeKey(null); setDropEndBucket(null)
-                      }}
                     />
                   )}
                 </div>
