@@ -6,6 +6,16 @@
 
 ## Completed Items
 
+### Add a personal-data explanation note to the profile — 2026-06-10 CDT
+
+- [x] **Added an explanatory note** near the sex / year-of-birth / height fields explaining that we use this data to calculate the user's **Kindle** (the calories burned just by being alive, at rest) and reassuring them we will never share it without permission.
+
+**NOTES:**
+- Added inside the shared `ProfileFields` component (directly after the Height field), so it appears on BOTH the Welcome onboarding page and the Profile page with no duplicated text and no new prop.
+- Wording: *"We use your sex, year of birth, and height to work out your Kindle — the calories your body burns just by being alive, even at rest. We'll never share this with anyone without your permission."*
+- Correctly frames Kindle as a passive daily calorie burn (the task text said "Kindle weight", but Kindle is a burn, not a weight). Rendered as a `muted small` paragraph matching the existing note convention. Purely additive — no field logic changed.
+- Verified: `npm run build` + `npm run lint` (0 errors, only the pre-existing `AuthContext.tsx` warning).
+
 ### Collect only the user's year of birth — 2026-06-10 CDT
 
 - [x] **The profile now collects only the user's year of birth** (not a full date of birth) to avoid storing private data. In age calculations, January 1 of the birth year is used as the date of birth.

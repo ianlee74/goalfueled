@@ -138,6 +138,12 @@ export function ProfileFields({ value, onChange, disabled, showWeight = true }: 
         )}
       </div>
 
+      <p className="muted small" style={{ margin: 0 }}>
+        We use your sex, year of birth, and height to work out your Kindle — the calories your body
+        burns just by being alive, even at rest. We&apos;ll never share this with anyone without your
+        permission.
+      </p>
+
       {showWeight && (
         <div className="field">
           <span>Current weight</span>
