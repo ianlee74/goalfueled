@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './auth/AuthContext'
 import { Layout } from './components/Layout'
+import { DashboardPage } from './pages/DashboardPage'
 import { LoginPage } from './pages/LoginPage'
 import { WelcomePage } from './pages/WelcomePage'
 import { IngredientsPage } from './pages/IngredientsPage'
@@ -50,7 +51,7 @@ export default function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route index element={<Navigate to="/ingredients" replace />} />
+        <Route index element={<DashboardPage />} />
         <Route path="/ingredients" element={<IngredientsPage />} />
         <Route path="/ingredients/:id" element={<IngredientFormPage />} />
         <Route path="/recipes" element={<RecipesPage />} />
@@ -65,7 +66,7 @@ export default function App() {
         <Route path="/goals" element={<GoalsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/users" element={<UsersPage />} />
-        <Route path="*" element={<Navigate to="/ingredients" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   )

@@ -12,11 +12,6 @@ Ignore all files in the `Future Features` section.
   - Height
   - Goal: (already asking)
 
-- [] **Create a landing page dashboard**: the user should land on a page that gives them an interesting view of their current progress and these actions:
-  - List next 3 upcoming meals from their meal plan (with times to consume shown) and an option to mark them as completed.
-  - Log their weight (if it's due today).
-  - See a chart of their progress over the past 7 days in regards to `fuel` minus `burn` minus `kindle` cost with an estimate of weight lost. 
-
 ## FUTURE FEATURES
 
 >[AI Agent] skip ALL items in this section.

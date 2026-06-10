@@ -5,6 +5,7 @@ import { userApi } from '../api/services'
 import { ThemePicker } from '../theme/ThemePicker'
 
 const NAV = [
+  { to: '/', label: 'Home', ico: '🏠' },
   { to: '/ingredients', label: 'Ingredients', ico: '🥕' },
   { to: '/recipes', label: 'Recipes', ico: '🍳' },
   { to: '/meals', label: 'Meals', ico: '🍽️' },
@@ -78,6 +79,9 @@ export function Layout() {
             <NavLink
               key={n.to}
               to={n.to}
+              // The Home link points at the index route ("/"), which otherwise matches every path; `end`
+              // keeps it highlighted only on the dashboard itself.
+              end={n.to === '/'}
               className={({ isActive }) => (isActive ? 'active' : '')}
               onClick={() => setMenuOpen(false)}
             >

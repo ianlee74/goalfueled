@@ -482,6 +482,69 @@ export interface BurnActivityInput {
   date?: string
 }
 
+// ---- Dashboard (landing page) ----
+
+/** One upcoming planned meal on the dashboard (completable via the planned-complete endpoint). */
+export interface UpcomingMeal {
+  // Stable correlation key for completing this task (same form as PlannedMealTask.ref).
+  ref: string
+  mealId: string
+  mealName?: string
+  // The calendar day this occurrence falls on, "yyyy-MM-dd".
+  date: string
+  // Scheduled time of day, "HH:mm:ss"; absent for an untimed/"anytime" meal.
+  time?: string
+  calories: number
+  // True when this occurrence is on a day later than today (it rolled forward).
+  isLaterDay: boolean
+}
+
+/** The "weight is due today" prompt, present only when a measurement is due today. */
+export interface WeightDue {
+  alreadyRecorded: boolean
+  recordedValue?: number
+  recordedUnit?: WeightUnit
+}
+
+/** One day's point in the 7-day fuel/burn/kindle/net series. */
+export interface ProgressDay {
+  // The calendar day, "yyyy-MM-dd".
+  date: string
+  fuel: number
+  // Calories burned via logged activity (positive magnitude).
+  burn: number
+  // Passive sedentary cost (0 when the profile is incomplete).
+  kindle: number
+  // Net = fuel − burn − kindle for the day.
+  net: number
+}
+
+/** The 7-day progress series plus the derived weight-change estimate. */
+export interface ProgressSeries {
+  days: ProgressDay[]
+  // Sum of every day's net (fuel − burn − kindle); negative = net deficit.
+  cumulativeNet: number
+  // Estimated body weight lost over the window (deficit → positive), in the user's unit.
+  estimatedWeightLost: number
+  weightUnit: WeightUnit
+  // True when kindle could be computed (profile complete + a recorded weight).
+  kindleAvailable: boolean
+  // True when the window has any fuel/burn/kindle data (drives the zero-state).
+  hasData: boolean
+}
+
+/** The aggregated landing-page dashboard payload. */
+export interface Dashboard {
+  // The day the dashboard was computed for, "yyyy-MM-dd".
+  date: string
+  activePlanId?: string
+  activePlanName?: string
+  upcomingMeals: UpcomingMeal[]
+  // The "log your weight today" prompt, present only when due today.
+  weightDue?: WeightDue
+  progress: ProgressSeries
+}
+
 export const CONSUMPTION_SOURCE_LABELS: Record<ConsumptionSource, string> = {
   Meal: 'Meal', Recipe: 'Recipe', FreeForm: 'Free-form',
 }

@@ -2,7 +2,7 @@ import { api } from './client'
 import type {
   AdminUser, BurnActivity, BurnActivityInput, BurnDay, BurnSuggestion,
   CompletePlannedMealInput, ConsumptionDay, ConsumptionEntry, ConsumptionEntryInput,
-  CurrentUser, Goal, GoalInput, Ingredient, IngredientInput, Meal, MealInput,
+  CurrentUser, Dashboard, Goal, GoalInput, Ingredient, IngredientInput, Meal, MealInput,
   MealPlan, MealPlanInput, NutrientDefinition, NutritionLookupResult, OnboardingInput,
   PlannedDay, ProfileInput, Recipe, RecipeInput, WeightEntry, WeightEntryInput,
   WeightScheduleInput,
@@ -129,6 +129,11 @@ export const burnApi = {
 
 export const nutrientApi = {
   list: () => api.get<NutrientDefinition[]>('/nutrients'),
+}
+
+export const dashboardApi = {
+  // The aggregated landing-page dashboard (defaults to today server-side when date is omitted).
+  get: (date?: string) => api.get<Dashboard>(`/dashboard${date ? `?date=${date}` : ''}`),
 }
 
 export const imageApi = {

@@ -6,6 +6,50 @@
 
 ## Completed Items
 
+### Create a landing page dashboard — 2026-06-10 CDT
+
+- [x] The app now opens on a **Dashboard** home page that gives an at-a-glance view of the user's progress: the **next 3 upcoming meals** from the plan they're following (with consume-times and a one-tap **Done** to complete them), a **weigh-in prompt shown only when a measurement is due today** (with an inline quick-log), and a **7-day chart of net calories (fuel − burn − kindle)** with a derived **estimated weight change** (deficit → loss). The dashboard is the post-login landing route; The Log, Plans, etc. stay reachable from the nav (a new **Home** entry was added).
+
+**NOTES:**
+
+**Design decisions**
+- **One aggregating endpoint — `GET /api/dashboard`** returning a `DashboardDto`, rather than composing several existing calls client-side. Cleaner, single round-trip, and unit-testable server-side. It reuses (injects) the existing services and does no roll-up math of its own.
+- **`DashboardService`** (in `src/GoalFueled.Api/Services`) injects `MealPlanService`, `ConsumptionService`, `BurnService`, and `IWeightEntryRepository`, and uses the static `KindleCostCalculator` + the new `WeightProgressEstimator`. It exposes `GetAsync(user, date?, now?, ct)` — `now` is injectable so the "from now" upcoming-meal ordering is deterministically testable.
+- **Next-3 upcoming meals:** reuses `ConsumptionService.GetPlannedDayAsync` (which already resolves the active plan's tasks + completion state via `MealPlanService.GetPlannedMealsForDateAsync`). Selection = today's **not-yet-completed** tasks scheduled **at/after now**, ordered **timed-before-untimed then by time**; **untimed ("anytime") meals sort last**. **Documented roll-forward:** if fewer than 3 remain today, we roll into subsequent plan days (up to 7 days ahead) taking each day's meals in schedule order, flagged `isLaterDay: true` (those show a "later" badge instead of a Done button, since you complete them on their day). Completion of upcoming meals uses the **existing** `POST /api/consumption/planned/complete` with the task `ref` + the occurrence `date` (the DTO carries both) — no new completion path.
+- **Weight due:** surfaced only when due today. Reuses the planned-day `WeightTaskDto` (which `GetPlannedDayAsync` returns non-null only on a due day → presence == "due today"). The dashboard maps it to `WeightDueDto { alreadyRecorded, recordedValue, recordedUnit }`. Logging reuses the existing `POST /api/weights` (`WeightService.RecordAsync`, one-per-day upsert).
+- **7-day series:** reuses `ConsumptionService.DailyNutritionInRangeAsync` (fuel; calories nutrient id `"calories"`) and `BurnService.DailyBurnInRangeAsync` (burn). **Kindle** is derived once via `KindleCostCalculator.TryCompute` from the profile + **latest** recorded weight and applied to every day in the window. **Documented simplification:** past days reuse the current weight rather than reconstructing each day's historical weight (kindle varies little day-to-day; avoids a per-day weight lookup). Net = fuel − burn − kindle. When the profile is incomplete the kindle term is 0, `kindleAvailable=false`, and the UI shows a "complete your profile" nudge with net = fuel − burn only.
+- **Weight-lost estimate — pure helper:** `src/GoalFueled.Domain/WeightProgressEstimator.cs` (static, dependency-free). `CaloriesPerPound = 3500`. `PoundsLost(net) = -net / 3500` — **sign:** a NEGATIVE cumulative net (deficit) → POSITIVE pounds lost; a positive net (surplus) → negative (a gain). `CumulativeNet`, `PoundsLostOverSeries`, and `InUnit(pounds, unit)` (lb passthrough; kg via `KindleCostCalculator.KilogramsPerPound`) round it out. The DTO reports the estimate in the user's last-used weight unit.
+- **Chart — dependency-free inline SVG** (`src/web/src/components/NetBalanceChart.tsx`, no new npm deps), in the hand-rolled-SVG style of `GoalProgressVisual.tsx`: per-day net bars around a zero baseline (emerald = deficit/toward-loss, flame-orange = surplus) with a dashed cumulative-net trend line; the estimated weight delta is shown prominently above it.
+- **Empty/incomplete states:** no active plan → prompt linking to The Log to pick one; active plan but nothing upcoming → friendly "enjoy the breather"; profile incomplete (kindle unavailable) → fuel − burn only + a gentle profile nudge; no fuel/burn/kindle data in the window (`hasData=false`) → friendly zero-state.
+
+**Files created**
+- `src/GoalFueled.Domain/WeightProgressEstimator.cs` — the pure net→weight-change helper.
+- `src/GoalFueled.Domain/Contracts/DashboardDtos.cs` — `DashboardDto`, `UpcomingMealDto`, `WeightDueDto`, `ProgressSeriesDto`, `ProgressDayDto`.
+- `src/GoalFueled.Api/Services/DashboardService.cs` — the aggregation.
+- `src/GoalFueled.Api/Functions/DashboardFunctions.cs` — `GET /api/dashboard`.
+- `src/web/src/pages/DashboardPage.tsx` — the landing page.
+- `src/web/src/components/NetBalanceChart.tsx` — the inline SVG chart.
+- `tests/GoalFueled.Tests/WeightProgressEstimatorTests.cs` — 6 pure-helper tests (incl. sign).
+- `tests/GoalFueled.Tests/DashboardServiceTests.cs` — 13 tests (upcoming selection/ordering/roll-forward/skip-completed, weight-due flag, 7-day series assembly with/without kindle).
+
+**Files changed (backend)**
+- `src/GoalFueled.Api/Program.cs` — registered `DashboardService`.
+- `tests/GoalFueled.Tests/DependencyInjectionTests.cs` — registered + asserted `DashboardService`.
+
+**Files changed (frontend)**
+- `src/web/src/api/types.ts` — `Dashboard`/`UpcomingMeal`/`WeightDue`/`ProgressSeries`/`ProgressDay` TS mirrors.
+- `src/web/src/api/services.ts` — `dashboardApi.get()`.
+- `src/web/src/App.tsx` — `/` index route now renders `DashboardPage` (was a redirect to `/ingredients`); catch-all redirects to `/`.
+- `src/web/src/components/Layout.tsx` — added the **Home** nav entry (`end` match so it highlights only on `/`).
+
+**API endpoints**
+- **New:** `GET /api/dashboard[?date=]` → `DashboardDto`. No other endpoints changed; meal completion and weight logging reuse the existing `POST /api/consumption/planned/complete` and `POST /api/weights`.
+
+**Verification**
+- `dotnet test -c Release` → **238/238 passed** (was 219; +19: 6 estimator + 13 dashboard).
+- `npm run build` (`src/web`) → **succeeds** (tsc + vite, 79 modules).
+- `npm run lint` (`src/web`) → **0 errors** (only the 1 pre-existing `AuthContext.tsx` warning; no new ones).
+
 ### Create a `Kindle` cost — 2026-06-10 CDT
 
 - [x] The Log now shows a passive **Kindle cost** — the calories a user burns just staying alive — as its own clearly-labeled `burn` line, and subtracts it in the day's net-calorie summary (**net = fuel − burn − kindle**). The cost is the Mifflin–St Jeor BMR × 1.2 (sedentary factor), derived on the fly from the user's profile (sex, date of birth → age, height) and latest recorded weight. Because the formula needs an **age** the profile didn't capture, a **date of birth** field was added to onboarding and the Profile page (mirroring the recently-added sex/height fields). When any input is missing the cost is unavailable and The Log prompts the user to complete their profile instead of showing a wrong/zero number.
