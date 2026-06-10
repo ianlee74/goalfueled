@@ -1,15 +1,17 @@
 import { api } from './client'
 import type {
   AdminUser, ConsumptionDay, ConsumptionEntry, ConsumptionEntryInput,
-  CurrentUser, Goal, GoalInput, GoalType, Ingredient, IngredientInput, Meal, MealInput,
-  MealPlan, MealPlanInput, NutrientDefinition, NutritionLookupResult, Recipe, RecipeInput,
-  WeightEntry, WeightEntryInput,
+  CurrentUser, Goal, GoalInput, Ingredient, IngredientInput, Meal, MealInput,
+  MealPlan, MealPlanInput, NutrientDefinition, NutritionLookupResult, OnboardingInput,
+  ProfileInput, Recipe, RecipeInput, WeightEntry, WeightEntryInput,
 } from './types'
 
 export const userApi = {
   me: () => api.get<CurrentUser>('/me'),
-  completeOnboarding: (primaryGoal: GoalType) =>
-    api.post<CurrentUser>('/me/onboarding', { primaryGoal }),
+  completeOnboarding: (input: OnboardingInput) =>
+    api.post<CurrentUser>('/me/onboarding', input),
+  updateProfile: (input: ProfileInput) =>
+    api.put<CurrentUser>('/me/profile', input),
   setAdminView: (enabled: boolean) =>
     api.post<CurrentUser>('/me/admin-view', { enabled }),
 }

@@ -52,6 +52,11 @@ public class GoalFueledDbContext : DbContext
             // is only ever evaluated after the user is materialized (e.g. CountAdminsAsync), so no
             // server-side query depends on this column's shape.
             e.Property(u => u.Roles).HasConversion(RolesConverter, RolesComparer);
+            // Persist the onboarding enums by their string name (stable across reordering, readable in
+            // the document) rather than their ordinal. PrimaryGoal already round-trips as a scalar enum;
+            // mapping SexAtBirth the same way keeps the stored shape consistent.
+            e.Property(u => u.PrimaryGoal).HasConversion<string?>();
+            e.Property(u => u.SexAtBirth).HasConversion<string?>();
         });
 
         // --- Ingredients ---

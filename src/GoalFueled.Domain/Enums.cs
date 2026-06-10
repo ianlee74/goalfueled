@@ -15,6 +15,13 @@ public enum GoalType
     WeightGain = 2
 }
 
+/// <summary>Biological sex at birth, captured on first login for nutrition/health calculations.</summary>
+public enum SexAtBirth
+{
+    Male = 0,
+    Female = 1
+}
+
 /// <summary>Who owns/can see an entity. App-scoped entities are authored by admins and visible to everyone.</summary>
 public enum OwnershipScope
 {

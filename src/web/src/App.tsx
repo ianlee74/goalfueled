@@ -16,6 +16,7 @@ import { WeightPage } from './pages/WeightPage'
 import { GoalsPage } from './pages/GoalsPage'
 import { LogPage } from './pages/LogPage'
 import { UsersPage } from './pages/UsersPage'
+import { ProfilePage } from './pages/ProfilePage'
 
 export default function App() {
   const { devUser, profile, loading } = useAuth()
@@ -62,6 +63,7 @@ export default function App() {
         <Route path="/log" element={<LogPage />} />
         <Route path="/weight" element={<WeightPage />} />
         <Route path="/goals" element={<GoalsPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="*" element={<Navigate to="/ingredients" replace />} />
       </Route>

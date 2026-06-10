@@ -6,9 +6,34 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
+- [x] **Capture basic info during first login**: when a user first creates their account, let's prompt them for a few basic pieces of information (one time). We'll also need a user profile page where they can update these attributes later if necessary.
+  - Sex at Birth: male/female
+  - Current Weight
+  - Height
+  - Goal: (already asking)
+
+- [] **Redesign `The Log`**: Let's rename the "Food Log" to be "The Log". The Log is meant to be the main feature of this app and should be easy to understand and use. Currently, it doesn't utilize the meal plans. The way The Log is intended is that the user should select their current meal plan that they are following and then The Log should follow along with that plan. The meals for the selected plan for the current day should be listed in the food log as tasks to complete.
+
+- [] **Scheduled Weight Measurements**: a user should be able to configure how often they want to log a weight measurement. It could be: daily, weekly, or "every n days" or "every n weeks". They should specify the day of the week that they will start measurements. Once configured, a "Log your weight" task should appear in `The Log` as a recurring task.
+
+- [] **Re-design around `fuel` and `burn`**: in the app, I'd like to use the label `fuel` when referencing an activity that adds calories to the body (i.e. consuming food) and the word `burn` when calories are used (i.e. exercise). So, in The Log we should show meal plan tasks as `fuel` and exercise activities as `burn`. We need to create appropriate icons for each.
+
+- [] **Log `burn` activities**: a user should be able to enter a `burn` activity when they complete an exercise. It should be a simple text name and number of calories burned. These calories should be negative when doing calculations summarizing calories. When entering a `burn` activity the user should be given a list of activity names that they have used in the past. If selected, the calories from the last entry of that type should be defaulted.
+
+- [] **Create a `Kindle` cost**: people burn calories by just staying alive. Automatically add a daily `burn` cost to the user's log equal to their daily sedentary calorie usage. To calculate this, use the Mifflin–St Jeor BMR Formula multiplied by 1.2.
+
+- [] **Create a landing page dashboard**: the user should land on a page that gives them an interesting view of their current progress and these actions:
+  - List next 3 upcoming meals from their meal plan (with times to consume shown) and an option to mark them as completed.
+  - Log their weight (if it's due today).
+  - See a chart of their progress over the past 7 days in regards to `fuel` minus `burn` minus `kindle` cost with an estimate of weight lost. 
+
 ## FUTURE FEATURES
 
 >[AI Agent] skip ALL items in this section.
+
+- [] **Shopping Lists**: generate a weekly shopping list based on the meal plan.
+
+- [] **Recipes for the week**: adjusted based on number of servings needed for the week
 
 - [] **Integrate with Google Health**: synchronize weight data with Google Health. What else can we sync with it?
 

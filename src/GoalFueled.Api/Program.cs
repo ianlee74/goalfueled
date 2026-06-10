@@ -40,6 +40,7 @@ builder.Services.AddScoped<WeightService>();
 builder.Services.AddScoped<GoalService>();
 builder.Services.AddScoped<ConsumptionService>();
 builder.Services.AddScoped<UserAdminService>();
+builder.Services.AddScoped<UserProfileService>();
 
 // Automatic ingredient nutrition lookup (USDA FoodData Central). The HTTP call is done server-side
 // via IHttpClientFactory so the API key stays off the client and CORS is a non-issue.

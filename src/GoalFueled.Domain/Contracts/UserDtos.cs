@@ -11,10 +11,32 @@ public sealed record CurrentUserDto(
     bool AdminViewEnabled,
     bool IsActingAsAdmin,
     GoalType? PrimaryGoal,
+    SexAtBirth? SexAtBirth,
+    double? HeightCm,
     bool HasCompletedOnboarding);
 
-/// <summary>Payload for completing the first-login welcome flow.</summary>
-public sealed record OnboardingInput(GoalType PrimaryGoal);
+/// <summary>
+/// Payload for completing the first-login welcome flow. Captures the basic profile info gathered
+/// the one time on first login: goal, sex at birth, height, and current weight. The current weight
+/// (value + unit) is recorded as today's <see cref="WeightEntryDto"/> via the existing weight feature.
+/// </summary>
+public sealed record OnboardingInput(
+    GoalType PrimaryGoal,
+    SexAtBirth SexAtBirth,
+    double HeightCm,
+    double CurrentWeight,
+    WeightUnit WeightUnit);
+
+/// <summary>
+/// Payload for updating the editable profile attributes later (the Profile page). Goal, sex, and
+/// height are always present; current weight is optional — when provided it upserts today's weight entry.
+/// </summary>
+public sealed record ProfileInput(
+    GoalType PrimaryGoal,
+    SexAtBirth SexAtBirth,
+    double HeightCm,
+    double? CurrentWeight,
+    WeightUnit WeightUnit);
 
 /// <summary>Payload for an admin toggling their admin-view on or off.</summary>
 public sealed record AdminViewInput(bool Enabled);

@@ -1,7 +1,7 @@
 using GoalFueled.Api.Auth;
 using GoalFueled.Api.Common;
+using GoalFueled.Api.Services;
 using GoalFueled.Data.Repositories;
-using GoalFueled.Domain;
 using GoalFueled.Domain.Contracts;
 using GoalFueled.Domain.Entities;
 using Microsoft.AspNetCore.Http;
@@ -15,11 +15,13 @@ public sealed class UserFunctions
 {
     private readonly IAuthenticator _auth;
     private readonly IUserRepository _users;
+    private readonly UserProfileService _profile;
 
-    public UserFunctions(IAuthenticator auth, IUserRepository users)
+    public UserFunctions(IAuthenticator auth, IUserRepository users, UserProfileService profile)
     {
         _auth = auth;
         _users = users;
+        _profile = profile;
     }
 
     /// <summary>Returns (and provisions on first call) the signed-in user's profile.</summary>
@@ -28,20 +30,29 @@ public sealed class UserFunctions
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "me")] HttpRequest req) =>
         ApiEndpoint.RunAuthenticated(req, _auth, user => Task.FromResult(HttpResults.Ok(ToDto(user))));
 
-    /// <summary>Completes the first-login welcome flow by recording the user's first goal.</summary>
+    /// <summary>
+    /// Completes the first-login welcome flow, capturing the user's basic info (goal, sex at birth,
+    /// height) and recording their current weight as today's entry.
+    /// </summary>
     [Function("CompleteOnboarding")]
     public Task<IActionResult> Onboarding(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "me/onboarding")] HttpRequest req) =>
         ApiEndpoint.RunAuthenticated(req, _auth, async user =>
         {
             var input = await HttpResults.ReadJsonAsync<OnboardingInput>(req, req.HttpContext.RequestAborted);
-            if (!Enum.IsDefined(typeof(GoalType), input.PrimaryGoal))
-                throw new ValidationException("Unknown goal type.");
+            var updated = await _profile.CompleteOnboardingAsync(user, input, req.HttpContext.RequestAborted);
+            return HttpResults.Ok(ToDto(updated));
+        });
 
-            user.PrimaryGoal = input.PrimaryGoal;
-            user.HasCompletedOnboarding = true;
-            await _users.UpdateAsync(user, req.HttpContext.RequestAborted);
-            return HttpResults.Ok(ToDto(user));
+    /// <summary>Updates the editable profile attributes later (sex, height, goal, optional current weight).</summary>
+    [Function("UpdateProfile")]
+    public Task<IActionResult> UpdateProfile(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "me/profile")] HttpRequest req) =>
+        ApiEndpoint.RunAuthenticated(req, _auth, async user =>
+        {
+            var input = await HttpResults.ReadJsonAsync<ProfileInput>(req, req.HttpContext.RequestAborted);
+            var updated = await _profile.UpdateProfileAsync(user, input, req.HttpContext.RequestAborted);
+            return HttpResults.Ok(ToDto(updated));
         });
 
     /// <summary>Toggles an admin's "admin view" on or off so they can browse as a regular user.</summary>
@@ -59,5 +70,6 @@ public sealed class UserFunctions
 
     private static CurrentUserDto ToDto(AppUser u) => new(
         u.Id, u.Email, u.DisplayName, u.AvatarUrl, u.Roles, u.IsAdmin,
-        u.AdminViewEnabled, u.IsActingAsAdmin, u.PrimaryGoal, u.HasCompletedOnboarding);
+        u.AdminViewEnabled, u.IsActingAsAdmin, u.PrimaryGoal, u.SexAtBirth, u.HeightCm,
+        u.HasCompletedOnboarding);
 }

@@ -5,6 +5,8 @@ export type AppRole = 'User' | 'AppAdmin'
 
 export type GoalType = 'WeightLoss' | 'WeightManagement' | 'WeightGain'
 
+export type SexAtBirth = 'Male' | 'Female'
+
 export type OwnershipScope = 'App' | 'User'
 
 export type UnitOfMeasure =
@@ -42,7 +44,28 @@ export interface CurrentUser {
   adminViewEnabled: boolean
   isActingAsAdmin: boolean
   primaryGoal?: GoalType
+  sexAtBirth?: SexAtBirth
+  // Height stored canonically in centimeters; the UI converts to/from ft/in.
+  heightCm?: number
   hasCompletedOnboarding: boolean
+}
+
+/** Payload for completing the first-login welcome flow. */
+export interface OnboardingInput {
+  primaryGoal: GoalType
+  sexAtBirth: SexAtBirth
+  heightCm: number
+  currentWeight: number
+  weightUnit: WeightUnit
+}
+
+/** Payload for updating profile attributes later. Current weight is optional. */
+export interface ProfileInput {
+  primaryGoal: GoalType
+  sexAtBirth: SexAtBirth
+  heightCm: number
+  currentWeight?: number
+  weightUnit: WeightUnit
 }
 
 /** A user as shown on the admin user-management screen. */
@@ -368,6 +391,11 @@ export const GOAL_LABELS: Record<GoalType, string> = {
   WeightLoss: 'Lose weight',
   WeightManagement: 'Maintain weight',
   WeightGain: 'Gain weight',
+}
+
+export const SEX_LABELS: Record<SexAtBirth, string> = {
+  Male: 'Male',
+  Female: 'Female',
 }
 
 // Display abbreviations + grouping for the unit selector.

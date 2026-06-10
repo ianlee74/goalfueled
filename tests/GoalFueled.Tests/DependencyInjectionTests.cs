@@ -46,6 +46,7 @@ public class DependencyInjectionTests
         services.AddScoped<GoalService>();
         services.AddScoped<ConsumptionService>();
         services.AddScoped<UserAdminService>();
+        services.AddScoped<UserProfileService>();
         services.AddHttpClient<IFdcNutritionClient, FdcNutritionClient>();
         services.AddScoped<NutritionLookupService>();
 
@@ -73,6 +74,7 @@ public class DependencyInjectionTests
         Assert.NotNull(sp.GetRequiredService<GoalService>());
         Assert.NotNull(sp.GetRequiredService<ConsumptionService>());
         Assert.NotNull(sp.GetRequiredService<UserAdminService>());
+        Assert.NotNull(sp.GetRequiredService<UserProfileService>());
         Assert.NotNull(sp.GetRequiredService<NutritionLookupService>());
         Assert.NotNull(sp.GetRequiredService<IFdcNutritionClient>());
         Assert.NotNull(sp.GetRequiredService<IUserRepository>());

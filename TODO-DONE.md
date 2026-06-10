@@ -6,6 +6,50 @@
 
 ## Completed Items
 
+### Capture basic info during first login + Profile page — 2026-06-10 CDT
+
+- [x] First login now captures Sex at Birth, Height, Current Weight, and Goal one time; a new Profile page (`/profile`) lets users update them later.
+
+**NOTES:**
+
+**Design decisions**
+- **New `SexAtBirth` enum (`Male`/`Female`)** in `Enums.cs`, stored as a nullable `SexAtBirth? SexAtBirth` on `AppUser` (null until captured). Persisted by its string name via `HasConversion<string?>()` in `GoalFueledDbContext` (consistent with how `PrimaryGoal` round-trips); `PrimaryGoal` was given the same explicit string conversion so both onboarding enums store readably in the Cosmos document.
+- **Height stored canonically in centimeters** (`double? HeightCm` on `AppUser`). The UI defaults to a friendly **ft/in** entry (two number inputs) with a **cm** toggle; conversions live in `src/web/src/lib/height.ts` (`cmToFtIn`/`ftInToCm`/`formatHeight`). Storing one canonical unit avoids unit ambiguity server-side and keeps validation simple (positive, ≤ `InputLimits.HeightCmMax` = 300 cm).
+- **Current weight is NOT stored on the profile.** Onboarding/profile-save record it as **today's `WeightEntry`** via the existing `WeightService.RecordAsync` (single source of truth). This immediately satisfies the meal-plan weight gate and weight goals, and reuses the existing per-day upsert + value/unit validation. Weight is therefore captured (value + unit) but lives only in the weight feature. On the Profile page the current-weight field is **optional** — blank leaves the last recorded weight untouched; a value upserts today's entry.
+- **`HasCompletedOnboarding` is set true only after all required fields validate and persist.** The weight is recorded first inside `CompleteOnboardingAsync`; if any validation throws, onboarding is left incomplete (verified by a test).
+- **Onboarding logic moved into a new `UserProfileService`** (was inline in `UserFunctions`). This keeps the Function endpoints thin and makes onboarding/profile-update unit-testable, matching the Weight/Goals/UserAdmin service-layer pattern. It depends on `IUserRepository` + `WeightService`.
+
+**New / extended API endpoints**
+- `POST /api/me/onboarding` — now takes `OnboardingInput(PrimaryGoal, SexAtBirth, HeightCm, CurrentWeight, WeightUnit)` (was goal-only).
+- `PUT /api/me/profile` — **new**; takes `ProfileInput(PrimaryGoal, SexAtBirth, HeightCm, CurrentWeight?, WeightUnit)`.
+- `GET /api/me` — `CurrentUserDto` now also returns `SexAtBirth?` and `HeightCm?`.
+
+**Files changed (backend)**
+- `src/GoalFueled.Domain/Enums.cs` — added `SexAtBirth` enum.
+- `src/GoalFueled.Domain/Entities/AppUser.cs` — added `SexAtBirth?` and `HeightCm?`.
+- `src/GoalFueled.Domain/Contracts/UserDtos.cs` — extended `CurrentUserDto` + `OnboardingInput`; added `ProfileInput`.
+- `src/GoalFueled.Data/GoalFueledDbContext.cs` — string-name conversions for `PrimaryGoal`/`SexAtBirth`.
+- `src/GoalFueled.Api/Common/InputLimits.cs` — added `HeightCmMax = 300`.
+- `src/GoalFueled.Api/Services/UserProfileService.cs` — **new** service (onboarding + profile update + validation).
+- `src/GoalFueled.Api/Functions/UserFunctions.cs` — onboarding delegates to the service; new `UpdateProfile` endpoint; `ToDto` extended.
+- `src/GoalFueled.Api/Program.cs` — registered `UserProfileService`.
+
+**Files changed (frontend)**
+- `src/web/src/api/types.ts` — `SexAtBirth` union, `SEX_LABELS`, extended `CurrentUser`, new `OnboardingInput`/`ProfileInput`.
+- `src/web/src/api/services.ts` — `completeOnboarding(input)` (full payload) + new `updateProfile(input)`.
+- `src/web/src/lib/height.ts` — **new** cm⇄ft/in helpers.
+- `src/web/src/components/ProfileFields.tsx` — **new** shared fields component (sex, height w/ unit toggle, weight w/ unit, goal) used by both pages.
+- `src/web/src/pages/WelcomePage.tsx` — rewritten to capture all four fields and submit the full onboarding payload.
+- `src/web/src/pages/ProfilePage.tsx` — **new** `/profile` page.
+- `src/web/src/App.tsx` — added the `/profile` route.
+- `src/web/src/components/Layout.tsx` — added the Profile nav link.
+
+**Tests**
+- `tests/GoalFueled.Tests/UserProfileServiceTests.cs` — **new**, 9 tests: onboarding persists all fields + marks complete, onboarding records today's weight, invalid weight/height/enum rejected (and leaves onboarding incomplete), profile update changes fields, optional weight (omitted → no entry; provided → upserts today), invalid height on update rejected.
+- `tests/GoalFueled.Tests/DependencyInjectionTests.cs` — registered + asserted `UserProfileService`.
+
+- Verified: `dotnet test -c Release` → **156/156 passed**; web `npm run build` ✓; `npm run lint` → 0 errors (1 pre-existing `AuthContext.tsx` warning).
+
 ### Time picker restricted to 15-minute intervals — 2026-06-09 CDT
 
 - [x] Meal/plan time pickers now only offer minutes in 15-minute intervals (:00/:15/:30/:45) via a reusable TimePicker component

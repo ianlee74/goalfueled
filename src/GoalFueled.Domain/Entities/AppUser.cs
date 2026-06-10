@@ -35,6 +35,15 @@ public class AppUser
     /// <summary>The goal captured on the welcome page at first login. Null until chosen.</summary>
     public GoalType? PrimaryGoal { get; set; }
 
+    /// <summary>Biological sex at birth, captured at first login. Null until provided.</summary>
+    public SexAtBirth? SexAtBirth { get; set; }
+
+    /// <summary>
+    /// The user's height, stored canonically in centimeters (the UI offers cm or ft/in and converts).
+    /// Null until provided.
+    /// </summary>
+    public double? HeightCm { get; set; }
+
     /// <summary>True once the user has completed the first-login welcome flow.</summary>
     public bool HasCompletedOnboarding { get; set; }
 
