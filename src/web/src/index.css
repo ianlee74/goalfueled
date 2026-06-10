@@ -261,7 +261,7 @@ label.field .hint { font-weight: 400; color: var(--muted); font-size: 0.8rem; }
 .log-plan > summary::-webkit-details-marker { display: none; }
 .log-plan > summary:hover { color: var(--primary-dark); }
 
-/* The Log: timeline section labels ("Still to do" / "Done") and the start-of-day Kindle line. */
+/* The Log: timeline section labels ("Planned" / "Done") and the start-of-day Kindle line. */
 .log-section-label { text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; }
 .log-kindle { opacity: 0.85; border-style: dashed; }
 

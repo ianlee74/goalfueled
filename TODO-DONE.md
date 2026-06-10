@@ -6,6 +6,14 @@
 
 ## Completed Items
 
+### Rename "Still to do" to "Planned" in The Log — 2026-06-10 CDT
+
+- [x] **Renamed the "Still to do" section label to "Planned"** in The Log's timeline (the pinned block of pending planned meals + due weigh-in).
+
+**NOTES:**
+- Changed the visible label in `LogPage.tsx` (`log-section-label` span) and updated two comments that quoted the label by name (`LogPage.tsx` JSX comment, `index.css` section-labels comment). Internal identifiers/CSS classes (`log-todo`, `log-section-label`) were left unchanged; remaining lowercase prose references describing the concept were left as-is (minimal change).
+- Verified: `npm run build` + `npm run lint` (0 errors, only the pre-existing `AuthContext.tsx` warning).
+
 ### Add an option to skip a planned meal in The Log — 2026-06-10 CDT
 
 - [x] **Users can now skip a planned meal**, removing it from the "Still to do" list. A skipped meal contributes no nutrition, persists across reloads, and can be undone.

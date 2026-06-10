@@ -583,10 +583,10 @@ export function LogPage() {
           <p className="muted">Loading…</p>
         )}
 
-        {/* "Still to do": pending planned fuel + a due, unrecorded weigh-in — pinned at the top. */}
+        {/* "Planned": pending planned fuel + a due, unrecorded weigh-in — pinned at the top. */}
         {(pendingTasks.length > 0 || pendingWeighIn) && (
           <div className="stack log-todo">
-            <span className="small muted log-section-label">Still to do</span>
+            <span className="small muted log-section-label">Planned</span>
             <div className="list">
               {pendingWeighIn && weightTask && <WeighInRow task={weightTask} />}
               {pendingTasks.map((t) => (

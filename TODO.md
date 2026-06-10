@@ -6,8 +6,6 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-- [] **Rename `Still to do` as `Planned`**: in `The Log`
-
 - [] **Add a daily progress chart to `The Log`**: in the summary section of `The Log`, show a line graph that shows actual/vs expected net calories by the hour of the current day. `Kindle` burn should be averaged across the entire day.
 
 - [] **Allow user to modify a planned meal**: when logging a planned meal in `The Log`, a user should be able to modify the meal to indicate that they ate more or less than planned of parts of the meal. Allow them to adjust the serving size.
