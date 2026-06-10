@@ -6,6 +6,17 @@
 
 ## Completed Items
 
+### Rework The Log into a single chronological timeline — 2026-06-10 CDT
+
+- [x] **The Log is now a single chronological day timeline** instead of separate `Fuel` and `Burn` sections. Top of the page shows a **totals header** (Fuel / Burn / Net Calories). The meal-plan picker is collapsed into a compact one-line disclosure. Adding ad-hoc fuel/burn is now behind **`+ Add fuel`** / **`+ Add burn`** buttons (forms toggle inline) rather than always-visible forms. A single timeline lists the day's events latest-first; **pending planned items float to the top** ("Still to do": planned fuel tasks + a due weigh-in), completed events sort by time-of-day, and **Kindle** sits at the bottom as the day's passive baseline (start of day).
+
+**NOTES:**
+- **Layout (top→bottom):** title + date picker → `.log-totals` header (3 tiles, Net emphasized with `fuel − burn[ − kindle]` subtext) → compact `<details>`/`<summary>` plan picker → `+ Add fuel` / `+ Add burn` toggle buttons (forms are the original markup verbatim, collapse on successful submit) → single "Today's timeline · latest first" card → day-total `NutritionLabel`.
+- **Chronological ordering:** each completed event gets a `sortKey` = seconds since local midnight, sorted descending. Completed planned meals use scheduled `time` (fallback to completing entry's `createdAt`); ad-hoc fuel + burn use `createdAt` time-of-day; a recorded weigh-in (no timestamp) is placed at start of day (sortKey 0, above Kindle); "Anytime" meals fall back to `createdAt` else 0. Kindle is rendered outside the sorted list, always last. Ties broken by key for stable order.
+- All existing functionality preserved: task complete/un-complete, add/remove fuel, add/remove burn, weigh-in link, plan switching, burn autocomplete, day-total label. Removed the now-unused `FuelBurnHeading` import.
+- Minimal supporting CSS added to `src/web/src/index.css` (`.log-totals` tiles). Inline-style/aria IDE advisories were left as-is — not part of the project's configured eslint and consistent with existing pages (e.g. DashboardPage).
+- Verified: `npm run build` (`tsc -b && vite build`) succeeded; `npm run lint` reported 0 errors (only the pre-existing unrelated `AuthContext.tsx` warning).
+
 ### Remove `Current Weight` from the profile page — 2026-06-10 CDT
 
 - [x] **`Current Weight`** in the `/profile` page did not allow entry, so it was removed from the profile page. Weight continues to be recorded through The Log (existing functionality, left intact).
