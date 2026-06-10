@@ -10,8 +10,9 @@ import type { BurnActivity, ConsumptionEntry, PlannedMealTask } from '../api/typ
 
 const W = 320
 const H = 170
-// Extra left padding makes room for the y-axis kcal labels (e.g. "−1000").
-const PAD_LEFT = 34
+// Extra left padding makes room for the rotated "Calories" axis title plus the y-axis kcal labels
+// (e.g. "−1000"): ~12px for the title, the rest for the numbers.
+const PAD_LEFT = 46
 const PAD_RIGHT = 8
 const PAD_TOP = 14
 const PAD_BOTTOM = 24
@@ -171,6 +172,18 @@ export function DailyProgressChart(
       aria-label="Fuel Gauge: cumulative net calories by hour of day, actual versus expected"
       style={{ display: 'block' }}
     >
+      {/* Y-axis title — rotated "Calories", centred on the zero baseline at the far left. */}
+      <text
+        x={9}
+        y={zeroY}
+        transform={`rotate(-90 9 ${zeroY})`}
+        textAnchor="middle"
+        fontSize={9}
+        fill="var(--muted)"
+      >
+        Calories
+      </text>
+
       {/* Y-axis gridlines + kcal labels. The zero baseline is drawn slightly stronger than the rest. */}
       {yTicks.map((net) => {
         const isZero = net === 0
