@@ -6,6 +6,16 @@
 
 ## Completed Items
 
+### Add an optional time when adding a burn entry — 2026-06-10 CDT
+
+- [x] **Burn (exercise) log entries now accept an optional time of day**, defaulting to the current time. The specified time orders and labels the burn in The Log's chronological timeline.
+
+**NOTES:**
+- **Backend:** added `TimeOnly? Time` to the `BurnActivity` entity and to both `BurnActivityDto` and `BurnActivityInput` (as a trailing optional param, so existing positional callers/tests didn't break). `BurnService.LogAsync` sets it; `ToDto` maps it. `TimeOnly?` maps natively under EF Core 8 (in-memory/relational) — no DbContext change needed.
+- **Frontend:** added optional `time?: string` ("HH:mm:ss") to the `BurnActivity`/`BurnActivityInput` TS types. The "+ Add burn" form gained a `type="time"` input defaulting to the current local time (`nowTime()`); a `toApiTime()` helper normalizes "HH:mm" → "HH:mm:ss". Clearing the input sends no time.
+- **Timeline:** a burn's sort key uses its specified time (`secondsFromScheduledTime`) when present, else falls back to `createdAt`; `BurnRow` likewise displays the specified time (`formatTime`) when present, else `formatClock(createdAt)`. Older time-less burns are unaffected.
+- Verified: backend `dotnet build` (0 warnings/errors) + `dotnet test` (238 passed); frontend `npm run build` + `npm run lint` (0 errors, only the pre-existing `AuthContext.tsx` warning).
+
 ### Add a personal-data explanation note to the profile — 2026-06-10 CDT
 
 - [x] **Added an explanatory note** near the sex / year-of-birth / height fields explaining that we use this data to calculate the user's **Kindle** (the calories burned just by being alive, at rest) and reassuring them we will never share it without permission.

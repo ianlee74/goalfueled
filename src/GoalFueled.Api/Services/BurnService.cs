@@ -73,6 +73,7 @@ public sealed class BurnService
         {
             OwnerUserId = user.Id,
             Date = date,
+            Time = input.Time,
             Name = input.Name.Trim(),
             CaloriesBurned = input.CaloriesBurned,
         };
@@ -135,5 +136,5 @@ public sealed class BurnService
     }
 
     private static BurnActivityDto ToDto(BurnActivity a) =>
-        new(a.Id, a.Date, a.Name, a.CaloriesBurned, a.CreatedAt, a.UpdatedAt);
+        new(a.Id, a.Date, a.Name, a.CaloriesBurned, a.CreatedAt, a.UpdatedAt, a.Time);
 }

@@ -18,6 +18,18 @@ function todayIso(): string {
   return new Date(now.getTime() - offset).toISOString().slice(0, 10)
 }
 
+// The current local time as "HH:mm" (the value a <input type="time"> uses).
+function nowTime(): string {
+  const now = new Date()
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+}
+
+// Normalize a <input type="time"> value ("HH:mm") to the API's "HH:mm:ss"; blank → undefined.
+function toApiTime(t: string): string | undefined {
+  if (!t) return undefined
+  return t.length === 5 ? `${t}:00` : t
+}
+
 function round(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(1)
 }
@@ -109,6 +121,8 @@ export function LogPage() {
   const [showBurnForm, setShowBurnForm] = useState(false)
   const [burnName, setBurnName] = useState('')
   const [burnCalories, setBurnCalories] = useState('')
+  // The time of day the burn occurred, "HH:mm"; defaults to now so the common case is one tap.
+  const [burnTime, setBurnTime] = useState(nowTime)
   const [savingBurn, setSavingBurn] = useState(false)
 
   // Load catalog + plan options + burn-name suggestions once.
@@ -243,12 +257,18 @@ export function LogPage() {
 
     setSavingBurn(true)
     try {
-      await burnApi.log({ name: burnName.trim(), caloriesBurned: Math.round(kcal), date })
+      await burnApi.log({
+        name: burnName.trim(),
+        caloriesBurned: Math.round(kcal),
+        date,
+        time: toApiTime(burnTime),
+      })
       await reload()
       // Refresh suggestions so a brand-new name becomes available for autocomplete next time.
       setBurnSuggestions(await burnApi.suggestions())
       setBurnName('')
       setBurnCalories('')
+      setBurnTime(nowTime())
       setShowBurnForm(false)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to log activity.')
@@ -306,11 +326,11 @@ export function LogPage() {
       })
     }
 
-    // Burn activities — createdAt time-of-day.
+    // Burn activities — the user-specified time when present, else createdAt time-of-day.
     for (const a of burnActivities) {
       items.push({
         key: `burn:${a.id}`,
-        sortKey: secondsFromTimestamp(a.createdAt),
+        sortKey: a.time ? secondsFromScheduledTime(a.time) : secondsFromTimestamp(a.createdAt),
         node: <BurnRow activity={a} onRemove={() => removeBurn(a.id)} />,
       })
     }
@@ -517,6 +537,15 @@ export function LogPage() {
                 value={burnCalories}
                 placeholder="e.g. 300"
                 onChange={(e) => setBurnCalories(e.target.value)}
+              />
+            </label>
+            <label className="field">
+              Time <span className="muted small">(optional)</span>
+              <input
+                className="input"
+                type="time"
+                value={burnTime}
+                onChange={(e) => setBurnTime(e.target.value)}
               />
             </label>
           </div>
@@ -741,7 +770,8 @@ function BurnRow({ activity, onRemove }: { activity: BurnActivity; onRemove: () 
           <button type="button" className="btn btn-sm btn-danger" title="Remove" onClick={onRemove}>✕</button>
         </div>
         <div className="small muted">
-          {formatClock(activity.createdAt)} · −{Math.round(activity.caloriesBurned)} kcal
+          {activity.time ? formatTime(activity.time) : formatClock(activity.createdAt)}
+          {' · '}−{Math.round(activity.caloriesBurned)} kcal
         </div>
       </div>
     </>

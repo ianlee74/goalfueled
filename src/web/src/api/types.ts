@@ -451,6 +451,9 @@ export interface BurnActivity {
   caloriesBurned: number
   createdAt: string
   updatedAt: string
+  // Optional user-specified time of day, serialized "HH:mm:ss"; drives timeline placement.
+  // Absent for older entries (the UI then falls back to createdAt).
+  time?: string
 }
 
 /** A day's burn log: its activities plus the day's total calories burned (positive; callers subtract it). */
@@ -480,6 +483,8 @@ export interface BurnActivityInput {
   caloriesBurned: number
   // Optional "yyyy-MM-dd"; defaults to today server-side when omitted.
   date?: string
+  // Optional time of day "HH:mm:ss"; placed/sorted in the timeline by this time when present.
+  time?: string
 }
 
 // ---- Dashboard (landing page) ----

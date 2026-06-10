@@ -9,7 +9,12 @@ public sealed record BurnActivityDto(
     /// <summary>Calories burned, a positive magnitude (treated as negative in net-calorie summaries).</summary>
     int CaloriesBurned,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    /// <summary>
+    /// Optional user-specified time of day, serialized as "HH:mm:ss". Drives the entry's placement in The
+    /// Log timeline; null for older entries (clients fall back to <see cref="CreatedAt"/>).
+    /// </summary>
+    TimeOnly? Time = null);
 
 /// <summary>
 /// A day's burn log: its activities plus the day's total calories burned (a positive magnitude — callers
@@ -49,4 +54,9 @@ public sealed record BurnActivityInput(
     /// <summary>Calories burned, a positive magnitude (must be greater than zero).</summary>
     int CaloriesBurned,
     /// <summary>Defaults to today (the request date) when omitted.</summary>
-    DateOnly? Date = null);
+    DateOnly? Date = null,
+    /// <summary>
+    /// Optional time of day the activity occurred ("HH:mm:ss"). When omitted, the entry has no specified
+    /// time and the client falls back to its creation time for timeline ordering/display.
+    /// </summary>
+    TimeOnly? Time = null);

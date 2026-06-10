@@ -6,8 +6,6 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-- [] **Add option to include time when adding `burn`**: when adding a `burn` log entry, the user should be able to specify a time that the burn occured if desired. It should default to the current time.
-
 - [] **Add an option to skip a meal in the log**: if a planned meal is skipped, the user should be able to remove it from the "still to do" of the log.
 
 - [] **Rename `Still to do` as `Planned`**: in `The Log`

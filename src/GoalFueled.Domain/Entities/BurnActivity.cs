@@ -24,6 +24,13 @@ public class BurnActivity
     /// <summary>The calendar day the activity was performed on.</summary>
     public DateOnly Date { get; set; }
 
+    /// <summary>
+    /// Optional user-specified time of day the activity occurred. Used to place/sort the activity in The
+    /// Log's chronological timeline (and shown on the entry). Null for older entries logged before a time
+    /// was captured — callers then fall back to <see cref="CreatedAt"/>'s local time-of-day.
+    /// </summary>
+    public TimeOnly? Time { get; set; }
+
     /// <summary>A free-form, human-readable name for the activity (e.g. "Morning run").</summary>
     public string Name { get; set; } = string.Empty;
 
