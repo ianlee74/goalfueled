@@ -12,8 +12,6 @@ Ignore all files in the `Future Features` section.
   - Height
   - Goal: (already asking)
 
-- [] **Re-design around `fuel` and `burn`**: in the app, I'd like to use the label `fuel` when referencing an activity that adds calories to the body (i.e. consuming food) and the word `burn` when calories are used (i.e. exercise). So, in The Log we should show meal plan tasks as `fuel` and exercise activities as `burn`. We need to create appropriate icons for each.
-
 - [] **Log `burn` activities**: a user should be able to enter a `burn` activity when they complete an exercise. It should be a simple text name and number of calories burned. These calories should be negative when doing calculations summarizing calories. When entering a `burn` activity the user should be given a list of activity names that they have used in the past. If selected, the calories from the last entry of that type should be defaulted.
 
 - [] **Create a `Kindle` cost**: people burn calories by just staying alive. Automatically add a daily `burn` cost to the user's log equal to their daily sedentary calorie usage. To calculate this, use the Mifflin–St Jeor BMR Formula multiplied by 1.2.

@@ -6,6 +6,35 @@
 
 ## Completed Items
 
+### Re-design around `fuel` and `burn` — 2026-06-10 CDT
+
+- [x] Introduced a consistent `fuel` (calories added — food) vs. `burn` (calories used — exercise) vocabulary across the app, applied to The Log. Meal-plan/consumption tasks and ad-hoc food logging are now framed as **Fuel**; a **Burn** section is present with an empty state, ready for the upcoming "log burn activities" task. Added a reusable icon/label treatment for both concepts.
+
+**NOTES:**
+
+**Design decisions**
+- **Frontend-only conceptual/visual pass.** No backend changes were needed (the burn data model is the next task), so no `.NET` code or tests changed. The DoD `.NET` suite was still run to confirm green.
+- **Icons — emoji wrapped in a reusable component.** Followed the app's established emoji-icon convention (nav uses 🍪 ⚖️ 🎯, etc.) rather than introducing SVGs or any npm dependency. Chose **🍽️ for fuel** (reuses the app's existing "meal" emoji — reinforces "consuming food") and **🔥 for burn** (universal calorie-burn/exercise symbol; also mirrors the brand's flame-orange rocket exhaust). Both are wrapped in `components/FuelBurnIcon.tsx` so the iconography + labels + accent colors are applied consistently and the next task can reuse them for real burn items.
+- **Accent colors map to the existing theme tokens.** Fuel → `--primary` (emerald, the brand's "fuel"), Burn → `--accent` (flame-orange). This was a natural fit: the theme header literally describes "a green check-rocket … with a flame-orange exhaust." No theme files under `src/web/src/theme` were touched; all styling lives in `src/web/src/index.css` via existing CSS variables.
+- **Where the vocabulary appears.** The Log now groups its day around the two concepts:
+  - **Fuel** sections (accent-edged cards, green): the plan-driven tasks ("Fuel you've planned to eat … check each off as you consume it"), the ad-hoc "Log an item" form ("Log any fuel you ate outside the plan"), and the "also logged" list ("Fuel also logged today outside the plan").
+  - **Burn** section (accent-edged card, orange): present with an empty state ("Exercise that burns calories." / "No burn logged for this day yet — activity logging is coming soon.") and a `−0 kcal` summary, so the fuel/burn split reads coherently now and exercise items can slot in cleanly next.
+- **Reusable treatment.** `FuelBurnIcon` (themed emoji chip) + `FuelBurnHeading` (icon + "Fuel"/"Burn" title with colored accent and optional trailing slot for a count/summary). `FuelBurnKind` (`'fuel' | 'burn'`) is exported for the next task. The internal `FUEL_BURN_META` map is kept un-exported so the file only exports components/types (satisfies the `react-refresh/only-export-components` lint rule).
+- **Scope restraint.** Did not re-label the source-specific thumbnails (🍽️/🍳/🍪) on individual ad-hoc entries — keeping the per-item source distinction is more informative, and the section-level fuel framing already carries the concept. Did not touch other pages (Meals/Recipes/etc.) since the fuel/burn split is specific to The Log; over-reaching there would add noise without clarity.
+
+**Files created**
+- `src/web/src/components/FuelBurnIcon.tsx` — reusable `FuelBurnIcon`, `FuelBurnHeading`, and `FuelBurnKind` type with per-kind icon/label/accent metadata.
+
+**Files changed**
+- `src/web/src/index.css` — added `.fb-icon`, `.fb-title`, `.fb-heading`, and `.card.fb-section` styles (fuel = emerald, burn = flame-orange accents) under a new "Fuel / Burn vocabulary" block.
+- `src/web/src/pages/LogPage.tsx` — applied `FuelBurnHeading` + `fb-section fb-fuel` to the plan-tasks, "Log an item", and "also logged" cards with fuel-worded copy; added a new `fb-section fb-burn` Burn card with an empty state.
+- `TODO.md` — removed the completed task line.
+
+**Verification**
+- `dotnet test -c Release` → **190/190 passed** (no backend changes; suite confirmed green).
+- `npm run build` (`src/web`) → **succeeds** (tsc + vite, 77 modules).
+- `npm run lint` (`src/web`) → **0 errors** (1 pre-existing `AuthContext.tsx` warning only; no new warnings/errors).
+
 ### Scheduled Weight Measurements — 2026-06-10 CDT
 
 - [x] Users can configure a recurring weight-measurement schedule (daily / weekly / every N days / every N weeks, anchored on a chosen start day-of-week). A "Log your weight" task now appears in The Log only on days a measurement is due, showing complete when a weight has been recorded for that day.

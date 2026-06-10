@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { consumptionApi, mealApi, mealPlanApi, recipeApi, userApi } from '../api/services'
 import { useAuth } from '../auth/AuthContext'
 import { NutritionLabel } from '../components/NutritionLabel'
+import { FuelBurnHeading } from '../components/FuelBurnIcon'
 import {
   CONSUMPTION_SOURCE_LABELS, WEIGHT_UNIT_LABELS,
   type ConsumptionDay, type ConsumptionSource, type Meal, type MealPlan,
@@ -237,15 +238,18 @@ export function LogPage() {
         )}
       </div>
 
-      {/* Plan-driven tasks for the selected day. */}
+      {/* Plan-driven Fuel tasks for the selected day. */}
       {activePlanId && (
-        <div className="card stack">
-          <div className="row spread">
-            <h2>Today's plan{planned?.planName ? `: ${planned.planName}` : ''}</h2>
+        <div className="card stack fb-section fb-fuel">
+          <FuelBurnHeading kind="fuel">
             {tasks.length > 0 && (
               <span className="small muted">{doneCount} / {tasks.length} done</span>
             )}
-          </div>
+          </FuelBurnHeading>
+          <p className="muted small" style={{ margin: 0 }}>
+            Fuel you've planned to eat{planned?.planName ? ` from ${planned.planName}` : ''} — check
+            each off as you consume it.
+          </p>
 
           {loading && tasks.length === 0 && <p className="muted">Loading…</p>}
           {!loading && tasks.length === 0 && (
@@ -286,10 +290,12 @@ export function LogPage() {
         </div>
       )}
 
-      <div className="card stack">
-        <h2>Log an item</h2>
+      <div className="card stack fb-section fb-fuel">
+        <FuelBurnHeading kind="fuel">
+          <span className="small muted">Add</span>
+        </FuelBurnHeading>
         <p className="muted small" style={{ margin: 0 }}>
-          Log anything you ate outside the plan (or with no plan).
+          Log any fuel you ate outside the plan (or with no plan).
         </p>
         <div className="row" style={{ gap: '0.5rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <label className="field">
@@ -361,11 +367,13 @@ export function LogPage() {
         )}
       </div>
 
-      <div className="card stack">
-        <div className="row spread">
-          <h2>Also logged{date === today ? ' today' : ''}</h2>
-          <span className="small muted">{Math.round(totalCalories)} kcal total</span>
-        </div>
+      <div className="card stack fb-section fb-fuel">
+        <FuelBurnHeading kind="fuel">
+          <span className="small muted">+{Math.round(totalCalories)} kcal</span>
+        </FuelBurnHeading>
+        <p className="muted small" style={{ margin: 0 }}>
+          Fuel also logged{date === today ? ' today' : ''} outside the plan.
+        </p>
 
         {loading && adHocEntries.length === 0 && <p className="muted">Loading…</p>}
         {!loading && adHocEntries.length === 0 && (
@@ -396,6 +404,21 @@ export function LogPage() {
             )
           })}
         </div>
+      </div>
+
+      {/* Burn — exercise that uses calories. Entering burn activities is a separate upcoming
+          task; for now the section is present with an empty state so the fuel/burn split reads
+          coherently and exercise items can slot in cleanly next. */}
+      <div className="card stack fb-section fb-burn">
+        <FuelBurnHeading kind="burn">
+          <span className="small muted">−0 kcal</span>
+        </FuelBurnHeading>
+        <p className="muted small" style={{ margin: 0 }}>
+          Exercise that burns calories.
+        </p>
+        <p className="muted small" style={{ margin: 0 }}>
+          No burn logged for this day yet — activity logging is coming soon.
+        </p>
       </div>
 
       {dayTotal.length > 0 && (

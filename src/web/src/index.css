@@ -229,6 +229,24 @@ label.field .hint { font-weight: 400; color: var(--muted); font-size: 0.8rem; }
 }
 .ingredient-thumb img { width: 100%; height: 100%; object-fit: cover; }
 
+/* ---- Fuel / Burn vocabulary (The Log) ----
+   fuel = calories added (food); burn = calories used (exercise). Emerald accents fuel,
+   flame-orange accents burn — mirroring the brand's green rocket + orange exhaust. */
+.fb-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.9rem; height: 1.9rem; border-radius: 8px; font-size: 1.1rem; flex: 0 0 auto;
+  line-height: 1;
+}
+.fb-icon.fb-fuel { background: var(--primary-soft); }
+.fb-icon.fb-burn { background: var(--accent-soft); }
+.fb-heading { align-items: center; }
+.fb-title { display: inline-flex; align-items: center; gap: 0.5rem; margin: 0; }
+.fb-title.fb-fuel { color: var(--primary-dark); }
+.fb-title.fb-burn { color: var(--accent); }
+/* A card representing a fuel or burn section gets a thin accent edge for quick recognition. */
+.card.fb-section.fb-fuel { border-left: 3px solid var(--primary); }
+.card.fb-section.fb-burn { border-left: 3px solid var(--accent); }
+
 .image-upload { display: flex; align-items: center; gap: 0.75rem; }
 .image-upload-preview { width: 72px; height: 72px; flex: 0 0 auto; }
 /* The text column beside the preview must be able to shrink so the file input doesn't overflow. */
