@@ -47,6 +47,12 @@ public class ConsumptionEntryRepository : IConsumptionEntryRepository
         return entry;
     }
 
+    public async Task UpdateAsync(ConsumptionEntry entry, CancellationToken ct = default)
+    {
+        _db.ConsumptionEntries.Update(entry);
+        await _db.SaveChangesAsync(ct);
+    }
+
     public async Task DeleteAsync(ConsumptionEntry entry, CancellationToken ct = default)
     {
         _db.ConsumptionEntries.Remove(entry);

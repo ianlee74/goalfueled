@@ -6,8 +6,6 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-- [] **Allow user to modify a planned meal**: when logging a planned meal in `The Log`, a user should be able to modify the meal to indicate that they ate more or less than planned of parts of the meal. Allow them to adjust the serving size.
-
 ## FUTURE FEATURES
 
 >[AI Agent] skip ALL items in this section.

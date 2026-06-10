@@ -105,6 +105,9 @@ export function LogPage() {
   const [savingPlan, setSavingPlan] = useState(false)
   const [togglingRef, setTogglingRef] = useState<string | null>(null)
   const [skippingRef, setSkippingRef] = useState<string | null>(null)
+  // Servings the user intends to log for each pending planned meal (keyed by ref). Defaults to "1" per row;
+  // checking the box logs that many. Cleared on reload so a fresh day starts at the default again.
+  const [plannedServings, setPlannedServings] = useState<Record<string, string>>({})
 
   // Catalog pickers (the user's own + app-level + public) for the ad-hoc log.
   const [meals, setMeals] = useState<Meal[]>([])
@@ -201,15 +204,31 @@ export function LogPage() {
     }
   }
 
-  async function toggleTask(ref: string, done: boolean) {
+  // Complete (logging `servings`), re-submit a new serving count for an already-completed meal, or
+  // un-complete. `servings` defaults to 1 when omitted; ignored when un-completing.
+  async function toggleTask(ref: string, done: boolean, servings?: number) {
     setError(null)
     setTogglingRef(ref)
     try {
       if (done) await consumptionApi.uncompletePlanned({ ref, date })
-      else await consumptionApi.completePlanned({ ref, date })
+      else await consumptionApi.completePlanned({ ref, date, servings })
       await reload()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to update the task.')
+    } finally {
+      setTogglingRef(null)
+    }
+  }
+
+  // Re-submit a completed planned meal with an adjusted serving count (updates the existing entry in place).
+  async function editServings(ref: string, servings: number) {
+    setError(null)
+    setTogglingRef(ref)
+    try {
+      await consumptionApi.completePlanned({ ref, date, servings })
+      await reload()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to update the servings.')
     } finally {
       setTogglingRef(null)
     }
@@ -343,7 +362,18 @@ export function LogPage() {
       const sortKey = t.time
         ? secondsFromScheduledTime(t.time)
         : entry ? secondsFromTimestamp(entry.createdAt) : 0
-      items.push({ key: `task:${t.ref}`, sortKey, node: <DoneMealRow task={t} entry={entry} /> })
+      items.push({
+        key: `task:${t.ref}`,
+        sortKey,
+        node: (
+          <DoneMealRow
+            task={t}
+            entry={entry}
+            busy={togglingRef === t.ref}
+            onEditServings={(qty) => editServings(t.ref, qty)}
+          />
+        ),
+      })
     }
 
     // Ad-hoc fuel — createdAt time-of-day.
@@ -374,7 +404,7 @@ export function LogPage() {
     return items
     // remove/removeBurn are stable enough for this render-only memo; deps cover the data we read.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tasks, adHocEntries, burnActivities, weightTask, entryByRef])
+  }, [tasks, adHocEntries, burnActivities, weightTask, entryByRef, togglingRef])
 
   const hasAnyEvent = completedItems.length > 0
   const isEmptyDay =
@@ -614,15 +644,21 @@ export function LogPage() {
             <span className="small muted log-section-label">Planned</span>
             <div className="list">
               {pendingWeighIn && weightTask && <WeighInRow task={weightTask} />}
-              {pendingTasks.map((t) => (
-                <PlannedMealRow
-                  key={t.ref}
-                  task={t}
-                  busy={togglingRef === t.ref || skippingRef === t.ref}
-                  onToggle={() => toggleTask(t.ref, t.done)}
-                  onSkip={() => skipTask(t.ref, false)}
-                />
-              ))}
+              {pendingTasks.map((t) => {
+                const raw = plannedServings[t.ref] ?? '1'
+                const qty = Number(raw)
+                return (
+                  <PlannedMealRow
+                    key={t.ref}
+                    task={t}
+                    servings={raw}
+                    busy={togglingRef === t.ref || skippingRef === t.ref}
+                    onServingsChange={(v) => setPlannedServings((s) => ({ ...s, [t.ref]: v }))}
+                    onToggle={() => toggleTask(t.ref, t.done, qty > 0 ? qty : 1)}
+                    onSkip={() => skipTask(t.ref, false)}
+                  />
+                )
+              })}
             </div>
           </div>
         )}
@@ -730,14 +766,20 @@ function Total(
 
 // ---- Timeline row components. ----
 
-// A pending planned meal: a checkbox to complete it, plus a "Skip" button to drop it from "still to do".
-// The checkbox + meal text live in a <label> (so tapping the text completes it); the Skip button sits
-// outside that label so it doesn't also toggle the checkbox.
+// A pending planned meal: a checkbox to complete it, a compact servings input (defaulting to 1) so the
+// user can log more or less than planned, plus a "Skip" button to drop it from "still to do". The checkbox
+// + meal text live in a <label> (so tapping the text completes it); the servings input and Skip button sit
+// outside that label so they don't also toggle the checkbox. The shown kcal scales with the chosen servings.
 function PlannedMealRow(
-  { task, busy, onToggle, onSkip }:
-  { task: PlannedMealTask; busy: boolean; onToggle: () => void; onSkip: () => void },
+  { task, servings, busy, onServingsChange, onToggle, onSkip }:
+  {
+    task: PlannedMealTask; servings: string; busy: boolean;
+    onServingsChange: (value: string) => void; onToggle: () => void; onSkip: () => void;
+  },
 ) {
-  const kcal = task.nutrition.find((n) => n.nutrientId === 'calories')?.value
+  const perServingKcal = task.nutrition.find((n) => n.nutrientId === 'calories')?.value
+  const qty = Number(servings)
+  const kcal = perServingKcal != null ? perServingKcal * (qty > 0 ? qty : 1) : undefined
   return (
     <div className="card ingredient-item">
       <label className="row" style={{ flex: 1, minWidth: 0, gap: '0.6rem', cursor: 'pointer', margin: 0 }}>
@@ -756,6 +798,18 @@ function PlannedMealRow(
             {kcal != null && ` · ${Math.round(kcal)} kcal`}
           </div>
         </div>
+      </label>
+      <label className="field" style={{ maxWidth: '4.5rem' }} title="Servings to log">
+        <span className="small muted">Servings</span>
+        <input
+          className="input"
+          type="number"
+          min="0"
+          step="any"
+          value={servings}
+          disabled={busy}
+          onChange={(e) => onServingsChange(e.target.value)}
+        />
       </label>
       <button type="button" className="btn btn-sm" disabled={busy} onClick={onSkip} title="Skip this meal">
         Skip
@@ -788,9 +842,25 @@ function SkippedMealRow(
   )
 }
 
-// The inner content of a completed planned meal (no checkbox — wrapped by CompletedRow).
-function DoneMealRow({ task, entry }: { task: PlannedMealTask; entry?: ConsumptionEntry }) {
-  const kcal = task.nutrition.find((n) => n.nutrientId === 'calories')?.value
+// The inner content of a completed planned meal (no checkbox — wrapped by CompletedRow). Shows the logged
+// servings with an inline editor so the user can adjust how much they actually ate after the fact; changing
+// it re-submits the completion (updating the entry in place). The kcal reflects the entry's actual computed
+// nutrition (already scaled by servings), falling back to the task's per-serving total × the entry servings.
+function DoneMealRow(
+  { task, entry, busy, onEditServings }:
+  { task: PlannedMealTask; entry?: ConsumptionEntry; busy: boolean; onEditServings: (servings: number) => void },
+) {
+  const servings = entry?.servings ?? 1
+  const kcal = entry
+    ? entry.nutrition.find((n) => n.nutrientId === 'calories')?.value
+    : task.nutrition.find((n) => n.nutrientId === 'calories')?.value
+
+  // Commit a new serving count only when it's a valid, changed value (avoids no-op re-submits / clobbering).
+  function commit(raw: string) {
+    const qty = Number(raw)
+    if (qty > 0 && qty !== servings) onEditServings(qty)
+  }
+
   return (
     <>
       <div className="fb-icon fb-fuel" aria-hidden="true">🍽️</div>
@@ -798,10 +868,35 @@ function DoneMealRow({ task, entry }: { task: PlannedMealTask; entry?: Consumpti
         <strong style={{ textDecoration: 'line-through' }}>{task.mealName ?? '(meal removed)'}</strong>
         <div className="small muted">
           {entry ? formatClock(entry.createdAt) : formatTime(task.time)}
+          {' · '}{round(servings)} serving{servings === 1 ? '' : 's'}
           {kcal != null && ` · ${Math.round(kcal)} kcal`}
           {' · planned'}
         </div>
       </div>
+      {/* Inline servings editor (only meaningful once a completing entry exists). Clicks/changes are kept
+          from bubbling to the wrapping checkbox <label> so editing doesn't un-complete the task. */}
+      {entry && (
+        <label
+          className="field"
+          style={{ maxWidth: '4.5rem' }}
+          title="Adjust servings eaten"
+          onClick={(e) => e.preventDefault()}
+        >
+          <span className="small muted">Servings</span>
+          <input
+            key={servings}
+            className="input"
+            type="number"
+            min="0"
+            step="any"
+            defaultValue={round(servings)}
+            disabled={busy}
+            onClick={(e) => e.stopPropagation()}
+            onBlur={(e) => commit(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+          />
+        </label>
+      )}
     </>
   )
 }

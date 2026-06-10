@@ -6,6 +6,16 @@
 
 ## Completed Items
 
+### Allow modifying a planned meal's servings when logging it — 2026-06-10 CDT
+
+- [x] **Users can now adjust the serving size when logging a planned meal** (to record eating more or less than planned), both at log time and afterward; the day's nutrition/fuel totals scale accordingly.
+
+**NOTES:**
+- **Backend (single create-or-update `complete` endpoint — no new endpoint):** added trailing optional `double? Servings = null` to `CompletePlannedMealInput`. `CompletePlannedMealAsync` now uses the supplied servings (default 1). Behavior: no existing completion → create with `Servings ?? 1`; existing completion + a (different) servings supplied → update that entry's `Servings`/`UpdatedAt` in place (no duplicate); existing completion + no servings → returns unchanged (a plain re-complete never clobbers a chosen amount back to 1). Skip entries are excluded from the completion match. Added `UpdateAsync` to `IConsumptionEntryRepository`/`ConsumptionEntryRepository` (mirrors `WeightEntryRepository`). Extracted a shared `ValidateServings` helper (same `>0` / `ConsumptionServingsMax` rule + messages as ad-hoc logging). Nutrition already scales by servings, so totals adjust naturally.
+- **Frontend:** added optional `servings?: number` to `CompletePlannedMealInput` (TS). `LogPage` gained per-ref `plannedServings` state; `toggleTask` accepts servings; an `editServings` handler. Pending `PlannedMealRow` shows a compact "Servings" number input (defaults 1) next to the complete checkbox (displayed kcal = per-serving × chosen). Completed `DoneMealRow` shows logged servings + actual kcal with an inline number input that commits on blur/Enter (only when valid & changed) and re-submits to update in place; edits don't bubble to the checkbox (so editing never un-completes), and the input is keyed on servings to re-sync after reload.
+- **Tests:** +new cases in `PlannedLogTests.cs` (servings=2 scales totals; re-complete with different servings updates in place with no duplicate; re-complete without servings preserves the chosen amount; default-to-1; `[Theory]` rejecting 0/-1/over-max).
+- Verified: backend `dotnet build` (0 warnings/errors) + `dotnet test` (251 passed); frontend `npm run build` + `npm run lint` (0 errors, only the pre-existing `AuthContext.tsx` warning).
+
 ### Add a daily progress chart to The Log — 2026-06-10 CDT
 
 - [x] **Added a "Net calories by hour" line chart** to The Log's summary section, plotting **actual vs expected** cumulative net calories across the day, with the Kindle (passive) burn averaged evenly across the 24h day.

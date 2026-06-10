@@ -175,9 +175,15 @@ public sealed class ConsumptionService
     }
 
     /// <summary>
-    /// Completes a planned-meal task: records a consumption entry (Source=Meal, 1 serving) tagged with the
-    /// task's correlation ref so The Log shows it checked. Idempotent — if the task is already complete for
-    /// the date, the existing entry is returned rather than logging a duplicate (so totals never double-count).
+    /// Completes a planned-meal task: records a consumption entry (Source=Meal) tagged with the task's
+    /// correlation ref so The Log shows it checked. The serving count comes from
+    /// <see cref="CompletePlannedMealInput.Servings"/> (default 1), letting the user record eating more or
+    /// less than the planned single serving — the day's totals scale accordingly.
+    ///
+    /// <para>Create-or-update: if no completion exists yet, one is created. If one already exists for the
+    /// ref+date, supplying a servings value <em>updates</em> that entry in place (so the user can adjust how
+    /// much they ate after logging) rather than logging a duplicate; omitting servings preserves the existing
+    /// entry unchanged (idempotent), so an undecorated re-complete never clobbers a previously chosen amount.</para>
     /// </summary>
     public async Task<ConsumptionEntryDto> CompletePlannedMealAsync(
         AppUser user, CompletePlannedMealInput input, CancellationToken ct)
@@ -186,6 +192,8 @@ public sealed class ConsumptionService
             throw new ValidationException("No active meal plan is selected.");
         if (string.IsNullOrWhiteSpace(input.Ref))
             throw new ValidationException("A planned-meal reference is required.");
+        if (input.Servings is { } requested)
+            ValidateServings(requested);
 
         var day = input.Date ?? DateOnly.FromDateTime(DateTime.UtcNow);
         if (day > DateOnly.FromDateTime(DateTime.UtcNow))
@@ -195,10 +203,23 @@ public sealed class ConsumptionService
             .FirstOrDefault(t => t.Ref == input.Ref)
             ?? throw new NotFoundException("That planned meal is not part of your active plan for this day.");
 
-        // Idempotent: reuse an existing completion for this ref+date instead of logging a duplicate.
+        // Create-or-update for this ref+date so the user can adjust servings after completing, without
+        // logging a duplicate (totals never double-count). A skip entry is treated as no completion here —
+        // checking the box turns it into a real completion below (mirrors how a skip replaces a completion).
         var existing = (await _repo.ListForUserAndDateAsync(user.Id, day, ct))
-            .FirstOrDefault(e => e.PlannedMealRef == input.Ref);
-        if (existing is not null) return await ToDtoAsync(existing, user, ct);
+            .FirstOrDefault(e => e.PlannedMealRef == input.Ref && !e.Skipped);
+        if (existing is not null)
+        {
+            // Omitting servings keeps the existing entry as-is (idempotent re-complete); supplying a value
+            // updates the amount eaten in place.
+            if (input.Servings is { } servings && servings != existing.Servings)
+            {
+                existing.Servings = servings;
+                existing.UpdatedAt = DateTimeOffset.UtcNow;
+                await _repo.UpdateAsync(existing, ct);
+            }
+            return await ToDtoAsync(existing, user, ct);
+        }
 
         var meal = await _meals.GetByIdAsync(task.MealId, ct)
             ?? throw new ValidationException("The planned meal was not found.");
@@ -212,7 +233,7 @@ public sealed class ConsumptionService
             Source = ConsumptionSource.Meal,
             SourceId = meal.Id,
             Name = meal.Name,
-            Servings = 1,
+            Servings = input.Servings ?? 1,
             PlannedMealRef = input.Ref,
         };
         await _repo.AddAsync(entry, ct);
@@ -342,10 +363,7 @@ public sealed class ConsumptionService
         if (!Enum.IsDefined(typeof(ConsumptionSource), input.Source))
             throw new ValidationException("Unknown consumption source.");
 
-        if (!(input.Servings > 0))
-            throw new ValidationException("Servings must be greater than zero.");
-        if (input.Servings > InputLimits.ConsumptionServingsMax)
-            throw new ValidationException($"Servings must be {InputLimits.ConsumptionServingsMax} or less.");
+        ValidateServings(input.Servings);
 
         if (input.Date is { } date && date > DateOnly.FromDateTime(DateTime.UtcNow))
             throw new ValidationException("Consumption date cannot be in the future.");
@@ -363,6 +381,15 @@ public sealed class ConsumptionService
                 InputLimits.LimitCount(input.Nutrition?.Count ?? 0, InputLimits.NutritionEntriesMax, "nutrition entries");
                 break;
         }
+    }
+
+    /// <summary>Shared servings check for both ad-hoc logs and planned-meal completions.</summary>
+    private static void ValidateServings(double servings)
+    {
+        if (!(servings > 0))
+            throw new ValidationException("Servings must be greater than zero.");
+        if (servings > InputLimits.ConsumptionServingsMax)
+            throw new ValidationException($"Servings must be {InputLimits.ConsumptionServingsMax} or less.");
     }
 
     /// <summary>Drops unknown nutrients and any non-positive values, preserving catalog order.</summary>

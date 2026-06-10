@@ -420,6 +420,9 @@ export interface CompletePlannedMealInput {
   ref: string
   // Optional "yyyy-MM-dd"; defaults to today server-side when omitted.
   date?: string
+  // Servings actually eaten (more/less than the planned single serving). Defaults to 1 server-side when
+  // omitted. When a completion already exists, supplying a value updates it in place (no duplicate).
+  servings?: number
 }
 
 export interface ConsumptionDay {

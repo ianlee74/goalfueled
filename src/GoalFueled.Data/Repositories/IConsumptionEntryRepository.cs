@@ -19,5 +19,7 @@ public interface IConsumptionEntryRepository
 
     Task<ConsumptionEntry> AddAsync(ConsumptionEntry entry, CancellationToken ct = default);
 
+    Task UpdateAsync(ConsumptionEntry entry, CancellationToken ct = default);
+
     Task DeleteAsync(ConsumptionEntry entry, CancellationToken ct = default);
 }

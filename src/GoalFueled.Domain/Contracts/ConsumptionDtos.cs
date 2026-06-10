@@ -103,7 +103,14 @@ public sealed record WeightTaskDto(
 public sealed record CompletePlannedMealInput(
     string Ref,
     /// <summary>Defaults to today when omitted.</summary>
-    DateOnly? Date = null);
+    DateOnly? Date = null,
+    /// <summary>
+    /// Servings actually eaten, letting the user record more or less than the planned single serving.
+    /// Defaults to 1 when omitted; must be greater than zero and within
+    /// <see cref="GoalFueled.Domain"/> consumption limits. When a completion already exists for the
+    /// ref+date and a value is supplied, the existing entry's servings are updated to it.
+    /// </summary>
+    double? Servings = null);
 
 /// <summary>
 /// Payload for logging a consumed item. Either reference the catalog (set <see cref="Source"/> to

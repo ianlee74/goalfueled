@@ -246,6 +246,118 @@ public class PlannedLogTests
     }
 
     [Fact]
+    public async Task Completing_with_servings_logs_that_many_and_scales_the_day_total()
+    {
+        using var db = TestHelpers.NewContext();
+        var c = await SetupAsync(db);
+        var meal = await CaloricMealAsync(c, "breakfast", 300);
+        var plan = await c.Plans.CreateAsync(c.User,
+            new MealPlanInput("Daily Plan", MealPlanCadence.Daily,
+                new List<ScheduledMealInput> { new(meal.Id) }), default);
+        await c.Profile.SetActiveMealPlanAsync(c.User, new ActiveMealPlanInput(plan.Id), default);
+
+        var task = (await c.Consumption.GetPlannedDayAsync(c.User, Today, default)).Tasks.Single();
+        var entry = await c.Consumption.CompletePlannedMealAsync(
+            c.User, new CompletePlannedMealInput(task.Ref, Today, Servings: 2), default);
+
+        Assert.Equal(2, entry.Servings);
+        Assert.Equal(600, Kcal(entry.Nutrition), 1); // 2× the planned single serving
+
+        var day = await c.Consumption.GetDayAsync(c.User, Today, default);
+        Assert.Single(day.Entries);
+        Assert.Equal(600, Kcal(day.TotalNutrition), 1);
+    }
+
+    [Fact]
+    public async Task Re_completing_with_different_servings_updates_the_entry_no_duplicate()
+    {
+        using var db = TestHelpers.NewContext();
+        var c = await SetupAsync(db);
+        var meal = await CaloricMealAsync(c, "breakfast", 300);
+        var plan = await c.Plans.CreateAsync(c.User,
+            new MealPlanInput("Daily Plan", MealPlanCadence.Daily,
+                new List<ScheduledMealInput> { new(meal.Id) }), default);
+        await c.Profile.SetActiveMealPlanAsync(c.User, new ActiveMealPlanInput(plan.Id), default);
+
+        var task = (await c.Consumption.GetPlannedDayAsync(c.User, Today, default)).Tasks.Single();
+        var first = await c.Consumption.CompletePlannedMealAsync(
+            c.User, new CompletePlannedMealInput(task.Ref, Today, Servings: 2), default);
+        // Adjust down to half a serving after the fact.
+        var updated = await c.Consumption.CompletePlannedMealAsync(
+            c.User, new CompletePlannedMealInput(task.Ref, Today, Servings: 0.5), default);
+
+        Assert.Equal(first.Id, updated.Id); // same entry, edited in place
+        Assert.Equal(0.5, updated.Servings);
+        Assert.Equal(150, Kcal(updated.Nutrition), 1);
+
+        var day = await c.Consumption.GetDayAsync(c.User, Today, default);
+        Assert.Single(day.Entries); // no duplicate
+        Assert.Equal(150, Kcal(day.TotalNutrition), 1);
+    }
+
+    [Fact]
+    public async Task Re_completing_without_servings_preserves_the_existing_amount()
+    {
+        using var db = TestHelpers.NewContext();
+        var c = await SetupAsync(db);
+        var meal = await CaloricMealAsync(c, "breakfast", 300);
+        var plan = await c.Plans.CreateAsync(c.User,
+            new MealPlanInput("Daily Plan", MealPlanCadence.Daily,
+                new List<ScheduledMealInput> { new(meal.Id) }), default);
+        await c.Profile.SetActiveMealPlanAsync(c.User, new ActiveMealPlanInput(plan.Id), default);
+
+        var task = (await c.Consumption.GetPlannedDayAsync(c.User, Today, default)).Tasks.Single();
+        await c.Consumption.CompletePlannedMealAsync(
+            c.User, new CompletePlannedMealInput(task.Ref, Today, Servings: 3), default);
+        // A plain re-complete (no servings) must not clobber the chosen amount back to 1.
+        var again = await c.Consumption.CompletePlannedMealAsync(
+            c.User, new CompletePlannedMealInput(task.Ref, Today), default);
+
+        Assert.Equal(3, again.Servings);
+        var day = await c.Consumption.GetDayAsync(c.User, Today, default);
+        Assert.Equal(900, Kcal(day.TotalNutrition), 1);
+    }
+
+    [Fact]
+    public async Task Completing_without_servings_defaults_to_one()
+    {
+        using var db = TestHelpers.NewContext();
+        var c = await SetupAsync(db);
+        var meal = await CaloricMealAsync(c, "breakfast", 300);
+        var plan = await c.Plans.CreateAsync(c.User,
+            new MealPlanInput("Daily Plan", MealPlanCadence.Daily,
+                new List<ScheduledMealInput> { new(meal.Id) }), default);
+        await c.Profile.SetActiveMealPlanAsync(c.User, new ActiveMealPlanInput(plan.Id), default);
+
+        var task = (await c.Consumption.GetPlannedDayAsync(c.User, Today, default)).Tasks.Single();
+        var entry = await c.Consumption.CompletePlannedMealAsync(
+            c.User, new CompletePlannedMealInput(task.Ref, Today), default);
+
+        Assert.Equal(1, entry.Servings);
+        Assert.Equal(300, Kcal(entry.Nutrition), 1);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(InputLimits.ConsumptionServingsMax + 1)]
+    public async Task Completing_rejects_invalid_servings(double servings)
+    {
+        using var db = TestHelpers.NewContext();
+        var c = await SetupAsync(db);
+        var meal = await CaloricMealAsync(c, "breakfast", 300);
+        var plan = await c.Plans.CreateAsync(c.User,
+            new MealPlanInput("Daily Plan", MealPlanCadence.Daily,
+                new List<ScheduledMealInput> { new(meal.Id) }), default);
+        await c.Profile.SetActiveMealPlanAsync(c.User, new ActiveMealPlanInput(plan.Id), default);
+
+        var task = (await c.Consumption.GetPlannedDayAsync(c.User, Today, default)).Tasks.Single();
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            c.Consumption.CompletePlannedMealAsync(
+                c.User, new CompletePlannedMealInput(task.Ref, Today, Servings: servings), default));
+    }
+
+    [Fact]
     public async Task Uncompleting_a_task_removes_the_entry_and_resets_the_day_total()
     {
         using var db = TestHelpers.NewContext();
