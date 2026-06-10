@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { userApi } from '../api/services'
 import { ProfileFields, type ProfileFieldsValue } from '../components/ProfileFields'
+import { WeightScheduleEditor } from '../components/WeightScheduleEditor'
 import { formatHeight } from '../lib/height'
 
 /** Profile page where the user updates the basic info captured at first login. */
@@ -76,6 +77,8 @@ export function ProfilePage() {
           {saving ? 'Saving…' : 'Save changes'}
         </button>
       </div>
+
+      <WeightScheduleEditor />
     </div>
   )
 }

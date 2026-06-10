@@ -15,7 +15,32 @@ public sealed record CurrentUserDto(
     double? HeightCm,
     bool HasCompletedOnboarding,
     /// <summary>The meal plan the user is currently following (drives The Log); null if none chosen.</summary>
-    string? ActiveMealPlanId);
+    string? ActiveMealPlanId,
+    /// <summary>The user's recurring weight-measurement schedule, or null when none is configured.</summary>
+    WeightScheduleDto? WeightSchedule);
+
+/// <summary>
+/// A user's recurring weight-measurement schedule as returned to clients. Drives the recurring
+/// "Log your weight" task in The Log. The start date's day-of-week is the chosen "day to start
+/// measurements"; <see cref="Interval"/> is the N for the "every N" cadences (1 otherwise).
+/// </summary>
+public sealed record WeightScheduleDto(
+    WeightScheduleCadence Cadence,
+    /// <summary>The schedule's anchor date, serialized "yyyy-MM-dd".</summary>
+    DateOnly StartDate,
+    int Interval,
+    /// <summary>Convenience copy of the start date's day-of-week (the chosen start day).</summary>
+    DayOfWeek StartDayOfWeek);
+
+/// <summary>
+/// Payload for setting (or clearing) the user's weight-measurement schedule. A null <see cref="Cadence"/>
+/// clears the schedule. <see cref="Interval"/> is required (≥ 1) for the "every N" cadences and ignored
+/// otherwise; <see cref="StartDate"/> supplies the start day-of-week and recurrence anchor.
+/// </summary>
+public sealed record WeightScheduleInput(
+    WeightScheduleCadence? Cadence,
+    DateOnly? StartDate = null,
+    int Interval = 1);
 
 /// <summary>
 /// Payload for completing the first-login welcome flow. Captures the basic profile info gathered

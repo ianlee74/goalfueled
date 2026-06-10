@@ -94,6 +94,43 @@ public sealed class UserProfileService
         return user;
     }
 
+    /// <summary>
+    /// Sets (or clears) the user's recurring weight-measurement schedule. A null cadence clears it (no
+    /// recurring weight task then appears in The Log). When a cadence is given, the start date defaults to
+    /// today; for the "every N" cadences the interval must be ≥ 1 and within a sane bound.
+    /// </summary>
+    public async Task<AppUser> SetWeightScheduleAsync(AppUser user, WeightScheduleInput input, CancellationToken ct)
+    {
+        if (input.Cadence is not { } cadence)
+        {
+            user.WeightScheduleCadence = null;
+            user.WeightScheduleInterval = null;
+            user.WeightScheduleStartDate = null;
+            await _users.UpdateAsync(user, ct);
+            return user;
+        }
+
+        if (!Enum.IsDefined(typeof(WeightScheduleCadence), cadence))
+            throw new ValidationException("Unknown weight-measurement cadence.");
+
+        var interval = cadence is WeightScheduleCadence.EveryNDays or WeightScheduleCadence.EveryNWeeks
+            ? input.Interval
+            : 1;
+        if (cadence is WeightScheduleCadence.EveryNDays or WeightScheduleCadence.EveryNWeeks)
+        {
+            if (interval < 1)
+                throw new ValidationException("The interval must be at least 1.");
+            if (interval > InputLimits.WeightScheduleIntervalMax)
+                throw new ValidationException($"The interval must be {InputLimits.WeightScheduleIntervalMax} or less.");
+        }
+
+        user.WeightScheduleCadence = cadence;
+        user.WeightScheduleInterval = interval;
+        user.WeightScheduleStartDate = input.StartDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        await _users.UpdateAsync(user, ct);
+        return user;
+    }
+
     private static void ValidateGoal(GoalType goal)
     {
         if (!Enum.IsDefined(typeof(GoalType), goal))

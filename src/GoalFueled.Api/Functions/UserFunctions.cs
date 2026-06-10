@@ -66,6 +66,17 @@ public sealed class UserFunctions
             return HttpResults.Ok(ToDto(updated));
         });
 
+    /// <summary>Sets (or clears) the user's recurring weight-measurement schedule (drives the weight task in The Log).</summary>
+    [Function("SetWeightSchedule")]
+    public Task<IActionResult> SetWeightSchedule(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "me/weight-schedule")] HttpRequest req) =>
+        ApiEndpoint.RunAuthenticated(req, _auth, async user =>
+        {
+            var input = await HttpResults.ReadJsonAsync<WeightScheduleInput>(req, req.HttpContext.RequestAborted);
+            var updated = await _profile.SetWeightScheduleAsync(user, input, req.HttpContext.RequestAborted);
+            return HttpResults.Ok(ToDto(updated));
+        });
+
     /// <summary>Toggles an admin's "admin view" on or off so they can browse as a regular user.</summary>
     [Function("SetAdminView")]
     public Task<IActionResult> AdminView(
@@ -79,8 +90,15 @@ public sealed class UserFunctions
             return HttpResults.Ok(ToDto(user));
         });
 
-    private static CurrentUserDto ToDto(AppUser u) => new(
-        u.Id, u.Email, u.DisplayName, u.AvatarUrl, u.Roles, u.IsAdmin,
-        u.AdminViewEnabled, u.IsActingAsAdmin, u.PrimaryGoal, u.SexAtBirth, u.HeightCm,
-        u.HasCompletedOnboarding, u.ActiveMealPlanId);
+    private static CurrentUserDto ToDto(AppUser u)
+    {
+        var schedule = WeightSchedule.FromUser(u);
+        var scheduleDto = schedule is null
+            ? null
+            : new WeightScheduleDto(schedule.Cadence, schedule.StartDate, schedule.Interval, schedule.StartDayOfWeek);
+        return new(
+            u.Id, u.Email, u.DisplayName, u.AvatarUrl, u.Roles, u.IsAdmin,
+            u.AdminViewEnabled, u.IsActingAsAdmin, u.PrimaryGoal, u.SexAtBirth, u.HeightCm,
+            u.HasCompletedOnboarding, u.ActiveMealPlanId, scheduleDto);
+    }
 }

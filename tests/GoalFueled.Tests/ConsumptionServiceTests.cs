@@ -38,7 +38,8 @@ public class ConsumptionServiceTests
             new UserRepository(db), new WeightService(new WeightEntryRepository(db)), plans);
         var consumption = new ConsumptionService(
             new ConsumptionEntryRepository(db), new MealRepository(db),
-            new RecipeRepository(db), new IngredientRepository(db), plans);
+            new RecipeRepository(db), new IngredientRepository(db),
+            new WeightEntryRepository(db), plans);
 
         return (admin!, user!, other!, ingredients, recipes, meals, plans, profile, consumption);
     }

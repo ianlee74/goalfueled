@@ -41,6 +41,9 @@ public static class InputLimits
     /// <summary>Upper bound for a profile height in centimeters (generous ceiling above any human height).</summary>
     public const double HeightCmMax = 300;
 
+    /// <summary>Upper bound for a weight-measurement schedule's "every N" interval (days or weeks).</summary>
+    public const int WeightScheduleIntervalMax = 365;
+
     /// <summary>Upper bound for a goal's target value (generous ceiling across weight and nutrient units).</summary>
     public const double GoalTargetValueMax = 10_000_000;
 

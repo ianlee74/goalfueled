@@ -4,6 +4,7 @@ import type {
   CurrentUser, Goal, GoalInput, Ingredient, IngredientInput, Meal, MealInput,
   MealPlan, MealPlanInput, NutrientDefinition, NutritionLookupResult, OnboardingInput,
   PlannedDay, ProfileInput, Recipe, RecipeInput, WeightEntry, WeightEntryInput,
+  WeightScheduleInput,
 } from './types'
 
 export const userApi = {
@@ -17,6 +18,9 @@ export const userApi = {
   // Choose (or clear, with null) the meal plan the user is currently following.
   setActivePlan: (mealPlanId: string | null) =>
     api.put<CurrentUser>('/me/active-plan', { mealPlanId }),
+  // Set (cadence present) or clear (cadence null) the recurring weight-measurement schedule.
+  setWeightSchedule: (input: WeightScheduleInput) =>
+    api.put<CurrentUser>('/me/weight-schedule', input),
 }
 
 // Admin-only user management. Endpoints return 403 unless the caller is acting as an admin.

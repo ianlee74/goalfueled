@@ -54,6 +54,29 @@ public class AppUser
     /// </summary>
     public string? ActiveMealPlanId { get; set; }
 
+    /// <summary>
+    /// How often the user wants to log a weight measurement. Null until a schedule is configured (no
+    /// recurring "Log your weight" task then appears in The Log). Stored as scalars (cadence + interval +
+    /// start date) rather than an owned type to keep Cosmos mapping trivial; <see cref="WeightSchedule"/>
+    /// reconstitutes them into the due-date rule.
+    /// </summary>
+    public WeightScheduleCadence? WeightScheduleCadence { get; set; }
+
+    /// <summary>
+    /// The N for the "every N days"/"every N weeks" cadences (≥ 1). Ignored for daily/weekly. Null when no
+    /// schedule is set; defaults to 1 when reconstituted if missing.
+    /// </summary>
+    public int? WeightScheduleInterval { get; set; }
+
+    /// <summary>
+    /// The schedule's anchor date: its day-of-week is the chosen "day to start measurements", and it is the
+    /// recurrence anchor for the "every N" cadences. Null when no schedule is set.
+    /// </summary>
+    public DateOnly? WeightScheduleStartDate { get; set; }
+
+    /// <summary>True once a weight-measurement schedule has been configured.</summary>
+    public bool HasWeightSchedule => WeightScheduleCadence is not null && WeightScheduleStartDate is not null;
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public bool IsAdmin => Roles.Contains(AppRole.AppAdmin);

@@ -24,6 +24,7 @@ public sealed class ConsumptionService
     private readonly IConsumptionEntryRepository _repo;
     private readonly IMealRepository _meals;
     private readonly IRecipeRepository _recipes;
+    private readonly IWeightEntryRepository _weights;
     private readonly MealPlanService _plans;
     private readonly MealNutritionCalculator _mealNutrition;
     private readonly RecipeNutritionCalculator _recipeNutrition;
@@ -33,11 +34,13 @@ public sealed class ConsumptionService
         IMealRepository meals,
         IRecipeRepository recipes,
         IIngredientRepository ingredients,
+        IWeightEntryRepository weights,
         MealPlanService plans)
     {
         _repo = repo;
         _meals = meals;
         _recipes = recipes;
+        _weights = weights;
         _plans = plans;
         _mealNutrition = new MealNutritionCalculator(recipes, ingredients);
         _recipeNutrition = new RecipeNutritionCalculator(ingredients);
@@ -117,8 +120,13 @@ public sealed class ConsumptionService
     public async Task<PlannedDayDto> GetPlannedDayAsync(AppUser user, DateOnly? date, CancellationToken ct)
     {
         var day = date ?? DateOnly.FromDateTime(DateTime.UtcNow);
+
+        // The recurring "Log your weight" task is independent of the meal plan: it appears on any day the
+        // user's weight schedule makes a measurement due, complete when a WeightEntry exists for that date.
+        var weightTask = await ResolveWeightTaskAsync(user, day, ct);
+
         if (string.IsNullOrWhiteSpace(user.ActiveMealPlanId))
-            return new PlannedDayDto(day, null, null, Array.Empty<PlannedMealTaskDto>());
+            return new PlannedDayDto(day, null, null, Array.Empty<PlannedMealTaskDto>(), weightTask);
 
         var planId = user.ActiveMealPlanId;
         var tasks = await _plans.GetPlannedMealsForDateAsync(user, planId, day, ct);
@@ -138,7 +146,23 @@ public sealed class ConsumptionService
 
         // A plan with no scheduled meals at all still wants its name surfaced once chosen.
         var planName = await ResolvePlanNameAsync(user, planId, ct);
-        return new PlannedDayDto(day, planId, planName, resolved);
+        return new PlannedDayDto(day, planId, planName, resolved, weightTask);
+    }
+
+    /// <summary>
+    /// The recurring weight task for a day, or null when no measurement is due. A due day's task is complete
+    /// iff a <see cref="WeightEntry"/> already exists for that date (the existing one-per-day weight model —
+    /// no parallel store), and echoes that entry's value/unit for display.
+    /// </summary>
+    private async Task<WeightTaskDto?> ResolveWeightTaskAsync(AppUser user, DateOnly day, CancellationToken ct)
+    {
+        var schedule = WeightSchedule.FromUser(user);
+        if (schedule is null || !schedule.IsDueOn(day)) return null;
+
+        var entry = await _weights.GetForUserAndDateAsync(user.Id, day, ct);
+        return entry is null
+            ? new WeightTaskDto(false, null, null)
+            : new WeightTaskDto(true, entry.Value, entry.Unit);
     }
 
     /// <summary>

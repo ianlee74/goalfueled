@@ -6,6 +6,52 @@
 
 ## Completed Items
 
+### Scheduled Weight Measurements — 2026-06-10 CDT
+
+- [x] Users can configure a recurring weight-measurement schedule (daily / weekly / every N days / every N weeks, anchored on a chosen start day-of-week). A "Log your weight" task now appears in The Log only on days a measurement is due, showing complete when a weight has been recorded for that day.
+
+**NOTES:**
+
+**Design decisions**
+- **Schedule model — scalars on `AppUser` + a pure value object.** Added `WeightScheduleCadence { Daily, Weekly, EveryNDays, EveryNWeeks }` (in `Enums.cs`) and three nullable scalars on `AppUser`: `WeightScheduleCadence?`, `WeightScheduleInterval` (int?), `WeightScheduleStartDate` (DateOnly?). No owned/complex type — chosen to keep Cosmos mapping trivial (cadence persists by string name via `HasConversion<string?>()`, consistent with `PrimaryGoal`/`SexAtBirth`; interval/start-date are scalars both providers map natively). The **start date encodes the chosen "day to start measurements"** via its `DayOfWeek`, and is also the recurrence anchor for the "every N" cadences. `AppUser.HasWeightSchedule` is true once cadence + start date are set.
+- **"Due on date D?" — a pure, unit-testable rule.** New value object `WeightSchedule` (`src/GoalFueled.Domain/Entities/WeightSchedule.cs`) with `IsDueOn(DateOnly)`. Never due before the start date. Per cadence: **Daily** → every day; **Weekly** → matches the start's day-of-week each week; **EveryNDays** → `(D - start).Days % N == 0` (anchored on the start, so due on the start and every Nth day); **EveryNWeeks** → day-of-week must match the start AND the whole-week offset `((D - start).Days / 7) % N == 0`. A non-positive interval is treated as 1 (no divide-by-zero). `WeightSchedule.FromUser(AppUser)` bridges the persisted scalars back to the rule (null when unconfigured; missing interval defaults to 1).
+- **Completion reuses the existing one-per-day weight model (no parallel store).** A due day's task is complete iff a `WeightEntry` already exists for that date — `ConsumptionService` reads `IWeightEntryRepository.GetForUserAndDateAsync`. No new persistence for completion.
+- **Surfaced as a sibling task on the existing planned-day endpoint** rather than a new endpoint, to keep The Log coherent. `PlannedDayDto` gained an optional `WeightTask` (`WeightTaskDto(Done, RecordedValue?, RecordedUnit?)`), populated for **any** day a measurement is due — independent of whether the user has an active meal plan (the early-return no-plan branch still computes it). It is `null` on non-due days so the task only appears when due.
+- **Completing the task from The Log** links to the existing Weight page (`/weight?returnTo=/log`) for inline-quick entry — simplest and consistent (the page already upserts one entry per day and honors `returnTo`). On return, The Log refetches and the task shows done.
+- **Where it is edited:** a new "Weight measurement schedule" card on the Profile page (`WeightScheduleEditor` component), exposed via a dedicated endpoint and echoed on `/api/me`.
+
+**New / changed API endpoints**
+- `PUT /api/me/weight-schedule` — **new**; body `WeightScheduleInput(Cadence?, StartDate?, Interval=1)`; returns the updated `CurrentUserDto`. Null cadence clears the schedule; start date defaults to today; interval validated (≥1, ≤365) only for the "every N" cadences (forced to 1 otherwise).
+- `GET /api/me` — `CurrentUserDto` now also returns `WeightSchedule` (`WeightScheduleDto(Cadence, StartDate, Interval, StartDayOfWeek)`), null when unconfigured.
+- `GET /api/consumption/planned[?date=]` — `PlannedDayDto` now also returns `WeightTask` (`WeightTaskDto(Done, RecordedValue?, RecordedUnit?)`), present only on due days.
+
+**Files changed (backend)**
+- `src/GoalFueled.Domain/Enums.cs` — added `WeightScheduleCadence`.
+- `src/GoalFueled.Domain/Entities/AppUser.cs` — added the three schedule scalars + `HasWeightSchedule`.
+- `src/GoalFueled.Domain/Entities/WeightSchedule.cs` — **new** pure value object (`IsDueOn`, `FromUser`).
+- `src/GoalFueled.Domain/Contracts/UserDtos.cs` — extended `CurrentUserDto`; added `WeightScheduleDto`, `WeightScheduleInput`.
+- `src/GoalFueled.Domain/Contracts/ConsumptionDtos.cs` — extended `PlannedDayDto`; added `WeightTaskDto`.
+- `src/GoalFueled.Data/GoalFueledDbContext.cs` — `WeightScheduleCadence` persisted by string name.
+- `src/GoalFueled.Api/Common/InputLimits.cs` — added `WeightScheduleIntervalMax = 365`.
+- `src/GoalFueled.Api/Services/UserProfileService.cs` — added `SetWeightScheduleAsync` (clear/validate/persist).
+- `src/GoalFueled.Api/Services/ConsumptionService.cs` — now depends on `IWeightEntryRepository`; `GetPlannedDayAsync` computes the weight task (both plan/no-plan branches) via `ResolveWeightTaskAsync`.
+- `src/GoalFueled.Api/Functions/UserFunctions.cs` — new `SetWeightSchedule` endpoint; `ToDto` maps the schedule.
+- No `Program.cs`/DI changes needed (`IWeightEntryRepository` already registered; `ConsumptionService` resolves it from the container).
+
+**Files changed (frontend)**
+- `src/web/src/api/types.ts` — `WeightScheduleCadence`, `WeightSchedule`, `WeightScheduleInput`, `WeightTask`; `CurrentUser.weightSchedule`; `PlannedDay.weightTask`; `WEIGHT_SCHEDULE_CADENCE_LABELS`.
+- `src/web/src/api/services.ts` — `userApi.setWeightSchedule(...)`.
+- `src/web/src/components/WeightScheduleEditor.tsx` — **new** Profile-page editor (enable toggle, cadence, interval for the "every N" cadences, start date with day-of-week hint; save/clear via `setWeightSchedule` + auth `refresh`).
+- `src/web/src/pages/ProfilePage.tsx` — renders `<WeightScheduleEditor />`.
+- `src/web/src/pages/LogPage.tsx` — renders a "Weigh-in" card with the recurring "Log your weight" task (only when `planned.weightTask` is present), showing done/recorded state and a "Log weight"/"Update" link to `/weight?returnTo=/log`.
+
+**Tests**
+- `tests/GoalFueled.Tests/WeightScheduleTests.cs` — **new**, 14 tests covering the pure `IsDueOn` rule across all four cadences (start-day anchoring, before-start, weekly day-of-week match, every-N-days N=3 and N=1, every-N-weeks N=2 incl. day-of-week requirement and N=1, non-positive interval), plus the `FromUser` bridge.
+- `tests/GoalFueled.Tests/UserProfileServiceTests.cs` — added 5 schedule-persistence tests (persist every-N-weeks; default start-date/interval; null clears; invalid interval rejected; unknown cadence rejected).
+- `tests/GoalFueled.Tests/PlannedLogTests.cs` — added 4 weight-task tests (no schedule → no task; appears on a due day and is not done until recorded; done with recorded value/unit when a weight exists; absent on a non-due day, present again the next matching week). Updated its `Ctx`/setup and the three `new ConsumptionService(...)` call sites (in `PlannedLogTests`, `ConsumptionServiceTests`, `GoalServiceTests`) for the new `IWeightEntryRepository` dependency. `DependencyInjectionTests` needed no change (registrations unchanged).
+
+- Verified: `dotnet test -c Release` → **190/190 passed**; web `npm run build` ✓; `npm run lint` → **0 errors** (1 pre-existing `AuthContext.tsx` warning; no new warnings).
+
 ### Redesign `The Log` — 2026-06-10 CDT
 
 - [x] Renamed "Food Log" to "The Log" everywhere in the UI; it now follows along with the meal plan the user is currently following — that plan's meals for the day appear as checkable tasks that record real consumption when completed, while ad-hoc free-form/catalog logging remains available alongside.

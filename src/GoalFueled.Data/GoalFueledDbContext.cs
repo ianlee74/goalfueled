@@ -57,6 +57,10 @@ public class GoalFueledDbContext : DbContext
             // mapping SexAtBirth the same way keeps the stored shape consistent.
             e.Property(u => u.PrimaryGoal).HasConversion<string?>();
             e.Property(u => u.SexAtBirth).HasConversion<string?>();
+            // Weight-measurement schedule: a nullable enum + int + DateOnly. Persist the cadence by its
+            // string name (consistent with the other onboarding enums); the interval and start date are
+            // plain nullable scalars both providers map natively.
+            e.Property(u => u.WeightScheduleCadence).HasConversion<string?>();
         });
 
         // --- Ingredients ---

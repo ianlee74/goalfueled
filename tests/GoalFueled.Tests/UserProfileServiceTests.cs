@@ -156,4 +156,79 @@ public class UserProfileServiceTests
             svc.UpdateProfileAsync(user,
                 new ProfileInput(GoalType.WeightLoss, SexAtBirth.Male, 0, null, WeightUnit.Pound), default));
     }
+
+    // ---- weight-measurement schedule ----
+
+    [Fact]
+    public async Task SetWeightSchedule_persists_an_every_n_weeks_schedule()
+    {
+        using var db = TestHelpers.NewContext();
+        var (user, repo, _, svc) = await SetupAsync(db);
+        var start = new DateOnly(2026, 6, 10); // Wednesday
+
+        await svc.SetWeightScheduleAsync(user,
+            new WeightScheduleInput(WeightScheduleCadence.EveryNWeeks, start, 2), default);
+
+        var saved = await repo.GetByIdAsync(user.Id);
+        Assert.Equal(WeightScheduleCadence.EveryNWeeks, saved!.WeightScheduleCadence);
+        Assert.Equal(start, saved.WeightScheduleStartDate);
+        Assert.Equal(2, saved.WeightScheduleInterval);
+        Assert.True(saved.HasWeightSchedule);
+    }
+
+    [Fact]
+    public async Task SetWeightSchedule_defaults_start_date_to_today_and_interval_to_one()
+    {
+        using var db = TestHelpers.NewContext();
+        var (user, repo, _, svc) = await SetupAsync(db);
+
+        await svc.SetWeightScheduleAsync(user,
+            new WeightScheduleInput(WeightScheduleCadence.Daily), default);
+
+        var saved = await repo.GetByIdAsync(user.Id);
+        Assert.Equal(WeightScheduleCadence.Daily, saved!.WeightScheduleCadence);
+        Assert.Equal(DateOnly.FromDateTime(DateTime.UtcNow), saved.WeightScheduleStartDate);
+        Assert.Equal(1, saved.WeightScheduleInterval); // daily ignores any supplied interval
+    }
+
+    [Fact]
+    public async Task SetWeightSchedule_null_cadence_clears_an_existing_schedule()
+    {
+        using var db = TestHelpers.NewContext();
+        var (user, repo, _, svc) = await SetupAsync(db);
+
+        await svc.SetWeightScheduleAsync(user,
+            new WeightScheduleInput(WeightScheduleCadence.Weekly), default);
+        await svc.SetWeightScheduleAsync(user, new WeightScheduleInput(null), default);
+
+        var saved = await repo.GetByIdAsync(user.Id);
+        Assert.Null(saved!.WeightScheduleCadence);
+        Assert.Null(saved.WeightScheduleStartDate);
+        Assert.Null(saved.WeightScheduleInterval);
+        Assert.False(saved.HasWeightSchedule);
+    }
+
+    [Fact]
+    public async Task SetWeightSchedule_rejects_invalid_interval_for_every_n_cadences()
+    {
+        using var db = TestHelpers.NewContext();
+        var (user, _, _, svc) = await SetupAsync(db);
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            svc.SetWeightScheduleAsync(user,
+                new WeightScheduleInput(WeightScheduleCadence.EveryNDays, null, 0), default));
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            svc.SetWeightScheduleAsync(user,
+                new WeightScheduleInput(WeightScheduleCadence.EveryNWeeks, null, InputLimits.WeightScheduleIntervalMax + 1), default));
+    }
+
+    [Fact]
+    public async Task SetWeightSchedule_rejects_unknown_cadence()
+    {
+        using var db = TestHelpers.NewContext();
+        var (user, _, _, svc) = await SetupAsync(db);
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            svc.SetWeightScheduleAsync(user, new WeightScheduleInput((WeightScheduleCadence)99), default));
+    }
 }

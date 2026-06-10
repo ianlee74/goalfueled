@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { consumptionApi, mealApi, mealPlanApi, recipeApi, userApi } from '../api/services'
 import { useAuth } from '../auth/AuthContext'
 import { NutritionLabel } from '../components/NutritionLabel'
 import {
-  CONSUMPTION_SOURCE_LABELS,
+  CONSUMPTION_SOURCE_LABELS, WEIGHT_UNIT_LABELS,
   type ConsumptionDay, type ConsumptionSource, type Meal, type MealPlan,
   type PlannedDay, type Recipe,
 } from '../api/types'
@@ -163,6 +164,7 @@ export function LogPage() {
   }
 
   const tasks = planned?.tasks ?? []
+  const weightTask = planned?.weightTask
   const doneCount = tasks.filter((t) => t.done).length
   // Ad-hoc entries are everything not created by completing a planned task (those show as tasks above).
   const adHocEntries = (day?.entries ?? []).filter((e) => !e.plannedMealRef)
@@ -184,6 +186,32 @@ export function LogPage() {
       </div>
 
       {error && <div className="notice error">{error}</div>}
+
+      {/* Recurring "Log your weight" task — only on days a measurement is due. */}
+      {weightTask && (
+        <div className="card stack">
+          <h2>Weigh-in</h2>
+          <div className="card ingredient-item" style={{ opacity: weightTask.done ? 0.7 : 1 }}>
+            <div className="ingredient-thumb">⚖️</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <strong style={{ textDecoration: weightTask.done ? 'line-through' : 'none' }}>
+                Log your weight
+              </strong>
+              <div className="small muted">
+                {weightTask.done && weightTask.recordedValue != null
+                  ? `Logged: ${round(weightTask.recordedValue)} ${weightTask.recordedUnit ? WEIGHT_UNIT_LABELS[weightTask.recordedUnit] : ''}`
+                  : 'A weight measurement is due today.'}
+              </div>
+            </div>
+            <Link
+              className="btn btn-sm btn-primary"
+              to={`/weight?returnTo=${encodeURIComponent('/log')}`}
+            >
+              {weightTask.done ? 'Update' : 'Log weight'}
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Currently-following plan picker. */}
       <div className="card stack">

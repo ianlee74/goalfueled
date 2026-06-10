@@ -59,6 +59,25 @@ public enum WeightUnit
     Kilogram = 1
 }
 
+/// <summary>
+/// How often a user wants to be reminded to log a weight measurement. The anchor day-of-week (and, for
+/// the "every N" cadences, the recurrence anchor) is taken from the schedule's start date.
+/// </summary>
+public enum WeightScheduleCadence
+{
+    /// <summary>A measurement is due every day.</summary>
+    Daily = 0,
+
+    /// <summary>A measurement is due once a week, on the start date's day-of-week.</summary>
+    Weekly = 1,
+
+    /// <summary>A measurement is due on the start date and every Nth day thereafter.</summary>
+    EveryNDays = 2,
+
+    /// <summary>A measurement is due on the start date's day-of-week, every Nth week from the start.</summary>
+    EveryNWeeks = 3
+}
+
 /// <summary>What a logged consumption entry references for its nutrition.</summary>
 public enum ConsumptionSource
 {

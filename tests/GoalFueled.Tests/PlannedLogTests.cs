@@ -23,7 +23,7 @@ public class PlannedLogTests
         AppUser Admin, AppUser User,
         IngredientService Ingredients, RecipeService Recipes, MealService Meals,
         MealPlanService Plans, UserProfileService Profile, ConsumptionService Consumption,
-        IUserRepository Users);
+        WeightService Weights, IUserRepository Users);
 
     private static async Task<Ctx> SetupAsync(GoalFueledDbContext db)
     {
@@ -41,12 +41,14 @@ public class PlannedLogTests
             new MealPlanRepository(db), new MealRepository(db),
             new RecipeRepository(db), new IngredientRepository(db));
         var users = new UserRepository(db);
-        var profile = new UserProfileService(users, new WeightService(new WeightEntryRepository(db)), plans);
+        var weights = new WeightService(new WeightEntryRepository(db));
+        var profile = new UserProfileService(users, weights, plans);
         var consumption = new ConsumptionService(
             new ConsumptionEntryRepository(db), new MealRepository(db),
-            new RecipeRepository(db), new IngredientRepository(db), plans);
+            new RecipeRepository(db), new IngredientRepository(db),
+            new WeightEntryRepository(db), plans);
 
-        return new Ctx(admin!, user!, ingredients, recipes, meals, plans, profile, consumption, users);
+        return new Ctx(admin!, user!, ingredients, recipes, meals, plans, profile, consumption, weights, users);
     }
 
     private static double Kcal(IReadOnlyList<NutrientAmount> n) =>
@@ -318,5 +320,62 @@ public class PlannedLogTests
         await Assert.ThrowsAsync<ValidationException>(() =>
             c.Consumption.CompletePlannedMealAsync(
                 c.User, new CompletePlannedMealInput("any:ref::"), default));
+    }
+
+    // ---- recurring "Log your weight" task ----
+
+    [Fact]
+    public async Task No_weight_schedule_means_no_weight_task()
+    {
+        using var db = TestHelpers.NewContext();
+        var c = await SetupAsync(db);
+        var planned = await c.Consumption.GetPlannedDayAsync(c.User, Today, default);
+        Assert.Null(planned.WeightTask);
+    }
+
+    [Fact]
+    public async Task Weight_task_appears_on_a_due_day_and_is_not_done_until_a_weight_is_recorded()
+    {
+        using var db = TestHelpers.NewContext();
+        var c = await SetupAsync(db);
+        // Daily schedule starting today → today is always due, even with no meal plan.
+        await c.Profile.SetWeightScheduleAsync(c.User,
+            new WeightScheduleInput(WeightScheduleCadence.Daily, Today), default);
+
+        var planned = await c.Consumption.GetPlannedDayAsync(c.User, Today, default);
+        Assert.NotNull(planned.WeightTask);
+        Assert.False(planned.WeightTask!.Done);
+        Assert.Null(planned.WeightTask.RecordedValue);
+    }
+
+    [Fact]
+    public async Task Weight_task_is_done_when_a_weight_exists_for_that_day()
+    {
+        using var db = TestHelpers.NewContext();
+        var c = await SetupAsync(db);
+        await c.Profile.SetWeightScheduleAsync(c.User,
+            new WeightScheduleInput(WeightScheduleCadence.Daily, Today), default);
+        await c.Weights.RecordAsync(c.User, new WeightEntryInput(180, WeightUnit.Pound, Today), default);
+
+        var planned = await c.Consumption.GetPlannedDayAsync(c.User, Today, default);
+        Assert.NotNull(planned.WeightTask);
+        Assert.True(planned.WeightTask!.Done);
+        Assert.Equal(180, planned.WeightTask.RecordedValue);
+        Assert.Equal(WeightUnit.Pound, planned.WeightTask.RecordedUnit);
+    }
+
+    [Fact]
+    public async Task Weight_task_does_not_appear_on_a_non_due_day()
+    {
+        using var db = TestHelpers.NewContext();
+        var c = await SetupAsync(db);
+        // Weekly schedule anchored on today → today is due, but tomorrow (different DOW) is not.
+        await c.Profile.SetWeightScheduleAsync(c.User,
+            new WeightScheduleInput(WeightScheduleCadence.Weekly, Today), default);
+
+        Assert.NotNull((await c.Consumption.GetPlannedDayAsync(c.User, Today, default)).WeightTask);
+        Assert.Null((await c.Consumption.GetPlannedDayAsync(c.User, Today.AddDays(1), default)).WeightTask);
+        // Same day-of-week next week is due again.
+        Assert.NotNull((await c.Consumption.GetPlannedDayAsync(c.User, Today.AddDays(7), default)).WeightTask);
     }
 }

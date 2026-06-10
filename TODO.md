@@ -12,8 +12,6 @@ Ignore all files in the `Future Features` section.
   - Height
   - Goal: (already asking)
 
-- [] **Scheduled Weight Measurements**: a user should be able to configure how often they want to log a weight measurement. It could be: daily, weekly, or "every n days" or "every n weeks". They should specify the day of the week that they will start measurements. Once configured, a "Log your weight" task should appear in `The Log` as a recurring task.
-
 - [] **Re-design around `fuel` and `burn`**: in the app, I'd like to use the label `fuel` when referencing an activity that adds calories to the body (i.e. consuming food) and the word `burn` when calories are used (i.e. exercise). So, in The Log we should show meal plan tasks as `fuel` and exercise activities as `burn`. We need to create appropriate icons for each.
 
 - [] **Log `burn` activities**: a user should be able to enter a `burn` activity when they complete an exercise. It should be a simple text name and number of calories burned. These calories should be negative when doing calculations summarizing calories. When entering a `burn` activity the user should be given a list of activity names that they have used in the past. If selected, the calories from the last entry of that type should be defaulted.

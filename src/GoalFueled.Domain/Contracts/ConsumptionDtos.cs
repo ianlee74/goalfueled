@@ -69,7 +69,24 @@ public sealed record PlannedDayDto(
     /// <summary>The active plan's id, or null when none is selected.</summary>
     string? PlanId,
     string? PlanName,
-    IReadOnlyList<PlannedMealTaskDto> Tasks);
+    IReadOnlyList<PlannedMealTaskDto> Tasks,
+    /// <summary>
+    /// The recurring "Log your weight" task for this day, present only when the user's weight schedule
+    /// makes a measurement due on the date; null otherwise (so the task appears only on due days).
+    /// </summary>
+    WeightTaskDto? WeightTask = null);
+
+/// <summary>
+/// The recurring "Log your weight" task in The Log on a day a measurement is due. Completion reuses the
+/// existing one-per-day weight model: <see cref="Done"/> is true iff a <see cref="WeightEntryDto"/> exists
+/// for the date, and <see cref="RecordedValue"/>/<see cref="RecordedUnit"/> echo that entry for display.
+/// </summary>
+public sealed record WeightTaskDto(
+    bool Done,
+    /// <summary>The recorded weight for the day when <see cref="Done"/>; null otherwise.</summary>
+    double? RecordedValue,
+    /// <summary>The recorded weight's unit when <see cref="Done"/>; null otherwise.</summary>
+    WeightUnit? RecordedUnit);
 
 /// <summary>
 /// Payload for completing a planned-meal task from The Log. The <see cref="Ref"/> is the task's stable

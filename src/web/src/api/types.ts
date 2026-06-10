@@ -50,6 +50,29 @@ export interface CurrentUser {
   hasCompletedOnboarding: boolean
   // The meal plan the user is currently following (drives The Log); absent if none chosen.
   activeMealPlanId?: string
+  // The user's recurring weight-measurement schedule; absent when none is configured.
+  weightSchedule?: WeightSchedule
+}
+
+export type WeightScheduleCadence = 'Daily' | 'Weekly' | 'EveryNDays' | 'EveryNWeeks'
+
+/** A user's recurring weight-measurement schedule (drives the "Log your weight" task in The Log). */
+export interface WeightSchedule {
+  cadence: WeightScheduleCadence
+  // Anchor date "yyyy-MM-dd"; its day-of-week is the chosen start day.
+  startDate: string
+  // The N for the "every N" cadences (1 otherwise).
+  interval: number
+  startDayOfWeek: DayOfWeek
+}
+
+/** Payload for setting (cadence present) or clearing (cadence null) the weight-measurement schedule. */
+export interface WeightScheduleInput {
+  cadence: WeightScheduleCadence | null
+  // Optional "yyyy-MM-dd"; defaults to today server-side when omitted.
+  startDate?: string
+  // The N for the "every N" cadences; ignored otherwise.
+  interval?: number
 }
 
 /** Payload for completing the first-login welcome flow. */
@@ -365,6 +388,14 @@ export interface PlannedMealTask {
   completedEntryId?: string
 }
 
+/** The recurring "Log your weight" task, present only on days a measurement is due. */
+export interface WeightTask {
+  done: boolean
+  // The recorded weight for the day when done; absent otherwise.
+  recordedValue?: number
+  recordedUnit?: WeightUnit
+}
+
 /** The active plan's tasks for a day. A null planId means no active plan is selected. */
 export interface PlannedDay {
   // The day, "yyyy-MM-dd".
@@ -372,6 +403,8 @@ export interface PlannedDay {
   planId?: string
   planName?: string
   tasks: PlannedMealTask[]
+  // The recurring weight task, present only when a measurement is due on the day.
+  weightTask?: WeightTask
 }
 
 /** Payload for completing/un-completing a planned-meal task in The Log. */
@@ -452,6 +485,13 @@ export const MEAL_PLAN_CADENCE_LABELS: Record<MealPlanCadence, string> = {
 
 export const WEIGHT_UNIT_LABELS: Record<WeightUnit, string> = {
   Pound: 'lb', Kilogram: 'kg',
+}
+
+export const WEIGHT_SCHEDULE_CADENCE_LABELS: Record<WeightScheduleCadence, string> = {
+  Daily: 'Daily',
+  Weekly: 'Weekly',
+  EveryNDays: 'Every N days',
+  EveryNWeeks: 'Every N weeks',
 }
 
 // Days of week in the order .NET's System.DayOfWeek enumerates them (Sunday = 0).
