@@ -37,6 +37,7 @@ public class GoalFueledDbContext : DbContext
     public DbSet<WeightEntry> WeightEntries => Set<WeightEntry>();
     public DbSet<Goal> Goals => Set<Goal>();
     public DbSet<ConsumptionEntry> ConsumptionEntries => Set<ConsumptionEntry>();
+    public DbSet<BurnActivity> BurnActivities => Set<BurnActivity>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -123,6 +124,14 @@ public class GoalFueledDbContext : DbContext
             e.HasPartitionKey(c => c.Id);
             e.HasKey(c => c.Id);
             e.OwnsMany(c => c.Nutrition);
+        });
+
+        // --- Burn Activities ---
+        b.Entity<BurnActivity>(e =>
+        {
+            e.ToContainer("BurnActivities");
+            e.HasPartitionKey(a => a.Id);
+            e.HasKey(a => a.Id);
         });
 
         base.OnModelCreating(b);

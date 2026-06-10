@@ -6,6 +6,51 @@
 
 ## Completed Items
 
+### Log `burn` activities — 2026-06-10 CDT
+
+- [x] Users can log a `burn` activity (a free-form name + calories burned) for a day in The Log's **Burn** section. Calories are stored as a positive magnitude and treated as **negative** in the day's net-calorie summary (net = fuel − burn). The activity-name field autocompletes from the names the user has logged before; selecting a past name pre-fills the calories from that name's most-recent entry (still editable).
+
+**NOTES:**
+
+**Design decisions**
+- **New entity `BurnActivity`** (`src/GoalFueled.Domain/Entities/BurnActivity.cs`), OwnerUserId-scoped, mirroring `ConsumptionEntry`/`WeightEntry`: `Id`, `OwnerUserId`, `DateOnly Date`, `string Name`, `int CaloriesBurned` (positive magnitude), `CreatedAt`/`UpdatedAt`. Chose `int` for calories (whole kcal is the right granularity for exercise burn; the client rounds before posting). No per-day uniqueness — a day can have many activities; logging appends, removal is by id (mirrors consumption).
+- **Sign convention (explicit & consistent):** calories are stored and returned as a **positive magnitude** everywhere in the slice. The negative sign is applied **only** where burn enters a net-calorie summary. `BurnDayDto.TotalCaloriesBurned` is a positive total the caller subtracts; `BurnService.DailyBurnInRangeAsync` returns positive per-day totals for future net roll-ups; The Log computes `net = fuel − burn` and renders burn with a leading `−`. The service never stores or returns a negative value.
+- **Net-calorie summary in The Log:** reused the existing fuel calorie roll-up (`ConsumptionDay.totalNutrition` → the `calories` nutrient, the same nutrient-id the page already reads) for the fuel side, subtracted the burn day total, and surfaced a new "Net calories (fuel − burn)" card. The Burn section heading shows `−N kcal`. (Deeper analytics/dashboard are a later task; this only makes The Log's day summary reflect fuel − burn.)
+- **Suggestions / autocomplete shape:** `GET /api/burn/suggestions` → `BurnSuggestionDto[] { name, lastCalories }`, derived from the user's whole history, **most-recent-first and distinct by name** (case-insensitive dedupe; the most-recent entry for each name wins, so its calories become the default pre-fill). UX uses a native `<input list>` + `<datalist>` (no new npm dependency); on a case-insensitive name match the calories field defaults to that name's `lastCalories` but stays editable. Suggestions are re-fetched after a successful add so a brand-new name is immediately available.
+- **Provider-agnostic persistence:** `BurnActivityRepository` materializes the user's (few) rows then filters/orders `DateOnly` in memory — identical to `ConsumptionEntryRepository`/`WeightEntryRepository` — so it works against both Cosmos and the in-memory provider. Added the `BurnActivities` Cosmos container mapping (partition key + key on `Id`; no owned collections).
+- **Validation (matches Weight/Consumption conventions):** name required + length-bounded (`InputLimits.NameMaxLength`); calories must be > 0 and ≤ new `InputLimits.BurnCaloriesMax` (100,000); date defaults to today and cannot be in the future. Removal is owner-scoped (cross-user delete → `NotFoundException`, no cross-user view even for admins).
+
+**Files created (backend)**
+- `src/GoalFueled.Domain/Entities/BurnActivity.cs`
+- `src/GoalFueled.Domain/Contracts/BurnDtos.cs` (`BurnActivityDto`, `BurnDayDto`, `BurnSuggestionDto`, `BurnActivityInput`)
+- `src/GoalFueled.Data/Repositories/IBurnActivityRepository.cs` + `BurnActivityRepository.cs`
+- `src/GoalFueled.Api/Services/BurnService.cs`
+- `src/GoalFueled.Api/Functions/BurnFunctions.cs`
+- `tests/GoalFueled.Tests/BurnActivityServiceTests.cs` (13 tests)
+
+**Files changed (backend)**
+- `src/GoalFueled.Api/Common/InputLimits.cs` — added `BurnCaloriesMax = 100_000`.
+- `src/GoalFueled.Data/GoalFueledDbContext.cs` — `DbSet<BurnActivity> BurnActivities` + `BurnActivities` container mapping.
+- `src/GoalFueled.Data/DataServiceCollectionExtensions.cs` — registered `IBurnActivityRepository`.
+- `src/GoalFueled.Api/Program.cs` — registered `BurnService`.
+- `tests/GoalFueled.Tests/DependencyInjectionTests.cs` — assert `BurnService` + `IBurnActivityRepository` resolve.
+
+**Files created/changed (frontend)**
+- `src/web/src/api/types.ts` — added `BurnActivity`, `BurnDay`, `BurnSuggestion`, `BurnActivityInput`.
+- `src/web/src/api/services.ts` — added `burnApi` (`day`, `log`, `remove`, `suggestions`).
+- `src/web/src/pages/LogPage.tsx` — Burn section now logs activities (datalist autocomplete defaulting calories from the picked name's last entry), lists/removes them, shows `−N kcal` in the heading, and added a "Net calories (fuel − burn)" summary card.
+
+**New API endpoints** (all per-authenticated-user)
+- `GET /api/burn[?date=yyyy-MM-dd]` → `BurnDayDto` (activities + positive `TotalCaloriesBurned`; date defaults to today).
+- `POST /api/burn` → `BurnActivityDto` (body `BurnActivityInput { name, caloriesBurned, date? }`).
+- `GET /api/burn/suggestions` → `BurnSuggestionDto[] { name, lastCalories }` (distinct by name, most-recent-first).
+- `DELETE /api/burn/{id}` → 204 (owner-scoped).
+
+**Verification**
+- `dotnet test -c Release` → **203/203 passed** (was 190; +13 new burn tests).
+- `npm run build` (`src/web`) → **succeeds** (tsc + vite, 77 modules).
+- `npm run lint` (`src/web`) → **0 errors** (only the 1 pre-existing `AuthContext.tsx` warning; no new ones).
+
 ### Re-design around `fuel` and `burn` — 2026-06-10 CDT
 
 - [x] Introduced a consistent `fuel` (calories added — food) vs. `burn` (calories used — exercise) vocabulary across the app, applied to The Log. Meal-plan/consumption tasks and ad-hoc food logging are now framed as **Fuel**; a **Burn** section is present with an empty state, ready for the upcoming "log burn activities" task. Added a reusable icon/label treatment for both concepts.

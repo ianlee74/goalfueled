@@ -1,6 +1,7 @@
 import { api } from './client'
 import type {
-  AdminUser, CompletePlannedMealInput, ConsumptionDay, ConsumptionEntry, ConsumptionEntryInput,
+  AdminUser, BurnActivity, BurnActivityInput, BurnDay, BurnSuggestion,
+  CompletePlannedMealInput, ConsumptionDay, ConsumptionEntry, ConsumptionEntryInput,
   CurrentUser, Goal, GoalInput, Ingredient, IngredientInput, Meal, MealInput,
   MealPlan, MealPlanInput, NutrientDefinition, NutritionLookupResult, OnboardingInput,
   PlannedDay, ProfileInput, Recipe, RecipeInput, WeightEntry, WeightEntryInput,
@@ -114,6 +115,16 @@ export const consumptionApi = {
   // Un-completes a planned-meal task (removes its completion entry).
   uncompletePlanned: (input: CompletePlannedMealInput) =>
     api.post<void>('/consumption/planned/uncomplete', input),
+}
+
+export const burnApi = {
+  // The caller's burn log for a day (defaults to today server-side when date is omitted).
+  day: (date?: string) => api.get<BurnDay>(`/burn${date ? `?date=${date}` : ''}`),
+  // Logs a burn activity (name + calories burned).
+  log: (input: BurnActivityInput) => api.post<BurnActivity>('/burn', input),
+  remove: (id: string) => api.del(`/burn/${id}`),
+  // Past activity names with their most-recent calories, for the name autocomplete.
+  suggestions: () => api.get<BurnSuggestion[]>('/burn/suggestions'),
 }
 
 export const nutrientApi = {

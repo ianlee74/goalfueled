@@ -435,6 +435,43 @@ export interface ConsumptionEntryInput {
   date?: string
 }
 
+/** A single logged burn activity (exercise that used calories). */
+export interface BurnActivity {
+  id: string
+  // Calendar day, serialized "yyyy-MM-dd".
+  date: string
+  name: string
+  // Calories burned, a positive magnitude (treated as negative in net-calorie summaries).
+  caloriesBurned: number
+  createdAt: string
+  updatedAt: string
+}
+
+/** A day's burn log: its activities plus the day's total calories burned (positive; callers subtract it). */
+export interface BurnDay {
+  // The day this log is for, "yyyy-MM-dd".
+  date: string
+  activities: BurnActivity[]
+  // Sum of every activity's calories for the day (positive magnitude).
+  totalCaloriesBurned: number
+}
+
+/** A past activity name with the calories from its most-recent entry, for the burn-name autocomplete. */
+export interface BurnSuggestion {
+  name: string
+  // Calories from the most-recent entry that used this name (defaults the calories field on select).
+  lastCalories: number
+}
+
+/** Payload for logging a burn activity. */
+export interface BurnActivityInput {
+  name: string
+  // Calories burned, a positive magnitude (must be greater than zero).
+  caloriesBurned: number
+  // Optional "yyyy-MM-dd"; defaults to today server-side when omitted.
+  date?: string
+}
+
 export const CONSUMPTION_SOURCE_LABELS: Record<ConsumptionSource, string> = {
   Meal: 'Meal', Recipe: 'Recipe', FreeForm: 'Free-form',
 }

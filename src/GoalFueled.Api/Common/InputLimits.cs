@@ -53,6 +53,9 @@ public static class InputLimits
     /// <summary>Upper bound for the servings on a single logged consumption entry.</summary>
     public const double ConsumptionServingsMax = 10_000;
 
+    /// <summary>Upper bound for the calories burned on a single logged activity (a generous ceiling).</summary>
+    public const int BurnCaloriesMax = 100_000;
+
     /// <summary>Validates a required string is non-empty and within <paramref name="maxLength"/>.</summary>
     public static void RequireText(string? value, int maxLength, string label)
     {

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { consumptionApi, mealApi, mealPlanApi, recipeApi, userApi } from '../api/services'
+import { burnApi, consumptionApi, mealApi, mealPlanApi, recipeApi, userApi } from '../api/services'
 import { useAuth } from '../auth/AuthContext'
 import { NutritionLabel } from '../components/NutritionLabel'
 import { FuelBurnHeading } from '../components/FuelBurnIcon'
 import {
   CONSUMPTION_SOURCE_LABELS, WEIGHT_UNIT_LABELS,
+  type BurnDay, type BurnSuggestion,
   type ConsumptionDay, type ConsumptionSource, type Meal, type MealPlan,
   type PlannedDay, type Recipe,
 } from '../api/types'
@@ -39,6 +40,8 @@ export function LogPage() {
   const [date, setDate] = useState(today)
   const [day, setDay] = useState<ConsumptionDay | null>(null)
   const [planned, setPlanned] = useState<PlannedDay | null>(null)
+  const [burnDay, setBurnDay] = useState<BurnDay | null>(null)
+  const [burnSuggestions, setBurnSuggestions] = useState<BurnSuggestion[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -59,31 +62,40 @@ export function LogPage() {
   const [freeCalories, setFreeCalories] = useState('')
   const [saving, setSaving] = useState(false)
 
-  // Load catalog + plan options once.
+  // Burn add-activity form state.
+  const [burnName, setBurnName] = useState('')
+  const [burnCalories, setBurnCalories] = useState('')
+  const [savingBurn, setSavingBurn] = useState(false)
+
+  // Load catalog + plan options + burn-name suggestions once.
   useEffect(() => {
     let cancelled = false
-    Promise.all([mealApi.list(), recipeApi.list(), mealPlanApi.list()])
-      .then(([m, r, p]) => { if (!cancelled) { setMeals(m); setRecipes(r); setPlans(p) } })
+    Promise.all([mealApi.list(), recipeApi.list(), mealPlanApi.list(), burnApi.suggestions()])
+      .then(([m, r, p, s]) => {
+        if (!cancelled) { setMeals(m); setRecipes(r); setPlans(p); setBurnSuggestions(s) }
+      })
       .catch(() => {})
     return () => { cancelled = true }
   }, [])
 
-  // Reload the day's log + planned tasks (used by action handlers after a mutation).
+  // Reload the day's log + planned tasks + burn (used by action handlers after a mutation).
   const reload = useCallback(async () => {
-    const [d, pl] = await Promise.all([
+    const [d, pl, b] = await Promise.all([
       consumptionApi.day(date),
       consumptionApi.plannedDay(date),
+      burnApi.day(date),
     ])
     setDay(d)
     setPlanned(pl)
+    setBurnDay(b)
   }, [date])
 
-  // Load the day's log + planned tasks whenever the date or the active plan changes. The setState calls
-  // live in the async callbacks (not synchronously in the effect body) to avoid cascading renders.
+  // Load the day's log + planned tasks + burn whenever the date or the active plan changes. The setState
+  // calls live in the async callbacks (not synchronously in the effect body) to avoid cascading renders.
   useEffect(() => {
     let cancelled = false
-    Promise.all([consumptionApi.day(date), consumptionApi.plannedDay(date)])
-      .then(([d, pl]) => { if (!cancelled) { setDay(d); setPlanned(pl) } })
+    Promise.all([consumptionApi.day(date), consumptionApi.plannedDay(date), burnApi.day(date)])
+      .then(([d, pl, b]) => { if (!cancelled) { setDay(d); setPlanned(pl); setBurnDay(b) } })
       .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load the log.') })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
@@ -99,6 +111,9 @@ export function LogPage() {
   const totalCalories = useMemo(
     () => dayTotal.find((n) => n.nutrientId === 'calories')?.value ?? 0,
     [dayTotal])
+  // Burn is stored as a positive magnitude; net calories subtract it (net = fuel − burn).
+  const totalBurned = burnDay?.totalCaloriesBurned ?? 0
+  const netCalories = totalCalories - totalBurned
 
   async function choosePlan(planId: string) {
     setError(null)
@@ -164,11 +179,51 @@ export function LogPage() {
     }
   }
 
+  // When a burn name matches a past activity, default the calories to that activity's last value (the
+  // calories stay editable). Matches case-insensitively against the loaded suggestions.
+  function onBurnNameChange(name: string) {
+    setBurnName(name)
+    const match = burnSuggestions.find((s) => s.name.toLowerCase() === name.trim().toLowerCase())
+    if (match) setBurnCalories(String(match.lastCalories))
+  }
+
+  async function addBurn() {
+    setError(null)
+    if (!burnName.trim()) { setError('Enter a name for the activity.'); return }
+    const kcal = Number(burnCalories)
+    if (!(kcal > 0)) { setError('Calories burned must be greater than zero.'); return }
+
+    setSavingBurn(true)
+    try {
+      await burnApi.log({ name: burnName.trim(), caloriesBurned: Math.round(kcal), date })
+      await reload()
+      // Refresh suggestions so a brand-new name becomes available for autocomplete next time.
+      setBurnSuggestions(await burnApi.suggestions())
+      setBurnName('')
+      setBurnCalories('')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to log activity.')
+    } finally {
+      setSavingBurn(false)
+    }
+  }
+
+  async function removeBurn(id: string) {
+    setError(null)
+    try {
+      await burnApi.remove(id)
+      await reload()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to remove activity.')
+    }
+  }
+
   const tasks = planned?.tasks ?? []
   const weightTask = planned?.weightTask
   const doneCount = tasks.filter((t) => t.done).length
   // Ad-hoc entries are everything not created by completing a planned task (those show as tasks above).
   const adHocEntries = (day?.entries ?? []).filter((e) => !e.plannedMealRef)
+  const burnActivities = burnDay?.activities ?? []
 
   return (
     <div className="stack">
@@ -406,20 +461,84 @@ export function LogPage() {
         </div>
       </div>
 
-      {/* Burn — exercise that uses calories. Entering burn activities is a separate upcoming
-          task; for now the section is present with an empty state so the fuel/burn split reads
-          coherently and exercise items can slot in cleanly next. */}
+      {/* Burn — exercise that uses calories. Calories are stored as positive magnitudes and subtracted
+          from the day's net (net = fuel − burn). The name field autocompletes from past activities; picking
+          a past name defaults the calories to that activity's most recent value (still editable). */}
       <div className="card stack fb-section fb-burn">
         <FuelBurnHeading kind="burn">
-          <span className="small muted">−0 kcal</span>
+          <span className="small muted">−{Math.round(totalBurned)} kcal</span>
         </FuelBurnHeading>
         <p className="muted small" style={{ margin: 0 }}>
           Exercise that burns calories.
         </p>
-        <p className="muted small" style={{ margin: 0 }}>
-          No burn logged for this day yet — activity logging is coming soon.
-        </p>
+
+        <div className="row" style={{ gap: '0.5rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <label className="field" style={{ flex: 1, minWidth: '8rem' }}>
+            Activity
+            <input
+              className="input"
+              list="burn-activity-names"
+              value={burnName}
+              placeholder="e.g. Morning run"
+              onChange={(e) => onBurnNameChange(e.target.value)}
+            />
+            <datalist id="burn-activity-names">
+              {burnSuggestions.map((s) => <option key={s.name} value={s.name} />)}
+            </datalist>
+          </label>
+          <label className="field">
+            Calories burned
+            <input
+              className="input"
+              type="number"
+              min="0"
+              step="1"
+              value={burnCalories}
+              placeholder="e.g. 300"
+              onChange={(e) => setBurnCalories(e.target.value)}
+            />
+          </label>
+        </div>
+        <button type="button" className="btn btn-primary" disabled={savingBurn} onClick={addBurn}>
+          {savingBurn ? 'Adding…' : '+ Add burn'}
+        </button>
+
+        {loading && burnActivities.length === 0 && <p className="muted">Loading…</p>}
+        {!loading && burnActivities.length === 0 && (
+          <p className="muted small" style={{ margin: 0 }}>No burn logged for this day yet.</p>
+        )}
+
+        <div className="list">
+          {burnActivities.map((a) => (
+            <div key={a.id} className="card ingredient-item">
+              <div className="ingredient-thumb">🔥</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="row spread">
+                  <strong>{a.name}</strong>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-danger"
+                    title="Remove"
+                    onClick={() => removeBurn(a.id)}
+                  >✕</button>
+                </div>
+                <div className="small muted">−{Math.round(a.caloriesBurned)} kcal</div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
+
+      {/* Net calorie summary for the day: fuel consumed minus calories burned. */}
+      {(totalCalories > 0 || totalBurned > 0) && (
+        <div className="card stack">
+          <h2>Net calories <span className="muted small">fuel − burn</span></h2>
+          <p className="muted small" style={{ margin: 0 }}>
+            {Math.round(totalCalories)} fuel − {Math.round(totalBurned)} burn ={' '}
+            <strong>{Math.round(netCalories)} kcal</strong>
+          </p>
+        </div>
+      )}
 
       {dayTotal.length > 0 && (
         <div className="card stack">
