@@ -55,6 +55,17 @@ public sealed class UserFunctions
             return HttpResults.Ok(ToDto(updated));
         });
 
+    /// <summary>Chooses (or clears) the meal plan the user is currently following (drives The Log).</summary>
+    [Function("SetActiveMealPlan")]
+    public Task<IActionResult> SetActiveMealPlan(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "me/active-plan")] HttpRequest req) =>
+        ApiEndpoint.RunAuthenticated(req, _auth, async user =>
+        {
+            var input = await HttpResults.ReadJsonAsync<ActiveMealPlanInput>(req, req.HttpContext.RequestAborted);
+            var updated = await _profile.SetActiveMealPlanAsync(user, input, req.HttpContext.RequestAborted);
+            return HttpResults.Ok(ToDto(updated));
+        });
+
     /// <summary>Toggles an admin's "admin view" on or off so they can browse as a regular user.</summary>
     [Function("SetAdminView")]
     public Task<IActionResult> AdminView(
@@ -71,5 +82,5 @@ public sealed class UserFunctions
     private static CurrentUserDto ToDto(AppUser u) => new(
         u.Id, u.Email, u.DisplayName, u.AvatarUrl, u.Roles, u.IsAdmin,
         u.AdminViewEnabled, u.IsActingAsAdmin, u.PrimaryGoal, u.SexAtBirth, u.HeightCm,
-        u.HasCompletedOnboarding);
+        u.HasCompletedOnboarding, u.ActiveMealPlanId);
 }

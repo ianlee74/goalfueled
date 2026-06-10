@@ -12,8 +12,6 @@ Ignore all files in the `Future Features` section.
   - Height
   - Goal: (already asking)
 
-- [] **Redesign `The Log`**: Let's rename the "Food Log" to be "The Log". The Log is meant to be the main feature of this app and should be easy to understand and use. Currently, it doesn't utilize the meal plans. The way The Log is intended is that the user should select their current meal plan that they are following and then The Log should follow along with that plan. The meals for the selected plan for the current day should be listed in the food log as tasks to complete.
-
 - [] **Scheduled Weight Measurements**: a user should be able to configure how often they want to log a weight measurement. It could be: daily, weekly, or "every n days" or "every n weeks". They should specify the day of the week that they will start measurements. Once configured, a "Log your weight" task should appear in `The Log` as a recurring task.
 
 - [] **Re-design around `fuel` and `burn`**: in the app, I'd like to use the label `fuel` when referencing an activity that adds calories to the body (i.e. consuming food) and the word `burn` when calories are used (i.e. exercise). So, in The Log we should show meal plan tasks as `fuel` and exercise activities as `burn`. We need to create appropriate icons for each.

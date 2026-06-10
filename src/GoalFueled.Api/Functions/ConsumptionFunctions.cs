@@ -48,6 +48,39 @@ public sealed class ConsumptionFunctions
             return HttpResults.Created(saved);
         });
 
+    [Function("GetPlannedDay")]
+    public Task<IActionResult> GetPlannedDay(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "consumption/planned")] HttpRequest req) =>
+        ApiEndpoint.RunAuthenticated(req, _auth, async user =>
+        {
+            var raw = req.Query["date"].FirstOrDefault();
+            DateOnly? date = !string.IsNullOrWhiteSpace(raw)
+                && DateOnly.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)
+                ? parsed
+                : null;
+            return HttpResults.Ok(await _consumption.GetPlannedDayAsync(user, date, req.HttpContext.RequestAborted));
+        });
+
+    [Function("CompletePlannedMeal")]
+    public Task<IActionResult> CompletePlannedMeal(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "consumption/planned/complete")] HttpRequest req) =>
+        ApiEndpoint.RunAuthenticated(req, _auth, async user =>
+        {
+            var input = await HttpResults.ReadJsonAsync<CompletePlannedMealInput>(req, req.HttpContext.RequestAborted);
+            var saved = await _consumption.CompletePlannedMealAsync(user, input, req.HttpContext.RequestAborted);
+            return HttpResults.Created(saved);
+        });
+
+    [Function("UncompletePlannedMeal")]
+    public Task<IActionResult> UncompletePlannedMeal(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "consumption/planned/uncomplete")] HttpRequest req) =>
+        ApiEndpoint.RunAuthenticated(req, _auth, async user =>
+        {
+            var input = await HttpResults.ReadJsonAsync<CompletePlannedMealInput>(req, req.HttpContext.RequestAborted);
+            await _consumption.UncompletePlannedMealAsync(user, input, req.HttpContext.RequestAborted);
+            return HttpResults.NoContent();
+        });
+
     [Function("DeleteConsumptionEntry")]
     public Task<IActionResult> Delete(
         [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "consumption/{id}")] HttpRequest req,

@@ -47,6 +47,13 @@ public class AppUser
     /// <summary>True once the user has completed the first-login welcome flow.</summary>
     public bool HasCompletedOnboarding { get; set; }
 
+    /// <summary>
+    /// The meal plan the user is currently following. The Log uses it to surface today's planned meals
+    /// as tasks to complete. Null when the user has not chosen a plan (The Log then works as a plain
+    /// free-form log). Not enforced as a foreign key — a stale/deleted plan id simply yields no tasks.
+    /// </summary>
+    public string? ActiveMealPlanId { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public bool IsAdmin => Roles.Contains(AppRole.AppAdmin);

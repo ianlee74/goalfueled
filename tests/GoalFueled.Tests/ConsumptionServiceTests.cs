@@ -16,7 +16,7 @@ public class ConsumptionServiceTests
 
     private static async Task<(AppUser admin, AppUser user, AppUser other,
         IngredientService ingredients, RecipeService recipes, MealService meals,
-        ConsumptionService consumption)> SetupAsync(GoalFueledDbContext db)
+        MealPlanService plans, UserProfileService profile, ConsumptionService consumption)> SetupAsync(GoalFueledDbContext db)
     {
         var admin = await TestHelpers.NewAuthenticator(db,
             new AuthenticatedIdentity("dev", "admin", "admin@dev.local", "Admin"))
@@ -31,11 +31,16 @@ public class ConsumptionServiceTests
         var ingredients = new IngredientService(new IngredientRepository(db));
         var recipes = new RecipeService(new RecipeRepository(db), new IngredientRepository(db));
         var meals = new MealService(new MealRepository(db), new RecipeRepository(db), new IngredientRepository(db));
+        var plans = new MealPlanService(
+            new MealPlanRepository(db), new MealRepository(db),
+            new RecipeRepository(db), new IngredientRepository(db));
+        var profile = new UserProfileService(
+            new UserRepository(db), new WeightService(new WeightEntryRepository(db)), plans);
         var consumption = new ConsumptionService(
             new ConsumptionEntryRepository(db), new MealRepository(db),
-            new RecipeRepository(db), new IngredientRepository(db));
+            new RecipeRepository(db), new IngredientRepository(db), plans);
 
-        return (admin!, user!, other!, ingredients, recipes, meals, consumption);
+        return (admin!, user!, other!, ingredients, recipes, meals, plans, profile, consumption);
     }
 
     // Builds a recipe supplying exactly `calories` kcal per serving (1-serving recipe) owned by `user`.
@@ -59,7 +64,7 @@ public class ConsumptionServiceTests
     public async Task Log_recipe_records_entry_with_scaled_nutrition()
     {
         using var db = TestHelpers.NewContext();
-        var (admin, user, _, ingredients, recipes, _, consumption) = await SetupAsync(db);
+        var (admin, user, _, ingredients, recipes, _, _, _, consumption) = await SetupAsync(db);
         var recipe = await BuildCaloricRecipeAsync(admin, user, ingredients, recipes, 100);
 
         // Eat 2 servings → 200 kcal logged.
@@ -79,7 +84,7 @@ public class ConsumptionServiceTests
     public async Task Log_meal_records_entry_with_scaled_nutrition()
     {
         using var db = TestHelpers.NewContext();
-        var (admin, user, _, ingredients, recipes, meals, consumption) = await SetupAsync(db);
+        var (admin, user, _, ingredients, recipes, meals, _, _, consumption) = await SetupAsync(db);
         var recipe = await BuildCaloricRecipeAsync(admin, user, ingredients, recipes, 100);
         var meal = await meals.CreateAsync(user,
             new MealInput("kcal-meal", new List<MealPortionInput> { new(recipe.Id, 1) }, false), default);
@@ -96,7 +101,7 @@ public class ConsumptionServiceTests
     public async Task Log_free_form_item_with_inline_nutrition()
     {
         using var db = TestHelpers.NewContext();
-        var (_, user, _, _, _, _, consumption) = await SetupAsync(db);
+        var (_, user, _, _, _, _, _, _, consumption) = await SetupAsync(db);
 
         var entry = await consumption.LogAsync(user, new ConsumptionEntryInput(
             ConsumptionSource.FreeForm, Name: "Handful of chips", Servings: 2,
@@ -112,7 +117,7 @@ public class ConsumptionServiceTests
     public async Task Log_free_form_item_without_nutrition_is_allowed()
     {
         using var db = TestHelpers.NewContext();
-        var (_, user, _, _, _, _, consumption) = await SetupAsync(db);
+        var (_, user, _, _, _, _, _, _, consumption) = await SetupAsync(db);
 
         var entry = await consumption.LogAsync(user,
             new ConsumptionEntryInput(ConsumptionSource.FreeForm, Name: "Mystery snack"), default);
@@ -127,7 +132,7 @@ public class ConsumptionServiceTests
     public async Task Day_view_sums_nutrition_across_entries()
     {
         using var db = TestHelpers.NewContext();
-        var (admin, user, _, ingredients, recipes, _, consumption) = await SetupAsync(db);
+        var (admin, user, _, ingredients, recipes, _, _, _, consumption) = await SetupAsync(db);
         var recipe = await BuildCaloricRecipeAsync(admin, user, ingredients, recipes, 100);
 
         await consumption.LogAsync(user,
@@ -147,7 +152,7 @@ public class ConsumptionServiceTests
     public async Task Entries_are_scoped_per_day()
     {
         using var db = TestHelpers.NewContext();
-        var (_, user, _, _, _, _, consumption) = await SetupAsync(db);
+        var (_, user, _, _, _, _, _, _, consumption) = await SetupAsync(db);
 
         await consumption.LogAsync(user, new ConsumptionEntryInput(
             ConsumptionSource.FreeForm, Name: "Yesterday snack", Date: Today.AddDays(-1)), default);
@@ -167,7 +172,7 @@ public class ConsumptionServiceTests
     public async Task Day_defaults_to_today_when_date_omitted()
     {
         using var db = TestHelpers.NewContext();
-        var (_, user, _, _, _, _, consumption) = await SetupAsync(db);
+        var (_, user, _, _, _, _, _, _, consumption) = await SetupAsync(db);
         await consumption.LogAsync(user, new ConsumptionEntryInput(ConsumptionSource.FreeForm, Name: "Snack"), default);
 
         var day = await consumption.GetDayAsync(user, date: null, default);
@@ -181,7 +186,7 @@ public class ConsumptionServiceTests
     public async Task Remove_deletes_the_entry()
     {
         using var db = TestHelpers.NewContext();
-        var (_, user, _, _, _, _, consumption) = await SetupAsync(db);
+        var (_, user, _, _, _, _, _, _, consumption) = await SetupAsync(db);
         var entry = await consumption.LogAsync(user,
             new ConsumptionEntryInput(ConsumptionSource.FreeForm, Name: "Snack"), default);
 
@@ -197,7 +202,7 @@ public class ConsumptionServiceTests
     public async Task Users_cannot_see_or_remove_each_others_entries()
     {
         using var db = TestHelpers.NewContext();
-        var (_, user, other, _, _, _, consumption) = await SetupAsync(db);
+        var (_, user, other, _, _, _, _, _, consumption) = await SetupAsync(db);
 
         var mine = await consumption.LogAsync(user,
             new ConsumptionEntryInput(ConsumptionSource.FreeForm, Name: "Mine"), default);
@@ -214,7 +219,7 @@ public class ConsumptionServiceTests
     public async Task Cannot_log_recipe_owned_by_another_user()
     {
         using var db = TestHelpers.NewContext();
-        var (admin, user, other, ingredients, recipes, _, consumption) = await SetupAsync(db);
+        var (admin, user, other, ingredients, recipes, _, _, _, consumption) = await SetupAsync(db);
         // A private recipe owned by `other`.
         var recipe = await BuildCaloricRecipeAsync(admin, other, ingredients, recipes, 100);
 
@@ -229,7 +234,7 @@ public class ConsumptionServiceTests
     public async Task Validation_rejects_missing_source_id_for_catalog_entry()
     {
         using var db = TestHelpers.NewContext();
-        var (_, user, _, _, _, _, consumption) = await SetupAsync(db);
+        var (_, user, _, _, _, _, _, _, consumption) = await SetupAsync(db);
         await Assert.ThrowsAsync<ValidationException>(() =>
             consumption.LogAsync(user, new ConsumptionEntryInput(ConsumptionSource.Recipe, SourceId: null), default));
     }
@@ -238,7 +243,7 @@ public class ConsumptionServiceTests
     public async Task Validation_rejects_free_form_without_name()
     {
         using var db = TestHelpers.NewContext();
-        var (_, user, _, _, _, _, consumption) = await SetupAsync(db);
+        var (_, user, _, _, _, _, _, _, consumption) = await SetupAsync(db);
         await Assert.ThrowsAsync<ValidationException>(() =>
             consumption.LogAsync(user, new ConsumptionEntryInput(ConsumptionSource.FreeForm, Name: "  "), default));
     }
@@ -247,7 +252,7 @@ public class ConsumptionServiceTests
     public async Task Validation_rejects_non_positive_and_oversized_servings()
     {
         using var db = TestHelpers.NewContext();
-        var (_, user, _, _, _, _, consumption) = await SetupAsync(db);
+        var (_, user, _, _, _, _, _, _, consumption) = await SetupAsync(db);
 
         await Assert.ThrowsAsync<ValidationException>(() =>
             consumption.LogAsync(user, new ConsumptionEntryInput(ConsumptionSource.FreeForm, Name: "x", Servings: 0), default));
@@ -260,7 +265,7 @@ public class ConsumptionServiceTests
     public async Task Validation_rejects_future_date()
     {
         using var db = TestHelpers.NewContext();
-        var (_, user, _, _, _, _, consumption) = await SetupAsync(db);
+        var (_, user, _, _, _, _, _, _, consumption) = await SetupAsync(db);
         await Assert.ThrowsAsync<ValidationException>(() =>
             consumption.LogAsync(user, new ConsumptionEntryInput(
                 ConsumptionSource.FreeForm, Name: "x", Date: Today.AddDays(1)), default));
@@ -270,7 +275,7 @@ public class ConsumptionServiceTests
     public async Task Missing_catalog_source_marks_entry_source_missing()
     {
         using var db = TestHelpers.NewContext();
-        var (admin, user, _, ingredients, recipes, _, consumption) = await SetupAsync(db);
+        var (admin, user, _, ingredients, recipes, _, _, _, consumption) = await SetupAsync(db);
         var recipe = await BuildCaloricRecipeAsync(admin, user, ingredients, recipes, 100);
         var entry = await consumption.LogAsync(user,
             new ConsumptionEntryInput(ConsumptionSource.Recipe, recipe.Id, Servings: 1), default);

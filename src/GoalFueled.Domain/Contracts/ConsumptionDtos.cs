@@ -24,7 +24,12 @@ public sealed record ConsumptionEntryDto(
     /// </summary>
     bool SourceMissing,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    /// <summary>
+    /// Correlation key when this entry came from completing a planned-meal task; null for ad-hoc entries.
+    /// Lets The Log pair an entry with the plan task it satisfies.
+    /// </summary>
+    string? PlannedMealRef = null);
 
 /// <summary>A day's consumption log: its entries plus the rolled-up nutrition totals across them.</summary>
 public sealed record ConsumptionDayDto(
@@ -33,6 +38,48 @@ public sealed record ConsumptionDayDto(
     IReadOnlyList<ConsumptionEntryDto> Entries,
     /// <summary>Sum of every entry's nutrition for the day (the same way nutrition is aggregated elsewhere).</summary>
     IReadOnlyList<NutrientAmount> TotalNutrition);
+
+/// <summary>
+/// One planned-meal task for a day in The Log: a meal scheduled by the active plan for that day, shown as
+/// a checkable item. Carries the resolved meal name, its scheduled time (if any), and its nutrition (the
+/// same meal-total roll-up the plan summary uses). <see cref="Done"/> reflects whether a completion entry
+/// exists; when it does, <see cref="CompletedEntryId"/> is the id of that <see cref="ConsumptionEntryDto"/>
+/// (used to un-complete the task).
+/// </summary>
+public sealed record PlannedMealTaskDto(
+    /// <summary>Stable correlation key for this task on this date (<c>planId:mealId:day:time</c>).</summary>
+    string Ref,
+    string MealId,
+    /// <summary>Resolved meal name (null if the meal is no longer visible/exists).</summary>
+    string? MealName,
+    /// <summary>Scheduled time of day, "HH:mm:ss"; null for an untimed/anytime task.</summary>
+    TimeOnly? Time,
+    IReadOnlyList<NutrientAmount> Nutrition,
+    bool Done,
+    /// <summary>Id of the consumption entry that completed this task, when <see cref="Done"/> is true.</summary>
+    string? CompletedEntryId);
+
+/// <summary>
+/// The active plan's tasks for a single day, surfaced in The Log. Empty <see cref="Tasks"/> with a null
+/// <see cref="PlanId"/> means the user has no active plan (or it has no meals scheduled for the day).
+/// </summary>
+public sealed record PlannedDayDto(
+    /// <summary>The day, "yyyy-MM-dd".</summary>
+    DateOnly Date,
+    /// <summary>The active plan's id, or null when none is selected.</summary>
+    string? PlanId,
+    string? PlanName,
+    IReadOnlyList<PlannedMealTaskDto> Tasks);
+
+/// <summary>
+/// Payload for completing a planned-meal task from The Log. The <see cref="Ref"/> is the task's stable
+/// correlation key (from <see cref="PlannedMealTaskDto.Ref"/>); the server resolves the meal and date
+/// from the active plan, so the client never has to restate nutrition.
+/// </summary>
+public sealed record CompletePlannedMealInput(
+    string Ref,
+    /// <summary>Defaults to today when omitted.</summary>
+    DateOnly? Date = null);
 
 /// <summary>
 /// Payload for logging a consumed item. Either reference the catalog (set <see cref="Source"/> to

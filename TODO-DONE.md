@@ -6,6 +6,50 @@
 
 ## Completed Items
 
+### Redesign `The Log` — 2026-06-10 CDT
+
+- [x] Renamed "Food Log" to "The Log" everywhere in the UI; it now follows along with the meal plan the user is currently following — that plan's meals for the day appear as checkable tasks that record real consumption when completed, while ad-hoc free-form/catalog logging remains available alongside.
+
+**NOTES:**
+
+**Design decisions**
+- **Persisting "currently-following plan":** stored as a new nullable scalar `AppUser.ActiveMealPlanId` (chosen over a separate settings entity — simplest robust option, matching the existing profile/`AppUser` pattern). Exposed on `CurrentUserDto` (so the client knows the current selection) and set via a new `PUT /api/me/active-plan` endpoint (delegating to `UserProfileService.SetActiveMealPlanAsync`, which validates the plan is visible to the user via `MealPlanService.GetAsync`, or clears it when null/blank). It is intentionally NOT a hard foreign key — a stale/deleted plan id simply yields no tasks.
+- **Deriving "today's planned meals":** added `MealPlanService.GetPlannedMealsForDateAsync(user, planId, date)` which reuses the existing resolve/nutrition pipeline (no duplicated nutrition math — same `ItemNutrition`/`MealNutritionCalculator.ComputeTotal` the plan summary uses). It mirrors the summary's day model exactly: a **Daily** plan contributes all scheduled meals; a **Weekly** plan contributes meals pinned to the date's day-of-week **plus** day-less scheduled meals (which apply every day). **Untimed *meal* items** appear as "anytime" tasks (no time); **untimed *ingredient* items** (e.g. water) are not meals and are excluded from tasks (they still count in the plan's own nutrition summary). Returns empty if the plan is missing/not visible.
+- **Modeling task completion / correlation:** added an optional `ConsumptionEntry.PlannedMealRef` (string). Completing a task creates a normal `ConsumptionEntry` (`Source=Meal`, the plan's `MealId`, `Servings=1`) tagged with a stable correlation key `planId:mealId:day:time` (`MealPlanService.PlannedMealRef(...)`). The Log matches a task to its completion entry by this ref so it renders checked and can be toggled off (which deletes the entry). **No double-counting:** the ref only correlates — nutrition rolls up through the normal per-entry path with zero special-casing, and completion is **idempotent** (re-completing the same ref+date returns the existing entry instead of logging a duplicate). A separate ad-hoc log of the same meal is a genuinely separate intake and counts on its own (verified by test); only ref-tagged entries match a task. The Log's "Also logged" section hides ref-tagged entries (shown as tasks) but the day total still includes everything.
+- **Provider-agnostic:** `ActiveMealPlanId` and `PlannedMealRef` are simple nullable strings (scalars) — no DbContext mapping changes needed; Cosmos and the in-memory provider handle them natively. Date filtering for completions reuses the existing in-memory `ListForUserAndDateAsync`.
+
+**New / changed API endpoints**
+- `PUT /api/me/active-plan` — **new**; body `ActiveMealPlanInput(MealPlanId?)`; returns the updated `CurrentUserDto`. Null/blank clears the selection.
+- `GET /api/me` — `CurrentUserDto` now also returns `ActiveMealPlanId`.
+- `GET /api/consumption/planned[?date=]` — **new**; returns `PlannedDayDto(Date, PlanId?, PlanName?, Tasks[])` where each `PlannedMealTaskDto` has `Ref, MealId, MealName?, Time?, Nutrition, Done, CompletedEntryId?`.
+- `POST /api/consumption/planned/complete` — **new**; body `CompletePlannedMealInput(Ref, Date?)`; records (idempotently) the completion entry, returns the `ConsumptionEntryDto`.
+- `POST /api/consumption/planned/uncomplete` — **new**; body `CompletePlannedMealInput(Ref, Date?)`; removes the completion entry (204).
+- `ConsumptionEntryDto` now also carries `PlannedMealRef?`.
+
+**Files changed (backend)**
+- `src/GoalFueled.Domain/Entities/AppUser.cs` — added `ActiveMealPlanId?`.
+- `src/GoalFueled.Domain/Entities/ConsumptionEntry.cs` — added `PlannedMealRef?`.
+- `src/GoalFueled.Domain/Contracts/UserDtos.cs` — extended `CurrentUserDto`; added `ActiveMealPlanInput`.
+- `src/GoalFueled.Domain/Contracts/ConsumptionDtos.cs` — extended `ConsumptionEntryDto`; added `PlannedMealTaskDto`, `PlannedDayDto`, `CompletePlannedMealInput`.
+- `src/GoalFueled.Api/Services/MealPlanService.cs` — added `GetPlannedMealsForDateAsync`, the `PlannedMealRef` key builder, `CanView` helper, and a `BuildTask` mapper (reusing existing nutrition logic).
+- `src/GoalFueled.Api/Services/ConsumptionService.cs` — now depends on `MealPlanService`; added `GetPlannedDayAsync`, `CompletePlannedMealAsync`, `UncompletePlannedMealAsync`; `ToDtoAsync` includes the ref; sets the ref on completion entries.
+- `src/GoalFueled.Api/Services/UserProfileService.cs` — now depends on `MealPlanService`; added `SetActiveMealPlanAsync`.
+- `src/GoalFueled.Api/Functions/UserFunctions.cs` — new `SetActiveMealPlan` endpoint; `ToDto` includes `ActiveMealPlanId`.
+- `src/GoalFueled.Api/Functions/ConsumptionFunctions.cs` — new `GetPlannedDay`, `CompletePlannedMeal`, `UncompletePlannedMeal` endpoints.
+- No `Program.cs`/DI changes needed (all services already registered; `ConsumptionService`/`UserProfileService` simply resolve the already-registered `MealPlanService`).
+
+**Files changed (frontend)**
+- `src/web/src/api/types.ts` — `CurrentUser.activeMealPlanId`; `ConsumptionEntry.plannedMealRef`; new `PlannedMealTask`, `PlannedDay`, `CompletePlannedMealInput`.
+- `src/web/src/api/services.ts` — `userApi.setActivePlan(id|null)`; `consumptionApi.plannedDay/completePlanned/uncompletePlanned`.
+- `src/web/src/components/Layout.tsx` — nav label "Food Log" → "The Log".
+- `src/web/src/pages/LogPage.tsx` — rewritten: title "The Log", a "Plan you're following" picker (persists via `setActivePlan` + auth `refresh`), a "Today's plan" task list with checkboxes (showing meal name, scheduled time, kcal, and a done count) wired to complete/uncomplete, and the existing ad-hoc "Log an item" form + "Also logged" list (ref-tagged completions filtered out of that list) + day-total nutrition retained. Route stays `/log`.
+
+**Tests**
+- `tests/GoalFueled.Tests/PlannedLogTests.cs` — **new**, 12 tests: active-plan selection persists & clears; rejects a non-visible plan; no-active-plan yields empty planned day; daily plan lists all scheduled meals; weekly plan lists only today's pinned + day-less meals; untimed meal items appear (ingredient items do not); completing records a `Source=Meal` 1-serving entry tagged with the ref and marks the task done (day total counts it once); completing twice is idempotent (no double count); un-completing removes the entry and resets the day total; a completed planned meal + an ad-hoc log of the same meal count separately; completing rejects an unknown ref / a missing active plan.
+- Updated setups in `ConsumptionServiceTests.cs`, `GoalServiceTests.cs`, `UserProfileServiceTests.cs` for the new `MealPlanService` dependency. `DependencyInjectionTests` needed no change (registrations unchanged).
+
+- Verified: `dotnet test -c Release` → **168/168 passed**; web `npm run build` ✓; `npm run lint` → **0 errors** (1 pre-existing `AuthContext.tsx` warning; no new warnings).
+
 ### Capture basic info during first login + Profile page — 2026-06-10 CDT
 
 - [x] First login now captures Sex at Birth, Height, Current Weight, and Goal one time; a new Profile page (`/profile`) lets users update them later.

@@ -100,6 +100,65 @@ public sealed class MealPlanService
         await _repo.DeleteAsync(plan, ct);
     }
 
+    // ---- "today's planned meals" (drives The Log) ----
+
+    /// <summary>
+    /// The meals the active plan schedules for a given <paramref name="date"/>, as completable tasks for
+    /// The Log. Mirrors the summary's day model: a Daily plan contributes all its scheduled meals; a Weekly
+    /// plan contributes meals pinned to the date's day-of-week plus day-less scheduled meals (which apply
+    /// every day). Untimed meal items are included as anytime tasks; untimed <em>ingredient</em> items (e.g.
+    /// water) are not "meals" and are excluded. Returns an empty list if the plan is missing or not visible
+    /// to <paramref name="user"/>. Each task carries the same meal-total nutrition the plan summary uses.
+    /// </summary>
+    public async Task<IReadOnlyList<PlannedMealTaskDto>> GetPlannedMealsForDateAsync(
+        AppUser user, string planId, DateOnly date, CancellationToken ct)
+    {
+        var plan = await _repo.GetByIdAsync(planId, ct);
+        if (plan is null || !CanView(plan, user)) return Array.Empty<PlannedMealTaskDto>();
+
+        var ctx = await ResolveAsync(new[] { plan }, ct);
+        var dayOfWeek = date.DayOfWeek;
+
+        // Scheduled meals that apply on this date. Daily plans apply every day (day pins are normalized
+        // away on save). Weekly plans: meals pinned to this weekday, plus day-less meals (every day).
+        var scheduledForDay = plan.Cadence == MealPlanCadence.Daily
+            ? plan.ScheduledMeals
+            : plan.ScheduledMeals.Where(s => s.DayOfWeek is null || s.DayOfWeek == dayOfWeek);
+
+        var tasks = new List<PlannedMealTaskDto>();
+        foreach (var s in scheduledForDay)
+        {
+            tasks.Add(BuildTask(plan.Id, s.MealId, s.DayOfWeek, s.Time, ctx));
+        }
+
+        // Untimed meal items are "anytime" tasks (no day pin, no time).
+        foreach (var item in plan.UntimedItems.Where(i => i.MealId is not null))
+        {
+            tasks.Add(BuildTask(plan.Id, item.MealId!, null, null, ctx));
+        }
+
+        return tasks;
+    }
+
+    private static PlannedMealTaskDto BuildTask(
+        string planId, string mealId, DayOfWeek? day, TimeOnly? time, ResolveContext ctx)
+    {
+        var nutrition = ItemNutrition(mealId, null, ctx);
+        var name = ctx.MealsById.TryGetValue(mealId, out var m) ? m.Name : null;
+        return new PlannedMealTaskDto(
+            PlannedMealRef(planId, mealId, day, time), mealId, name, time, nutrition,
+            Done: false, CompletedEntryId: null);
+    }
+
+    /// <summary>
+    /// A stable key correlating a planned-meal task with a completion <see cref="ConsumptionEntry"/> for a
+    /// given date: <c>planId:mealId:day:time</c>. Day/time disambiguate the same meal scheduled more than
+    /// once; a blank segment means "unset". The date is not part of the key — the entry already carries it.
+    /// </summary>
+    public static string PlannedMealRef(string planId, string mealId, DayOfWeek? day, TimeOnly? time) =>
+        $"{planId}:{mealId}:{(day is { } d ? ((int)d).ToString() : string.Empty)}:" +
+        (time?.ToString("HH\\:mm") ?? string.Empty);
+
     // ---- authorization ----
     // Plans are personal: only the owner (or an admin) may view or modify them. There is no app scope.
 
@@ -118,6 +177,9 @@ public sealed class MealPlanService
     }
 
     private static bool CanEdit(MealPlan p, AppUser user) =>
+        user.IsActingAsAdmin || p.OwnerUserId == user.Id;
+
+    private static bool CanView(MealPlan p, AppUser user) =>
         user.IsActingAsAdmin || p.OwnerUserId == user.Id;
 
     // ---- validation ----

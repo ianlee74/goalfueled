@@ -38,7 +38,7 @@ public class GoalServiceTests
             new RecipeRepository(db), new IngredientRepository(db));
         var consumption = new ConsumptionService(
             new ConsumptionEntryRepository(db), new MealRepository(db),
-            new RecipeRepository(db), new IngredientRepository(db));
+            new RecipeRepository(db), new IngredientRepository(db), plans);
         var goals = new GoalService(
             new GoalRepository(db), new WeightEntryRepository(db), new MealPlanRepository(db),
             new MealRepository(db), new RecipeRepository(db), new IngredientRepository(db), consumption);

@@ -53,6 +53,15 @@ public class ConsumptionEntry
     /// </summary>
     public List<NutrientAmount> Nutrition { get; set; } = new();
 
+    /// <summary>
+    /// Set when this entry was created by <em>completing a planned-meal task</em> in The Log: a stable key
+    /// (<c>planId:mealId:day:time</c>) that correlates the completion with one specific task of the active
+    /// plan on this <see cref="Date"/>. Lets The Log render the task as checked and toggle it off again.
+    /// Null for ad-hoc entries. It only correlates; nutrition still rolls up the normal way (no special
+    /// casing), so totals never double-count.
+    /// </summary>
+    public string? PlannedMealRef { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;

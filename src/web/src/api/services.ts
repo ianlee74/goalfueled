@@ -1,9 +1,9 @@
 import { api } from './client'
 import type {
-  AdminUser, ConsumptionDay, ConsumptionEntry, ConsumptionEntryInput,
+  AdminUser, CompletePlannedMealInput, ConsumptionDay, ConsumptionEntry, ConsumptionEntryInput,
   CurrentUser, Goal, GoalInput, Ingredient, IngredientInput, Meal, MealInput,
   MealPlan, MealPlanInput, NutrientDefinition, NutritionLookupResult, OnboardingInput,
-  ProfileInput, Recipe, RecipeInput, WeightEntry, WeightEntryInput,
+  PlannedDay, ProfileInput, Recipe, RecipeInput, WeightEntry, WeightEntryInput,
 } from './types'
 
 export const userApi = {
@@ -14,6 +14,9 @@ export const userApi = {
     api.put<CurrentUser>('/me/profile', input),
   setAdminView: (enabled: boolean) =>
     api.post<CurrentUser>('/me/admin-view', { enabled }),
+  // Choose (or clear, with null) the meal plan the user is currently following.
+  setActivePlan: (mealPlanId: string | null) =>
+    api.put<CurrentUser>('/me/active-plan', { mealPlanId }),
 }
 
 // Admin-only user management. Endpoints return 403 unless the caller is acting as an admin.
@@ -98,6 +101,15 @@ export const consumptionApi = {
   // Logs a consumed item (catalog meal/recipe or free-form).
   log: (input: ConsumptionEntryInput) => api.post<ConsumptionEntry>('/consumption', input),
   remove: (id: string) => api.del(`/consumption/${id}`),
+  // The active plan's planned-meal tasks for a day (each flagged done when completed).
+  plannedDay: (date?: string) =>
+    api.get<PlannedDay>(`/consumption/planned${date ? `?date=${date}` : ''}`),
+  // Completes a planned-meal task (records a consumption entry tagged with its ref).
+  completePlanned: (input: CompletePlannedMealInput) =>
+    api.post<ConsumptionEntry>('/consumption/planned/complete', input),
+  // Un-completes a planned-meal task (removes its completion entry).
+  uncompletePlanned: (input: CompletePlannedMealInput) =>
+    api.post<void>('/consumption/planned/uncomplete', input),
 }
 
 export const nutrientApi = {

@@ -13,7 +13,9 @@ public sealed record CurrentUserDto(
     GoalType? PrimaryGoal,
     SexAtBirth? SexAtBirth,
     double? HeightCm,
-    bool HasCompletedOnboarding);
+    bool HasCompletedOnboarding,
+    /// <summary>The meal plan the user is currently following (drives The Log); null if none chosen.</summary>
+    string? ActiveMealPlanId);
 
 /// <summary>
 /// Payload for completing the first-login welcome flow. Captures the basic profile info gathered
@@ -40,6 +42,12 @@ public sealed record ProfileInput(
 
 /// <summary>Payload for an admin toggling their admin-view on or off.</summary>
 public sealed record AdminViewInput(bool Enabled);
+
+/// <summary>
+/// Payload for choosing (or clearing) the meal plan the user is currently following. A null/blank
+/// <see cref="MealPlanId"/> clears the selection so The Log reverts to a plain free-form log.
+/// </summary>
+public sealed record ActiveMealPlanInput(string? MealPlanId);
 
 /// <summary>A user as shown on the admin user-management screen.</summary>
 public sealed record AdminUserDto(

@@ -17,11 +17,13 @@ public sealed class UserProfileService
 {
     private readonly IUserRepository _users;
     private readonly WeightService _weights;
+    private readonly MealPlanService _plans;
 
-    public UserProfileService(IUserRepository users, WeightService weights)
+    public UserProfileService(IUserRepository users, WeightService weights, MealPlanService plans)
     {
         _users = users;
         _weights = weights;
+        _plans = plans;
     }
 
     /// <summary>
@@ -67,6 +69,27 @@ public sealed class UserProfileService
         user.PrimaryGoal = input.PrimaryGoal;
         user.SexAtBirth = input.SexAtBirth;
         user.HeightCm = input.HeightCm;
+        await _users.UpdateAsync(user, ct);
+        return user;
+    }
+
+    /// <summary>
+    /// Chooses (or clears) the meal plan the user is currently following — the one The Log follows along
+    /// with. A null/blank id clears the selection; a non-blank id must reference a plan the user can view.
+    /// </summary>
+    public async Task<AppUser> SetActiveMealPlanAsync(AppUser user, ActiveMealPlanInput input, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(input.MealPlanId))
+        {
+            user.ActiveMealPlanId = null;
+        }
+        else
+        {
+            // GetAsync enforces visibility and throws NotFound if the plan is missing/not the user's.
+            var plan = await _plans.GetAsync(user, input.MealPlanId, ct);
+            user.ActiveMealPlanId = plan.Id;
+        }
+
         await _users.UpdateAsync(user, ct);
         return user;
     }

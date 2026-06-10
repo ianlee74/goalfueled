@@ -48,6 +48,8 @@ export interface CurrentUser {
   // Height stored canonically in centimeters; the UI converts to/from ft/in.
   heightCm?: number
   hasCompletedOnboarding: boolean
+  // The meal plan the user is currently following (drives The Log); absent if none chosen.
+  activeMealPlanId?: string
 }
 
 /** Payload for completing the first-login welcome flow. */
@@ -344,6 +346,39 @@ export interface ConsumptionEntry {
   sourceMissing: boolean
   createdAt: string
   updatedAt: string
+  // Correlation key when this entry completed a planned-meal task; absent for ad-hoc entries.
+  plannedMealRef?: string
+}
+
+/** A planned-meal task in The Log: a meal the active plan schedules for the day, shown as checkable. */
+export interface PlannedMealTask {
+  // Stable correlation key for this task on this date.
+  ref: string
+  mealId: string
+  // Resolved meal name (absent if the meal is no longer visible/exists).
+  mealName?: string
+  // Scheduled time of day, "HH:mm:ss"; absent for an untimed/anytime task.
+  time?: string
+  nutrition: NutrientAmount[]
+  done: boolean
+  // Id of the consumption entry that completed this task, when done.
+  completedEntryId?: string
+}
+
+/** The active plan's tasks for a day. A null planId means no active plan is selected. */
+export interface PlannedDay {
+  // The day, "yyyy-MM-dd".
+  date: string
+  planId?: string
+  planName?: string
+  tasks: PlannedMealTask[]
+}
+
+/** Payload for completing/un-completing a planned-meal task in The Log. */
+export interface CompletePlannedMealInput {
+  ref: string
+  // Optional "yyyy-MM-dd"; defaults to today server-side when omitted.
+  date?: string
 }
 
 export interface ConsumptionDay {

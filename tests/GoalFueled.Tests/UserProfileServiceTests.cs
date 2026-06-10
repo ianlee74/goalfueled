@@ -19,7 +19,10 @@ public class UserProfileServiceTests
             .GetCurrentUserAsync(TestHelpers.BlankRequest());
         var repo = new UserRepository(db);
         var weights = new WeightService(new WeightEntryRepository(db));
-        return (user!, repo, weights, new UserProfileService(repo, weights));
+        var plans = new MealPlanService(
+            new MealPlanRepository(db), new MealRepository(db),
+            new RecipeRepository(db), new IngredientRepository(db));
+        return (user!, repo, weights, new UserProfileService(repo, weights, plans));
     }
 
     private static OnboardingInput Onboarding(

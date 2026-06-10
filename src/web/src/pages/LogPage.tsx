@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
-import { consumptionApi, mealApi, recipeApi } from '../api/services'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { consumptionApi, mealApi, mealPlanApi, recipeApi, userApi } from '../api/services'
+import { useAuth } from '../auth/AuthContext'
 import { NutritionLabel } from '../components/NutritionLabel'
 import {
   CONSUMPTION_SOURCE_LABELS,
-  type ConsumptionDay, type ConsumptionSource, type Meal, type Recipe,
+  type ConsumptionDay, type ConsumptionSource, type Meal, type MealPlan,
+  type PlannedDay, type Recipe,
 } from '../api/types'
 
 // Today's calendar date as "yyyy-MM-dd" in the user's local time.
@@ -17,18 +19,37 @@ function round(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(1)
 }
 
+// "08:30:00" → "8:30 AM"; blank/undefined → "Anytime".
+function formatTime(t?: string): string {
+  if (!t) return 'Anytime'
+  const [hStr, m] = t.split(':')
+  const h = Number(hStr)
+  const period = h < 12 ? 'AM' : 'PM'
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  return `${h12}:${m} ${period}`
+}
+
 export function LogPage() {
   const today = todayIso()
+  const { profile, refresh } = useAuth()
+  const activePlanId = profile?.activeMealPlanId ?? ''
+
   const [date, setDate] = useState(today)
   const [day, setDay] = useState<ConsumptionDay | null>(null)
+  const [planned, setPlanned] = useState<PlannedDay | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Catalog pickers (the user's own + app-level + public).
+  // The user's meal plans, for the "currently following" picker.
+  const [plans, setPlans] = useState<MealPlan[]>([])
+  const [savingPlan, setSavingPlan] = useState(false)
+  const [togglingRef, setTogglingRef] = useState<string | null>(null)
+
+  // Catalog pickers (the user's own + app-level + public) for the ad-hoc log.
   const [meals, setMeals] = useState<Meal[]>([])
   const [recipes, setRecipes] = useState<Recipe[]>([])
 
-  // Add-entry form state.
+  // Ad-hoc add-entry form state.
   const [source, setSource] = useState<ConsumptionSource>('Meal')
   const [sourceId, setSourceId] = useState('')
   const [servings, setServings] = useState('1')
@@ -36,28 +57,38 @@ export function LogPage() {
   const [freeCalories, setFreeCalories] = useState('')
   const [saving, setSaving] = useState(false)
 
-  // Load catalog options once.
+  // Load catalog + plan options once.
   useEffect(() => {
     let cancelled = false
-    Promise.all([mealApi.list(), recipeApi.list()])
-      .then(([m, r]) => { if (!cancelled) { setMeals(m); setRecipes(r) } })
+    Promise.all([mealApi.list(), recipeApi.list(), mealPlanApi.list()])
+      .then(([m, r, p]) => { if (!cancelled) { setMeals(m); setRecipes(r); setPlans(p) } })
       .catch(() => {})
     return () => { cancelled = true }
   }, [])
 
-  // Load the selected day's log whenever the date changes.
+  // Reload the day's log + planned tasks (used by action handlers after a mutation).
+  const reload = useCallback(async () => {
+    const [d, pl] = await Promise.all([
+      consumptionApi.day(date),
+      consumptionApi.plannedDay(date),
+    ])
+    setDay(d)
+    setPlanned(pl)
+  }, [date])
+
+  // Load the day's log + planned tasks whenever the date or the active plan changes. The setState calls
+  // live in the async callbacks (not synchronously in the effect body) to avoid cascading renders.
   useEffect(() => {
     let cancelled = false
-    consumptionApi.day(date)
-      .then((d) => { if (!cancelled) setDay(d) })
+    Promise.all([consumptionApi.day(date), consumptionApi.plannedDay(date)])
+      .then(([d, pl]) => { if (!cancelled) { setDay(d); setPlanned(pl) } })
       .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load the log.') })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [date])
+    // activePlanId is included so switching plans refreshes the tasks.
+  }, [date, activePlanId])
 
   const options = source === 'Recipe' ? recipes : meals
-  // The effective catalog selection: the chosen id if still valid, else the first option. Derived
-  // (not stored) so it stays in sync with the source/options without a setState-in-effect.
   const effectiveSourceId = source === 'FreeForm'
     ? ''
     : (options.some((o) => o.id === sourceId) ? sourceId : (options[0]?.id ?? ''))
@@ -66,6 +97,33 @@ export function LogPage() {
   const totalCalories = useMemo(
     () => dayTotal.find((n) => n.nutrientId === 'calories')?.value ?? 0,
     [dayTotal])
+
+  async function choosePlan(planId: string) {
+    setError(null)
+    setSavingPlan(true)
+    try {
+      await userApi.setActivePlan(planId || null)
+      await refresh() // updates profile.activeMealPlanId → effect reloads tasks
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to set the plan.')
+    } finally {
+      setSavingPlan(false)
+    }
+  }
+
+  async function toggleTask(ref: string, done: boolean) {
+    setError(null)
+    setTogglingRef(ref)
+    try {
+      if (done) await consumptionApi.uncompletePlanned({ ref, date })
+      else await consumptionApi.completePlanned({ ref, date })
+      await reload()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to update the task.')
+    } finally {
+      setTogglingRef(null)
+    }
+  }
 
   async function add() {
     setError(null)
@@ -83,8 +141,7 @@ export function LogPage() {
         if (!effectiveSourceId) { setError(`Select a ${source.toLowerCase()} to log.`); setSaving(false); return }
         await consumptionApi.log({ source, sourceId: effectiveSourceId, servings: qty, date })
       }
-      // Reload the day so totals reflect the new entry.
-      setDay(await consumptionApi.day(date))
+      await reload()
       setServings('1')
       setFreeName('')
       setFreeCalories('')
@@ -99,18 +156,21 @@ export function LogPage() {
     setError(null)
     try {
       await consumptionApi.remove(id)
-      setDay(await consumptionApi.day(date))
+      await reload()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to remove item.')
     }
   }
 
-  const entries = day?.entries ?? []
+  const tasks = planned?.tasks ?? []
+  const doneCount = tasks.filter((t) => t.done).length
+  // Ad-hoc entries are everything not created by completing a planned task (those show as tasks above).
+  const adHocEntries = (day?.entries ?? []).filter((e) => !e.plannedMealRef)
 
   return (
     <div className="stack">
       <div className="row spread">
-        <h1>Food Log</h1>
+        <h1>The Log</h1>
         <label className="field">
           Date
           <input
@@ -125,8 +185,84 @@ export function LogPage() {
 
       {error && <div className="notice error">{error}</div>}
 
+      {/* Currently-following plan picker. */}
+      <div className="card stack">
+        <h2>Plan you're following</h2>
+        <label className="field" style={{ maxWidth: '20rem' }}>
+          Meal plan
+          <select
+            className="select"
+            value={activePlanId}
+            disabled={savingPlan}
+            onChange={(e) => choosePlan(e.target.value)}
+          >
+            <option value="">None — free-form log only</option>
+            {plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </label>
+        {!activePlanId && (
+          <p className="muted small" style={{ margin: 0 }}>
+            {plans.length === 0
+              ? 'Create a meal plan to follow it here, or just log items freely below.'
+              : 'Choose a plan to see its meals for the day as tasks to check off.'}
+          </p>
+        )}
+      </div>
+
+      {/* Plan-driven tasks for the selected day. */}
+      {activePlanId && (
+        <div className="card stack">
+          <div className="row spread">
+            <h2>Today's plan{planned?.planName ? `: ${planned.planName}` : ''}</h2>
+            {tasks.length > 0 && (
+              <span className="small muted">{doneCount} / {tasks.length} done</span>
+            )}
+          </div>
+
+          {loading && tasks.length === 0 && <p className="muted">Loading…</p>}
+          {!loading && tasks.length === 0 && (
+            <p className="muted small" style={{ margin: 0 }}>
+              This plan has no meals scheduled for this day.
+            </p>
+          )}
+
+          <div className="list">
+            {tasks.map((t) => {
+              const kcal = t.nutrition.find((n) => n.nutrientId === 'calories')?.value
+              return (
+                <label
+                  key={t.ref}
+                  className="card ingredient-item"
+                  style={{ cursor: 'pointer', opacity: t.done ? 0.7 : 1 }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={t.done}
+                    disabled={togglingRef === t.ref}
+                    onChange={() => toggleTask(t.ref, t.done)}
+                    style={{ width: '1.25rem', height: '1.25rem' }}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <strong style={{ textDecoration: t.done ? 'line-through' : 'none' }}>
+                      {t.mealName ?? '(meal removed)'}
+                    </strong>
+                    <div className="small muted">
+                      {formatTime(t.time)}
+                      {kcal != null && ` · ${Math.round(kcal)} kcal`}
+                    </div>
+                  </div>
+                </label>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="card stack">
         <h2>Log an item</h2>
+        <p className="muted small" style={{ margin: 0 }}>
+          Log anything you ate outside the plan (or with no plan).
+        </p>
         <div className="row" style={{ gap: '0.5rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <label className="field">
             Type
@@ -199,17 +335,17 @@ export function LogPage() {
 
       <div className="card stack">
         <div className="row spread">
-          <h2>Logged{date === today ? ' today' : ''}</h2>
+          <h2>Also logged{date === today ? ' today' : ''}</h2>
           <span className="small muted">{Math.round(totalCalories)} kcal total</span>
         </div>
 
-        {loading && entries.length === 0 && <p className="muted">Loading…</p>}
-        {!loading && entries.length === 0 && (
-          <p className="muted small" style={{ margin: 0 }}>Nothing logged for this day yet.</p>
+        {loading && adHocEntries.length === 0 && <p className="muted">Loading…</p>}
+        {!loading && adHocEntries.length === 0 && (
+          <p className="muted small" style={{ margin: 0 }}>Nothing logged outside the plan for this day.</p>
         )}
 
         <div className="list">
-          {entries.map((e) => {
+          {adHocEntries.map((e) => {
             const kcal = e.nutrition.find((n) => n.nutrientId === 'calories')?.value
             return (
               <div key={e.id} className="card ingredient-item">
