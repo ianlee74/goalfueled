@@ -261,6 +261,9 @@ label.field .hint { font-weight: 400; color: var(--muted); font-size: 0.8rem; }
 .log-plan > summary::-webkit-details-marker { display: none; }
 .log-plan > summary:hover { color: var(--primary-dark); }
 
+/* The Log: day-at-a-glance net-by-hour chart. Cap its height so the SVG doesn't dominate the page. */
+.log-chart svg { max-height: 200px; }
+
 /* The Log: timeline section labels ("Planned" / "Done") and the start-of-day Kindle line. */
 .log-section-label { text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; }
 .log-kindle { opacity: 0.85; border-style: dashed; }

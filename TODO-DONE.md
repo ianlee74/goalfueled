@@ -6,6 +6,18 @@
 
 ## Completed Items
 
+### Add a daily progress chart to The Log — 2026-06-10 CDT
+
+- [x] **Added a "Net calories by hour" line chart** to The Log's summary section, plotting **actual vs expected** cumulative net calories across the day, with the Kindle (passive) burn averaged evenly across the 24h day.
+
+**NOTES:**
+- **Frontend-only** (no backend change) — all data already loads on `LogPage`. New dependency-free inline-SVG component `src/web/src/components/DailyProgressChart.tsx`, modeled on `NetBalanceChart.tsx` (same viewBox/padding/color-var house style, `<title>` tooltips, `aria-label`).
+- **Placement:** a `card stack log-chart` with heading "Net calories by hour · actual vs expected", inserted directly below the `log-totals` header card (top of the day-at-a-glance summary).
+- **Expected line** (muted, dashed): cumulative planned-meal calories scheduled at/before hour h, minus `kindleCost·(h/24)`; spans the full day. *Anytime* (untimed) meals are placed at end-of-day (hour 24); *skipped* meals are excluded (won't be eaten).
+- **Actual line** (brand primary, solid): cumulative logged fuel (all `day.entries`, both planned-completed and ad-hoc) minus burn (placed by burn `time` when present else `createdAt`) minus `kindleCost·(h/24)`. For **today** the actual line stops at the current hour; for a **past** day both lines span 0→24.
+- Kindle averaged as `kindleCost·(h/24)` for both lines (treated as 0 when the profile is incomplete). The chart card hides entirely when there's nothing to plot (`hasChartData` guard). Added `.log-chart svg { max-height: 200px; }` to `index.css`.
+- Verified: `npm run build` + `npm run lint` (0 errors, only the pre-existing `AuthContext.tsx` warning).
+
 ### Rename "Still to do" to "Planned" in The Log — 2026-06-10 CDT
 
 - [x] **Renamed the "Still to do" section label to "Planned"** in The Log's timeline (the pinned block of pending planned meals + due weigh-in).

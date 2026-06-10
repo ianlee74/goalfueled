@@ -4,6 +4,7 @@ import { burnApi, consumptionApi, mealApi, mealPlanApi, recipeApi, userApi } fro
 import { useAuth } from '../auth/AuthContext'
 import { NutritionLabel } from '../components/NutritionLabel'
 import { FuelBurnIcon } from '../components/FuelBurnIcon'
+import { DailyProgressChart } from '../components/DailyProgressChart'
 import {
   CONSUMPTION_SOURCE_LABELS, WEIGHT_UNIT_LABELS,
   type BurnActivity, type BurnDay, type BurnSuggestion,
@@ -176,6 +177,16 @@ export function LogPage() {
   // weight. Undefined when the profile is incomplete (we then prompt the user instead of subtracting it).
   const kindleCost = burnDay?.kindleCost
   const netCalories = totalCalories - totalBurned - (kindleCost ?? 0)
+
+  // How far the ACTUAL line should be drawn: through the current hour for today (no future data), or the
+  // full day for a past date. Updated each render via `date`/`today` (no live ticking needed).
+  const actualMaxHour = date === today ? new Date().getHours() : 24
+  // The day-at-a-glance chart is worth showing only once there's something to plot.
+  const hasChartData =
+    (planned?.tasks.some((t) => !t.skipped) ?? false) ||
+    (day?.entries.length ?? 0) > 0 ||
+    (burnDay?.activities.length ?? 0) > 0 ||
+    kindleCost != null
 
   async function choosePlan(planId: string) {
     setError(null)
@@ -398,6 +409,20 @@ export function LogPage() {
           emphasis
         />
       </div>
+
+      {/* Day-at-a-glance: cumulative net calories by hour, actual vs the plan's expected trajectory. */}
+      {hasChartData && (
+        <div className="card stack log-chart">
+          <h2>Net calories by hour <span className="muted small">actual vs expected</span></h2>
+          <DailyProgressChart
+            tasks={planned?.tasks ?? []}
+            entries={day?.entries ?? []}
+            activities={burnDay?.activities ?? []}
+            kindleCost={kindleCost}
+            actualMaxHour={actualMaxHour}
+          />
+        </div>
+      )}
 
       {/* Compact, rarely-changed plan picker collapsed into a one-line disclosure. */}
       <details className="card log-plan">
