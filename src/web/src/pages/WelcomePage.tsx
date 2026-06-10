@@ -27,7 +27,7 @@ export function WelcomePage() {
   async function submit() {
     setError(null)
     if (!fields.sex) { setError('Please select your sex at birth.'); return }
-    if (!fields.dob) { setError('Please enter your date of birth.'); return }
+    if (!fields.dob) { setError('Please enter your year of birth.'); return }
     if (!(fields.heightCm && fields.heightCm > 0)) { setError('Please enter your height.'); return }
     const weight = Number(fields.weight)
     if (!(weight > 0)) { setError('Please enter your current weight.'); return }

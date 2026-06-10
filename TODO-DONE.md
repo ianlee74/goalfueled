@@ -6,6 +6,17 @@
 
 ## Completed Items
 
+### Collect only the user's year of birth — 2026-06-10 CDT
+
+- [x] **The profile now collects only the user's year of birth** (not a full date of birth) to avoid storing private data. In age calculations, January 1 of the birth year is used as the date of birth.
+
+**NOTES:**
+- **Minimal-churn approach:** the backend storage and wire contract are unchanged — `AppUser.DateOfBirth` stays `DateOnly?` and the DTO field stays `dateOfBirth` ("yyyy-MM-dd"). The UI simply stores `"{year}-01-01"`. `KindleCostCalculator.AgeOn` is year-based math, so age calcs already "use Jan 1 of the birth year" with no backend change.
+- `ProfileFields.tsx`: replaced the `type="date"` "Date of birth" input with a bounded `type="number"` "Year of birth" input (min 1900, max current year, no future years), with `birthYear`/`setBirthYear` conversion helpers (reads the year by slicing the stored value, writes back `${year}-01-01`). Removed the now-unused `todayIso` helper. `ProfileFieldsValue.dob` kept as the "yyyy-MM-dd" string (no new field).
+- `WelcomePage.tsx` / `ProfilePage.tsx`: validation messages updated to "…year of birth."
+- Legacy rows with a real month/day still display the correct year and normalize to Jan 1 on next save.
+- Verified: frontend `npm run build` + `npm run lint` (0 errors, only the pre-existing `AuthContext.tsx` warning); backend `dotnet build` (0 warnings/errors) + `dotnet test` (238 passed).
+
 ### Rework The Log into a single chronological timeline — 2026-06-10 CDT
 
 - [x] **The Log is now a single chronological day timeline** instead of separate `Fuel` and `Burn` sections. Top of the page shows a **totals header** (Fuel / Burn / Net Calories). The meal-plan picker is collapsed into a compact one-line disclosure. Adding ad-hoc fuel/burn is now behind **`+ Add fuel`** / **`+ Add burn`** buttons (forms toggle inline) rather than always-visible forms. A single timeline lists the day's events latest-first; **pending planned items float to the top** ("Still to do": planned fuel tasks + a due weigh-in), completed events sort by time-of-day, and **Kindle** sits at the bottom as the day's passive baseline (start of day).

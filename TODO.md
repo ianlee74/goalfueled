@@ -6,6 +6,18 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
+- [] **Add personal data need explaination**: On the profile where we ask for their sex, year of birth, and height let's add a note to the user that explains that we need this data to calculate their `Kindle` weight. Explain what that is. Tell the user that we will never share this information with anyone without their permission.
+
+- [] **Add option to include time when adding `burn`**: when adding a `burn` log entry, the user should be able to specify a time that the burn occured if desired. It should default to the current time.
+
+- [] **Add an option to skip a meal in the log**: if a planned meal is skipped, the user should be able to remove it from the "still to do" of the log.
+
+- [] **Rename `Still to do` as `Planned`**: in `The Log`
+
+- [] **Add a daily progress chart to `The Log`**: in the summary section of `The Log`, show a line graph that shows actual/vs expected net calories by the hour of the current day. `Kindle` burn should be averaged across the entire day.
+
+- [] **Allow user to modify a planned meal**: when logging a planned meal in `The Log`, a user should be able to modify the meal to indicate that they ate more or less than planned of parts of the meal. Allow them to adjust the serving size.
+
 ## FUTURE FEATURES
 
 >[AI Agent] skip ALL items in this section.

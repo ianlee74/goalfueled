@@ -11,7 +11,11 @@ import { cmToFtIn, ftInToCm, type HeightUnit } from '../lib/height'
  */
 export interface ProfileFieldsValue {
   sex: SexAtBirth | ''
-  /** Date of birth as "yyyy-MM-dd" (the native date input's value); '' when unset. */
+  /**
+   * Date of birth as "yyyy-MM-dd"; '' when unset. We only ever collect the user's *year* of birth
+   * (to avoid storing a precise birth date), so this is always "{year}-01-01" — January 1 of the
+   * entered year, which is what age calculations use. See {@link ProfileFields} for the year input.
+   */
   dob: string
   heightCm: number | null
   heightUnit: HeightUnit
@@ -34,11 +38,14 @@ export function ProfileFields({ value, onChange, disabled, showWeight = true }: 
   }
 
   const ft = value.heightCm != null ? cmToFtIn(value.heightCm) : { feet: 0, inches: 0 }
-  // Today as "yyyy-MM-dd" in local time, to cap the date-of-birth picker (no future DOBs).
-  const todayIso = (() => {
-    const now = new Date()
-    return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10)
-  })()
+  // We collect only the year of birth (no month/day) and store it as January 1 of that year. The
+  // year input is bounded to 1900..current year (no future years); the stored dob is "{year}-01-01".
+  const currentYear = new Date().getFullYear()
+  const birthYear = value.dob ? value.dob.slice(0, 4) : ''
+
+  function setBirthYear(yearText: string) {
+    set('dob', yearText ? `${yearText}-01-01` : '')
+  }
 
   function setFtIn(feet: number, inches: number) {
     set('heightCm', ftInToCm(feet, inches))
@@ -61,14 +68,18 @@ export function ProfileFields({ value, onChange, disabled, showWeight = true }: 
       </label>
 
       <label className="field">
-        Date of birth
+        Year of birth
         <input
           className="input"
-          type="date"
-          value={value.dob}
-          max={todayIso}
+          type="number"
+          inputMode="numeric"
+          min="1900"
+          max={currentYear}
+          step="1"
+          placeholder="e.g. 1990"
+          value={birthYear}
           disabled={disabled}
-          onChange={(e) => set('dob', e.target.value)}
+          onChange={(e) => setBirthYear(e.target.value)}
         />
       </label>
 
