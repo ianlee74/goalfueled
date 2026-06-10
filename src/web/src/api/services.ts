@@ -112,7 +112,10 @@ export const consumptionApi = {
   // Completes a planned-meal task (records a consumption entry tagged with its ref).
   completePlanned: (input: CompletePlannedMealInput) =>
     api.post<ConsumptionEntry>('/consumption/planned/complete', input),
-  // Un-completes a planned-meal task (removes its completion entry).
+  // Skips a planned-meal task (records a zero-nutrition skip entry tagged with its ref).
+  skipPlanned: (input: CompletePlannedMealInput) =>
+    api.post<ConsumptionEntry>('/consumption/planned/skip', input),
+  // Un-completes a planned-meal task (removes its completion entry). Also undoes a skip (same entry/ref).
   uncompletePlanned: (input: CompletePlannedMealInput) =>
     api.post<void>('/consumption/planned/uncomplete', input),
 }

@@ -6,6 +6,17 @@
 
 ## Completed Items
 
+### Add an option to skip a planned meal in The Log — 2026-06-10 CDT
+
+- [x] **Users can now skip a planned meal**, removing it from the "Still to do" list. A skipped meal contributes no nutrition, persists across reloads, and can be undone.
+
+**NOTES:**
+- **Approach (flag, reusing the existing correlation mechanism):** a skip is a `ConsumptionEntry` tagged with the task's `PlannedMealRef` and `Skipped = true`, carrying zero nutrition (`FreeForm`, `Servings = 0`, empty `Nutrition`). No new entity/repo/DI. Unskip reuses the existing uncomplete endpoint (deletes any entry for the ref).
+- **Backend:** added `bool Skipped` to `ConsumptionEntry`; trailing optional `bool Skipped = false` on `PlannedMealTaskDto`; `SkipPlannedMealAsync` in `ConsumptionService`; new `consumption/planned/skip` POST endpoint. `GetPlannedDayAsync` marks a task `Skipped` (not `Done`) when its correlated entry is a skip (real completion still takes precedence). Skipped entries are excluded from `GetDayAsync` (entries list + `TotalNutrition`) and from `DailyNutritionInRangeAsync` (goal/dashboard roll-ups), and `DashboardService`'s upcoming-meal filter now excludes them. Plain `bool` maps natively — no DbContext change.
+- **Frontend:** `skipped?: boolean` on `PlannedMealTask`; `consumptionApi.skipPlanned(...)` (undo reuses `uncompletePlanned`). The pending list is now `!t.done && !t.skipped`; `PlannedMealRow` gained a small "Skip" button (outside the complete checkbox `<label>`); skipped meals render in a muted "Skipped" section with an "Undo" button; a `skippingRef` busy state disables buttons mid-request.
+- **Tests:** +6 in `PlannedLogTests.cs` (skip marks Skipped/not-Done & drops from pending with no nutrition; excluded from daily roll-up; idempotent; unskip restores; skipping a completed task replaces the completion & clears nutrition; skip rejects an unknown ref).
+- Verified: backend `dotnet build` (0 warnings/errors) + `dotnet test` (244 passed); frontend `npm run build` + `npm run lint` (0 errors, only the pre-existing `AuthContext.tsx` warning).
+
 ### Add an optional time when adding a burn entry — 2026-06-10 CDT
 
 - [x] **Burn (exercise) log entries now accept an optional time of day**, defaulting to the current time. The specified time orders and labels the burn in The Log's chronological timeline.

@@ -6,8 +6,6 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-- [] **Add an option to skip a meal in the log**: if a planned meal is skipped, the user should be able to remove it from the "still to do" of the log.
-
 - [] **Rename `Still to do` as `Planned`**: in `The Log`
 
 - [] **Add a daily progress chart to `The Log`**: in the summary section of `The Log`, show a line graph that shows actual/vs expected net calories by the hour of the current day. `Kindle` burn should be averaged across the entire day.

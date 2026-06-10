@@ -71,6 +71,16 @@ public sealed class ConsumptionFunctions
             return HttpResults.Created(saved);
         });
 
+    [Function("SkipPlannedMeal")]
+    public Task<IActionResult> SkipPlannedMeal(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "consumption/planned/skip")] HttpRequest req) =>
+        ApiEndpoint.RunAuthenticated(req, _auth, async user =>
+        {
+            var input = await HttpResults.ReadJsonAsync<CompletePlannedMealInput>(req, req.HttpContext.RequestAborted);
+            var saved = await _consumption.SkipPlannedMealAsync(user, input, req.HttpContext.RequestAborted);
+            return HttpResults.Created(saved);
+        });
+
     [Function("UncompletePlannedMeal")]
     public Task<IActionResult> UncompletePlannedMeal(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "consumption/planned/uncomplete")] HttpRequest req) =>

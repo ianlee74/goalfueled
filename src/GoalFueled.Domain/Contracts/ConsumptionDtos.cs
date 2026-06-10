@@ -57,7 +57,14 @@ public sealed record PlannedMealTaskDto(
     IReadOnlyList<NutrientAmount> Nutrition,
     bool Done,
     /// <summary>Id of the consumption entry that completed this task, when <see cref="Done"/> is true.</summary>
-    string? CompletedEntryId);
+    string? CompletedEntryId,
+    /// <summary>
+    /// True when the user has <em>skipped</em> this planned meal (a skip entry exists for its ref). A skipped
+    /// task is neither <see cref="Done"/> nor pending; it is dropped from the "still to do" list and adds no
+    /// nutrition. Mutually exclusive with <see cref="Done"/> in practice (one entry per ref). Trailing optional
+    /// so existing positional constructions keep working.
+    /// </summary>
+    bool Skipped = false);
 
 /// <summary>
 /// The active plan's tasks for a single day, surfaced in The Log. Empty <see cref="Tasks"/> with a null

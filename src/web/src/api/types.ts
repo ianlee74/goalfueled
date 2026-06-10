@@ -392,6 +392,8 @@ export interface PlannedMealTask {
   done: boolean
   // Id of the consumption entry that completed this task, when done.
   completedEntryId?: string
+  // True when the user has skipped this planned meal: it's dropped from "still to do" and adds no nutrition.
+  skipped?: boolean
 }
 
 /** The recurring "Log your weight" task, present only on days a measurement is due. */

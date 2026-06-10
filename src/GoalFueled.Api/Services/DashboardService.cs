@@ -80,7 +80,7 @@ public sealed class DashboardService
 
         // Today: incomplete tasks at/after now, timed (by time) before untimed ("anytime").
         var todayUpcoming = plannedToday.Tasks
-            .Where(t => !t.Done)
+            .Where(t => !t.Done && !t.Skipped)
             .Where(t => t.Time is null || t.Time >= nowTime)
             .OrderBy(t => t.Time is null) // timed first (false sorts before true)
             .ThenBy(t => t.Time ?? TimeOnly.MaxValue);

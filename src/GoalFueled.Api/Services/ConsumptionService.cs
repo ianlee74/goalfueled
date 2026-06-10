@@ -50,7 +50,11 @@ public sealed class ConsumptionService
     public async Task<ConsumptionDayDto> GetDayAsync(AppUser user, DateOnly? date, CancellationToken ct)
     {
         var day = date ?? DateOnly.FromDateTime(DateTime.UtcNow);
-        var entries = await _repo.ListForUserAndDateAsync(user.Id, day, ct);
+        // Skip entries are bookkeeping only — they correlate a skipped task but are not eaten items, so they
+        // never appear as logged entries nor add to the day's total.
+        var entries = (await _repo.ListForUserAndDateAsync(user.Id, day, ct))
+            .Where(e => !e.Skipped)
+            .ToList();
 
         var dtos = new List<ConsumptionEntryDto>(entries.Count);
         foreach (var entry in entries)
@@ -138,9 +142,14 @@ public sealed class ConsumptionService
             .GroupBy(e => e.PlannedMealRef!)
             .ToDictionary(g => g.Key, g => g.First()); // already ordered most-recent-first
 
+        // A correlated entry marks the task either skipped (Skipped, no completion id, not Done) or completed
+        // (Done with the entry's id). One entry per ref is the norm; if both somehow exist, a real completion
+        // takes precedence over a skip (the meal was actually eaten).
         var resolved = tasks
-            .Select(t => completionByRef.TryGetValue(t.Ref, out var done)
-                ? t with { Done = true, CompletedEntryId = done.Id }
+            .Select(t => completionByRef.TryGetValue(t.Ref, out var entry)
+                ? entry.Skipped
+                    ? t with { Skipped = true }
+                    : t with { Done = true, CompletedEntryId = entry.Id }
                 : t)
             .ToList();
 
@@ -211,6 +220,56 @@ public sealed class ConsumptionService
     }
 
     /// <summary>
+    /// Skips a planned-meal task: records a zero-nutrition <see cref="ConsumptionEntry"/> tagged with the
+    /// task's correlation ref and marked <see cref="ConsumptionEntry.Skipped"/>, so The Log drops it from the
+    /// "still to do" list without it counting toward the day's intake. Idempotent and self-reconciling — an
+    /// existing skip for the ref+date is returned unchanged; an existing real completion is replaced by the
+    /// skip (so its nutrition no longer counts); a duplicate is never logged. Undo via
+    /// <see cref="UncompletePlannedMealAsync"/>, which removes the entry for the ref.
+    /// </summary>
+    public async Task<ConsumptionEntryDto> SkipPlannedMealAsync(
+        AppUser user, CompletePlannedMealInput input, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(user.ActiveMealPlanId))
+            throw new ValidationException("No active meal plan is selected.");
+        if (string.IsNullOrWhiteSpace(input.Ref))
+            throw new ValidationException("A planned-meal reference is required.");
+
+        var day = input.Date ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        if (day > DateOnly.FromDateTime(DateTime.UtcNow))
+            throw new ValidationException("Consumption date cannot be in the future.");
+
+        var task = (await _plans.GetPlannedMealsForDateAsync(user, user.ActiveMealPlanId, day, ct))
+            .FirstOrDefault(t => t.Ref == input.Ref)
+            ?? throw new NotFoundException("That planned meal is not part of your active plan for this day.");
+
+        // Idempotent: an existing skip for this ref+date is returned as-is. An existing real completion is
+        // replaced by a skip (the user changed their mind) — delete it then create the skip below, reusing
+        // the existing repo methods (no in-place update needed).
+        var existing = (await _repo.ListForUserAndDateAsync(user.Id, day, ct))
+            .FirstOrDefault(e => e.PlannedMealRef == input.Ref);
+        if (existing is { Skipped: true })
+            return await ToDtoAsync(existing, user, ct);
+        if (existing is not null)
+            await _repo.DeleteAsync(existing, ct);
+
+        // A skip carries the meal reference for traceability but is FreeForm with empty nutrition so it can
+        // never contribute intake even if the Skipped filters were bypassed.
+        var entry = new ConsumptionEntry
+        {
+            OwnerUserId = user.Id,
+            Date = day,
+            Source = ConsumptionSource.FreeForm,
+            Name = task.MealName ?? "Skipped meal",
+            Servings = 0,
+            PlannedMealRef = input.Ref,
+            Skipped = true,
+        };
+        await _repo.AddAsync(entry, ct);
+        return await ToDtoAsync(entry, user, ct);
+    }
+
+    /// <summary>
     /// Un-completes a planned-meal task by removing its completion entry for the given date. No-op if the
     /// task was not complete. Identified by the task's correlation ref so callers need not track the entry id.
     /// </summary>
@@ -255,6 +314,7 @@ public sealed class ConsumptionService
         var byDay = new Dictionary<DateOnly, List<IReadOnlyList<NutrientAmount>>>();
         foreach (var entry in entries)
         {
+            if (entry.Skipped) continue; // a skipped meal contributes no nutrition to the roll-ups.
             var nutrition = await ComputeNutritionAsync(entry, user, ct);
             if (!byDay.TryGetValue(entry.Date, out var list))
                 byDay[entry.Date] = list = new List<IReadOnlyList<NutrientAmount>>();

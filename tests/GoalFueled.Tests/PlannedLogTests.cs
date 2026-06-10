@@ -322,6 +322,139 @@ public class PlannedLogTests
                 c.User, new CompletePlannedMealInput("any:ref::"), default));
     }
 
+    // ---- skipping / un-skipping tasks ----
+
+    [Fact]
+    public async Task Skipping_a_task_marks_it_skipped_drops_it_from_pending_and_adds_no_nutrition()
+    {
+        using var db = TestHelpers.NewContext();
+        var c = await SetupAsync(db);
+        var breakfast = await CaloricMealAsync(c, "breakfast", 300);
+        var lunch = await CaloricMealAsync(c, "lunch", 500);
+        var plan = await c.Plans.CreateAsync(c.User,
+            new MealPlanInput("Daily Plan", MealPlanCadence.Daily,
+                new List<ScheduledMealInput> { new(breakfast.Id), new(lunch.Id) }), default);
+        await c.Profile.SetActiveMealPlanAsync(c.User, new ActiveMealPlanInput(plan.Id), default);
+
+        var breakfastTask = (await c.Consumption.GetPlannedDayAsync(c.User, Today, default)).Tasks
+            .Single(t => t.MealName == "breakfast");
+        await c.Consumption.SkipPlannedMealAsync(c.User, new CompletePlannedMealInput(breakfastTask.Ref, Today), default);
+
+        var planned = await c.Consumption.GetPlannedDayAsync(c.User, Today, default);
+        var skipped = planned.Tasks.Single(t => t.MealName == "breakfast");
+        Assert.True(skipped.Skipped);
+        Assert.False(skipped.Done);          // skipped is NOT done
+        Assert.Null(skipped.CompletedEntryId);
+        // The other task is untouched and still pending.
+        Assert.False(planned.Tasks.Single(t => t.MealName == "lunch").Skipped);
+        // Only one task remains "still to do" (pending = not done, not skipped).
+        Assert.Single(planned.Tasks.Where(t => !t.Done && !t.Skipped));
+
+        // The skip never appears as a logged entry nor adds to the day total.
+        var day = await c.Consumption.GetDayAsync(c.User, Today, default);
+        Assert.Empty(day.Entries);
+        Assert.Equal(0, Kcal(day.TotalNutrition), 1);
+    }
+
+    [Fact]
+    public async Task Skipping_excludes_the_meal_from_the_daily_nutrition_rollup()
+    {
+        using var db = TestHelpers.NewContext();
+        var c = await SetupAsync(db);
+        var breakfast = await CaloricMealAsync(c, "breakfast", 300);
+        var plan = await c.Plans.CreateAsync(c.User,
+            new MealPlanInput("Daily Plan", MealPlanCadence.Daily,
+                new List<ScheduledMealInput> { new(breakfast.Id) }), default);
+        await c.Profile.SetActiveMealPlanAsync(c.User, new ActiveMealPlanInput(plan.Id), default);
+
+        var task = (await c.Consumption.GetPlannedDayAsync(c.User, Today, default)).Tasks.Single();
+        await c.Consumption.SkipPlannedMealAsync(c.User, new CompletePlannedMealInput(task.Ref, Today), default);
+
+        // The roll-up that feeds goals/dashboard must not include the skipped meal — the day has no entry.
+        var rollup = await c.Consumption.DailyNutritionInRangeAsync(c.User, Today, Today, default);
+        Assert.False(rollup.ContainsKey(Today));
+    }
+
+    [Fact]
+    public async Task Skipping_is_idempotent_and_returns_the_same_skip_entry()
+    {
+        using var db = TestHelpers.NewContext();
+        var c = await SetupAsync(db);
+        var meal = await CaloricMealAsync(c, "breakfast", 300);
+        var plan = await c.Plans.CreateAsync(c.User,
+            new MealPlanInput("Daily Plan", MealPlanCadence.Daily,
+                new List<ScheduledMealInput> { new(meal.Id) }), default);
+        await c.Profile.SetActiveMealPlanAsync(c.User, new ActiveMealPlanInput(plan.Id), default);
+
+        var task = (await c.Consumption.GetPlannedDayAsync(c.User, Today, default)).Tasks.Single();
+        var first = await c.Consumption.SkipPlannedMealAsync(c.User, new CompletePlannedMealInput(task.Ref, Today), default);
+        var second = await c.Consumption.SkipPlannedMealAsync(c.User, new CompletePlannedMealInput(task.Ref, Today), default);
+
+        Assert.Equal(first.Id, second.Id); // same skip entry, no duplicate
+        var day = await c.Consumption.GetDayAsync(c.User, Today, default);
+        Assert.Empty(day.Entries);
+    }
+
+    [Fact]
+    public async Task Unskipping_restores_the_task_to_pending()
+    {
+        using var db = TestHelpers.NewContext();
+        var c = await SetupAsync(db);
+        var meal = await CaloricMealAsync(c, "breakfast", 300);
+        var plan = await c.Plans.CreateAsync(c.User,
+            new MealPlanInput("Daily Plan", MealPlanCadence.Daily,
+                new List<ScheduledMealInput> { new(meal.Id) }), default);
+        await c.Profile.SetActiveMealPlanAsync(c.User, new ActiveMealPlanInput(plan.Id), default);
+
+        var task = (await c.Consumption.GetPlannedDayAsync(c.User, Today, default)).Tasks.Single();
+        await c.Consumption.SkipPlannedMealAsync(c.User, new CompletePlannedMealInput(task.Ref, Today), default);
+        // Undo reuses the un-complete path (it deletes any entry carrying the ref).
+        await c.Consumption.UncompletePlannedMealAsync(c.User, new CompletePlannedMealInput(task.Ref, Today), default);
+
+        var refreshed = (await c.Consumption.GetPlannedDayAsync(c.User, Today, default)).Tasks.Single();
+        Assert.False(refreshed.Skipped);
+        Assert.False(refreshed.Done); // back to pending
+    }
+
+    [Fact]
+    public async Task Skipping_a_completed_task_replaces_the_completion_and_clears_its_nutrition()
+    {
+        using var db = TestHelpers.NewContext();
+        var c = await SetupAsync(db);
+        var meal = await CaloricMealAsync(c, "breakfast", 300);
+        var plan = await c.Plans.CreateAsync(c.User,
+            new MealPlanInput("Daily Plan", MealPlanCadence.Daily,
+                new List<ScheduledMealInput> { new(meal.Id) }), default);
+        await c.Profile.SetActiveMealPlanAsync(c.User, new ActiveMealPlanInput(plan.Id), default);
+
+        var task = (await c.Consumption.GetPlannedDayAsync(c.User, Today, default)).Tasks.Single();
+        await c.Consumption.CompletePlannedMealAsync(c.User, new CompletePlannedMealInput(task.Ref, Today), default);
+        // Changed their mind: skip the now-completed meal.
+        await c.Consumption.SkipPlannedMealAsync(c.User, new CompletePlannedMealInput(task.Ref, Today), default);
+
+        var refreshed = (await c.Consumption.GetPlannedDayAsync(c.User, Today, default)).Tasks.Single();
+        Assert.True(refreshed.Skipped);
+        Assert.False(refreshed.Done);
+        var day = await c.Consumption.GetDayAsync(c.User, Today, default);
+        Assert.Empty(day.Entries);
+        Assert.Equal(0, Kcal(day.TotalNutrition), 1); // the prior completion's 300 kcal is gone
+    }
+
+    [Fact]
+    public async Task Skipping_rejects_a_ref_not_in_the_active_plan()
+    {
+        using var db = TestHelpers.NewContext();
+        var c = await SetupAsync(db);
+        var meal = await CaloricMealAsync(c, "breakfast", 300);
+        var plan = await c.Plans.CreateAsync(c.User,
+            new MealPlanInput("Daily Plan", MealPlanCadence.Daily,
+                new List<ScheduledMealInput> { new(meal.Id) }), default);
+        await c.Profile.SetActiveMealPlanAsync(c.User, new ActiveMealPlanInput(plan.Id), default);
+
+        await Assert.ThrowsAsync<NotFoundException>(() =>
+            c.Consumption.SkipPlannedMealAsync(c.User, new CompletePlannedMealInput("bogus:ref::"), default));
+    }
+
     // ---- recurring "Log your weight" task ----
 
     [Fact]

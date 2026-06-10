@@ -103,6 +103,7 @@ export function LogPage() {
   const [plans, setPlans] = useState<MealPlan[]>([])
   const [savingPlan, setSavingPlan] = useState(false)
   const [togglingRef, setTogglingRef] = useState<string | null>(null)
+  const [skippingRef, setSkippingRef] = useState<string | null>(null)
 
   // Catalog pickers (the user's own + app-level + public) for the ad-hoc log.
   const [meals, setMeals] = useState<Meal[]>([])
@@ -203,6 +204,21 @@ export function LogPage() {
     }
   }
 
+  // Skip a planned meal (remove it from "still to do" without it counting), or undo a skip to bring it back.
+  async function skipTask(ref: string, skipped: boolean) {
+    setError(null)
+    setSkippingRef(ref)
+    try {
+      if (skipped) await consumptionApi.uncompletePlanned({ ref, date })
+      else await consumptionApi.skipPlanned({ ref, date })
+      await reload()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to update the task.')
+    } finally {
+      setSkippingRef(null)
+    }
+  }
+
   async function add() {
     setError(null)
     const qty = Number(servings)
@@ -300,7 +316,9 @@ export function LogPage() {
   }, [day])
 
   // ---- Build the "still to do" block (pending planned fuel + a due, unrecorded weigh-in). ----
-  const pendingTasks = tasks.filter((t) => !t.done)
+  // Skipped tasks are neither done nor pending: they drop out of "still to do" into their own muted area.
+  const pendingTasks = tasks.filter((t) => !t.done && !t.skipped)
+  const skippedTasks = tasks.filter((t) => t.skipped)
   const pendingWeighIn = weightTask && !weightTask.done
 
   // ---- Build the time-ordered completed events. ----
@@ -348,7 +366,8 @@ export function LogPage() {
   }, [tasks, adHocEntries, burnActivities, weightTask, entryByRef])
 
   const hasAnyEvent = completedItems.length > 0
-  const isEmptyDay = !loading && pendingTasks.length === 0 && !pendingWeighIn && !hasAnyEvent
+  const isEmptyDay =
+    !loading && pendingTasks.length === 0 && !pendingWeighIn && !hasAnyEvent && skippedTasks.length === 0
 
   return (
     <div className="stack">
@@ -574,8 +593,27 @@ export function LogPage() {
                 <PlannedMealRow
                   key={t.ref}
                   task={t}
-                  busy={togglingRef === t.ref}
+                  busy={togglingRef === t.ref || skippingRef === t.ref}
                   onToggle={() => toggleTask(t.ref, t.done)}
+                  onSkip={() => skipTask(t.ref, false)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Skipped planned meals — a muted area with an Undo to bring each back into "still to do". They
+            count for nothing toward the day's totals. */}
+        {skippedTasks.length > 0 && (
+          <div className="stack log-todo">
+            <span className="small muted log-section-label">Skipped</span>
+            <div className="list">
+              {skippedTasks.map((t) => (
+                <SkippedMealRow
+                  key={t.ref}
+                  task={t}
+                  busy={skippingRef === t.ref}
+                  onUndo={() => skipTask(t.ref, true)}
                 />
               ))}
             </div>
@@ -667,29 +705,61 @@ function Total(
 
 // ---- Timeline row components. ----
 
-// A pending planned meal: checkbox to complete it.
+// A pending planned meal: a checkbox to complete it, plus a "Skip" button to drop it from "still to do".
+// The checkbox + meal text live in a <label> (so tapping the text completes it); the Skip button sits
+// outside that label so it doesn't also toggle the checkbox.
 function PlannedMealRow(
-  { task, busy, onToggle }: { task: PlannedMealTask; busy: boolean; onToggle: () => void },
+  { task, busy, onToggle, onSkip }:
+  { task: PlannedMealTask; busy: boolean; onToggle: () => void; onSkip: () => void },
 ) {
   const kcal = task.nutrition.find((n) => n.nutrientId === 'calories')?.value
   return (
-    <label className="card ingredient-item" style={{ cursor: 'pointer' }}>
-      <input
-        type="checkbox"
-        checked={false}
-        disabled={busy}
-        onChange={onToggle}
-        style={{ width: '1.25rem', height: '1.25rem' }}
-      />
+    <div className="card ingredient-item">
+      <label className="row" style={{ flex: 1, minWidth: 0, gap: '0.6rem', cursor: 'pointer', margin: 0 }}>
+        <input
+          type="checkbox"
+          checked={false}
+          disabled={busy}
+          onChange={onToggle}
+          style={{ width: '1.25rem', height: '1.25rem' }}
+        />
+        <div className="fb-icon fb-fuel" aria-hidden="true">🍽️</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <strong>{task.mealName ?? '(meal removed)'}</strong>
+          <div className="small muted">
+            {formatTime(task.time)}
+            {kcal != null && ` · ${Math.round(kcal)} kcal`}
+          </div>
+        </div>
+      </label>
+      <button type="button" className="btn btn-sm" disabled={busy} onClick={onSkip} title="Skip this meal">
+        Skip
+      </button>
+    </div>
+  )
+}
+
+// A skipped planned meal: a muted row with an Undo to bring it back into "still to do". It counts for
+// nothing toward the day's totals while skipped.
+function SkippedMealRow(
+  { task, busy, onUndo }: { task: PlannedMealTask; busy: boolean; onUndo: () => void },
+) {
+  const kcal = task.nutrition.find((n) => n.nutrientId === 'calories')?.value
+  return (
+    <div className="card ingredient-item" style={{ opacity: 0.7 }}>
       <div className="fb-icon fb-fuel" aria-hidden="true">🍽️</div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <strong>{task.mealName ?? '(meal removed)'}</strong>
+        <strong style={{ textDecoration: 'line-through' }}>{task.mealName ?? '(meal removed)'}</strong>
         <div className="small muted">
           {formatTime(task.time)}
           {kcal != null && ` · ${Math.round(kcal)} kcal`}
+          {' · skipped'}
         </div>
       </div>
-    </label>
+      <button type="button" className="btn btn-sm btn-primary" disabled={busy} onClick={onUndo} title="Undo skip">
+        Undo
+      </button>
+    </div>
   )
 }
 
