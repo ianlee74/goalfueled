@@ -24,11 +24,11 @@ interface Props {
   value: ProfileFieldsValue
   onChange: (next: ProfileFieldsValue) => void
   disabled?: boolean
-  /** When false (Profile page), the weight field is labeled as optional. */
-  weightRequired?: boolean
+  /** When false (Profile page), the current-weight field is hidden; weight is recorded via The Log instead. */
+  showWeight?: boolean
 }
 
-export function ProfileFields({ value, onChange, disabled, weightRequired = true }: Props) {
+export function ProfileFields({ value, onChange, disabled, showWeight = true }: Props) {
   function set<K extends keyof ProfileFieldsValue>(key: K, v: ProfileFieldsValue[K]) {
     onChange({ ...value, [key]: v })
   }
@@ -127,32 +127,34 @@ export function ProfileFields({ value, onChange, disabled, weightRequired = true
         )}
       </div>
 
-      <div className="field">
-        <span>Current weight{weightRequired ? '' : ' (optional)'}</span>
-        <div className="row" style={{ gap: '0.5rem' }}>
-          <input
-            className="input"
-            type="number"
-            min="0"
-            step="any"
-            placeholder="e.g. 180"
-            value={value.weight}
-            disabled={disabled}
-            style={{ flex: 1 }}
-            onChange={(e) => set('weight', e.target.value)}
-          />
-          <select
-            className="select"
-            value={value.weightUnit}
-            disabled={disabled}
-            onChange={(e) => set('weightUnit', e.target.value as WeightUnit)}
-            aria-label="Weight unit"
-          >
-            <option value="Pound">{WEIGHT_UNIT_LABELS.Pound}</option>
-            <option value="Kilogram">{WEIGHT_UNIT_LABELS.Kilogram}</option>
-          </select>
+      {showWeight && (
+        <div className="field">
+          <span>Current weight</span>
+          <div className="row" style={{ gap: '0.5rem' }}>
+            <input
+              className="input"
+              type="number"
+              min="0"
+              step="any"
+              placeholder="e.g. 180"
+              value={value.weight}
+              disabled={disabled}
+              style={{ flex: 1 }}
+              onChange={(e) => set('weight', e.target.value)}
+            />
+            <select
+              className="select"
+              value={value.weightUnit}
+              disabled={disabled}
+              onChange={(e) => set('weightUnit', e.target.value as WeightUnit)}
+              aria-label="Weight unit"
+            >
+              <option value="Pound">{WEIGHT_UNIT_LABELS.Pound}</option>
+              <option value="Kilogram">{WEIGHT_UNIT_LABELS.Kilogram}</option>
+            </select>
+          </div>
         </div>
-      </div>
+      )}
 
       <label className="field">
         Goal

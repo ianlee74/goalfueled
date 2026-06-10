@@ -6,6 +6,22 @@
 
 ## Completed Items
 
+### Remove `Current Weight` from the profile page — 2026-06-10 CDT
+
+- [x] **`Current Weight`** in the `/profile` page did not allow entry, so it was removed from the profile page. Weight continues to be recorded through The Log (existing functionality, left intact).
+
+**NOTES:**
+- The weight field lives in the shared `ProfileFields` component, which is *also* used by the Welcome/onboarding page where current weight is still required. To avoid breaking onboarding, the `weightRequired?: boolean` prop was replaced with `showWeight?: boolean` (default `true`); `ProfilePage` passes `showWeight={false}` while `WelcomePage` keeps the default.
+- `ProfilePage.save()` no longer parses/validates weight nor includes `currentWeight` in the `updateProfile` payload, so saving the profile never upserts a weight entry. `weightUnit` is still sent because the backend `ProfileInput` contract requires it; the API ignores it when no weight is supplied.
+- Removed the now-obsolete explanatory paragraph and the post-save weight-field reset.
+- Verified: `npm run build` (`tsc -b && vite build`) passed; `npm run lint` reported 0 errors (1 pre-existing unrelated warning in `AuthContext.tsx`).
+
+- [x] **Capture basic info during first login**: when a user first creates their account, let's prompt them for a few basic pieces of information (one time). We'll also need a user profile page where they can update these attributes later if necessary.
+  - Sex at Birth: male/female
+  - Current Weight
+  - Height
+  - Goal: (already asking)
+
 ### Create a landing page dashboard — 2026-06-10 CDT
 
 - [x] The app now opens on a **Dashboard** home page that gives an at-a-glance view of the user's progress: the **next 3 upcoming meals** from the plan they're following (with consume-times and a one-tap **Done** to complete them), a **weigh-in prompt shown only when a measurement is due today** (with an inline quick-log), and a **7-day chart of net calories (fuel − burn − kindle)** with a derived **estimated weight change** (deficit → loss). The dashboard is the post-login landing route; The Log, Plans, etc. stay reachable from the nav (a new **Home** entry was added).

@@ -19,6 +19,8 @@ export function ProfilePage() {
     dob: profile?.dateOfBirth ?? '',
     heightCm: profile?.heightCm ?? null,
     heightUnit: 'ftin',
+    // Weight is not editable here (it's recorded through The Log); these seed the shared
+    // ProfileFields value but the weight field is hidden via showWeight={false}.
     weight: '',
     weightUnit: 'Pound',
     goal: profile?.primaryGoal ?? 'WeightLoss',
@@ -30,25 +32,19 @@ export function ProfilePage() {
     if (!fields.sex) { setError('Please select your sex at birth.'); return }
     if (!fields.dob) { setError('Please enter your date of birth.'); return }
     if (!(fields.heightCm && fields.heightCm > 0)) { setError('Please enter your height.'); return }
-    // Weight is optional on this page; only validate it when provided.
-    let weight: number | undefined
-    if (fields.weight.trim() !== '') {
-      weight = Number(fields.weight)
-      if (!(weight > 0)) { setError('Enter a weight greater than zero, or leave it blank.'); return }
-    }
 
     setSaving(true)
     try {
+      // Current weight is not recorded here (it's logged via The Log); omit currentWeight so the
+      // update never upserts a weight entry. weightUnit is sent only to satisfy the contract.
       await userApi.updateProfile({
         primaryGoal: fields.goal,
         sexAtBirth: fields.sex,
         heightCm: fields.heightCm,
         dateOfBirth: fields.dob,
-        currentWeight: weight,
         weightUnit: fields.weightUnit,
       })
       await refresh()
-      setFields((f) => ({ ...f, weight: '' }))
       setSaved(true)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save your profile.')
@@ -67,15 +63,12 @@ export function ProfilePage() {
       {saved && <div className="notice info">Profile updated.</div>}
 
       <div className="card stack" style={{ maxWidth: 520 }}>
-        <ProfileFields value={fields} onChange={setFields} disabled={saving} weightRequired={false} />
+        <ProfileFields value={fields} onChange={setFields} disabled={saving} showWeight={false} />
         {profile?.heightCm != null && (
           <p className="muted small" style={{ margin: 0 }}>
             Current saved height: {formatHeight(profile.heightCm)}
           </p>
         )}
-        <p className="muted small" style={{ margin: 0 }}>
-          Leave current weight blank to keep your last recorded weight. Entering a value records today's weight.
-        </p>
         <button className="btn btn-primary" disabled={saving} onClick={save}>
           {saving ? 'Saving…' : 'Save changes'}
         </button>

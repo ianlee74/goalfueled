@@ -6,11 +6,7 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-- [x] **Capture basic info during first login**: when a user first creates their account, let's prompt them for a few basic pieces of information (one time). We'll also need a user profile page where they can update these attributes later if necessary.
-  - Sex at Birth: male/female
-  - Current Weight
-  - Height
-  - Goal: (already asking)
+- [] **The Log should be ordered chronologically**: instead of having separate sections for `Fuel` and `Burn`, let's show a single timeline of the day (current time at the top). The planned unchecked `fuel` and `burn` items should appear at the top and there should be a button to add an ad-hoc `fuel` consumption instead of an always visible list. At the top of `The Log` show totals for `Fuel`, `Burn`, and `Net Calories` for the day. `Kindle` burn should be added as the first item of each day. Also, minimize the space that the current meal plan occupies on screen. This isn't something that the user should normally change more than once a week if at all.
 
 ## FUTURE FEATURES
 
