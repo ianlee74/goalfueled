@@ -10,13 +10,25 @@ import type { BurnActivity, ConsumptionEntry, PlannedMealTask } from '../api/typ
 
 const W = 320
 const H = 170
-const PAD_LEFT = 8
+// Extra left padding makes room for the y-axis kcal labels (e.g. "−1000").
+const PAD_LEFT = 34
 const PAD_RIGHT = 8
 const PAD_TOP = 14
 const PAD_BOTTOM = 24
 
 const ACTUAL = 'var(--primary)'
 const EXPECTED = 'var(--muted)'
+
+// Candidate "nice" kcal increments for the y-axis step, smallest first.
+const NICE_STEPS = [25, 50, 100, 250, 500, 1000, 2000, 5000]
+
+// Pick a round y-axis step: the largest "nice" increment that still fits inside the data's range
+// (step ≤ maxAbs), so we always get at least one labelled tick at ±step. Falls back to the smallest
+// increment for very small ranges.
+function niceStep(maxAbs: number): number {
+  const fitting = NICE_STEPS.filter((s) => s <= maxAbs)
+  return fitting.length ? fitting[fitting.length - 1] : NICE_STEPS[0]
+}
 
 // Hour ticks to label along the x-axis.
 const TICKS: { hour: number; label: string }[] = [
@@ -118,8 +130,35 @@ export function DailyProgressChart(
   const x = (hour: number) => PAD_LEFT + (hour / 24) * plotW
   const y = (net: number) => zeroY - net * scale
 
-  const toPolyline = (pts: { hour: number; net: number }[]) =>
-    pts.map((p) => `${x(p.hour)},${y(p.net)}`).join(' ')
+  // Build a smooth SVG path through the series using a Catmull-Rom spline expressed as cubic Béziers.
+  // The curve passes exactly through every data point; control points are derived from neighbouring
+  // points, so the shape still faithfully reflects the underlying hourly values (no invented peaks).
+  const toSmoothPath = (pts: { hour: number; net: number }[]): string => {
+    const p = pts.map((pt) => ({ x: x(pt.hour), y: y(pt.net) }))
+    if (p.length === 0) return ''
+    if (p.length === 1) return `M ${p[0].x} ${p[0].y}`
+    let d = `M ${p[0].x} ${p[0].y}`
+    for (let i = 0; i < p.length - 1; i++) {
+      // Catmull-Rom needs a point on either side of each segment; clamp at the ends.
+      const p0 = p[i - 1] ?? p[i]
+      const p1 = p[i]
+      const p2 = p[i + 1]
+      const p3 = p[i + 2] ?? p2
+      // Convert the Catmull-Rom segment p1→p2 to a cubic Bézier (standard 1/6 tangent form).
+      const c1x = p1.x + (p2.x - p0.x) / 6
+      const c1y = p1.y + (p2.y - p0.y) / 6
+      const c2x = p2.x - (p3.x - p1.x) / 6
+      const c2y = p2.y - (p3.y - p1.y) / 6
+      d += ` C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p2.x} ${p2.y}`
+    }
+    return d
+  }
+
+  // Y-axis ticks: a round step with gridlines at 0, ±step, and ±2·step (the outermost pair only when
+  // it stays inside the plot area). Magnitudes are labelled in kcal on the left.
+  const step = niceStep(maxAbs)
+  // Only keep ticks that land inside the symmetric ±maxAbs plot range so labels stay within the chart.
+  const yTicks = [-2, -1, 0, 1, 2].map((m) => m * step).filter((net) => Math.abs(net) <= maxAbs)
 
   const expectedEnd = expected[expected.length - 1]
   const actualEnd = actual[actual.length - 1]
@@ -132,8 +171,27 @@ export function DailyProgressChart(
       aria-label="Fuel Gauge: cumulative net calories by hour of day, actual versus expected"
       style={{ display: 'block' }}
     >
-      {/* Zero baseline */}
-      <line x1={PAD_LEFT} y1={zeroY} x2={W - PAD_RIGHT} y2={zeroY} stroke="var(--border)" strokeWidth={1} />
+      {/* Y-axis gridlines + kcal labels. The zero baseline is drawn slightly stronger than the rest. */}
+      {yTicks.map((net) => {
+        const isZero = net === 0
+        return (
+          <g key={net}>
+            <line
+              x1={PAD_LEFT}
+              y1={y(net)}
+              x2={W - PAD_RIGHT}
+              y2={y(net)}
+              stroke="var(--border)"
+              strokeWidth={isZero ? 1 : 0.75}
+              strokeDasharray={isZero ? undefined : '2 3'}
+              opacity={isZero ? 1 : 0.6}
+            />
+            <text x={PAD_LEFT - 5} y={y(net) + 3} textAnchor="end" fontSize={8} fill="var(--muted)">
+              {net > 0 ? `+${net}` : net}
+            </text>
+          </g>
+        )
+      })}
 
       {/* Hour ticks + labels */}
       {TICKS.map((t) => (
@@ -145,16 +203,16 @@ export function DailyProgressChart(
         </g>
       ))}
 
-      {/* Expected trajectory — the plan's intent (muted, dashed). */}
-      <polyline points={toPolyline(expected)} fill="none" stroke={EXPECTED} strokeWidth={1.5} strokeDasharray="4 3" />
+      {/* Expected trajectory — the plan's intent (muted, dashed, smoothed). */}
+      <path d={toSmoothPath(expected)} fill="none" stroke={EXPECTED} strokeWidth={1.5} strokeDasharray="4 3" />
       {expectedEnd && (
         <circle cx={x(expectedEnd.hour)} cy={y(expectedEnd.net)} r={2.5} fill={EXPECTED}>
           <title>{`Expected by end of day: net ${Math.round(expectedEnd.net)} kcal`}</title>
         </circle>
       )}
 
-      {/* Actual trajectory — what really happened (brand primary, solid). */}
-      <polyline points={toPolyline(actual)} fill="none" stroke={ACTUAL} strokeWidth={2} />
+      {/* Actual trajectory — what really happened (brand primary, solid, smoothed). */}
+      <path d={toSmoothPath(actual)} fill="none" stroke={ACTUAL} strokeWidth={2} />
       {actualEnd && (
         <circle cx={x(actualEnd.hour)} cy={y(actualEnd.net)} r={3} fill={ACTUAL}>
           <title>{`Actual so far (hour ${actualEnd.hour}): net ${Math.round(actualEnd.net)} kcal`}</title>

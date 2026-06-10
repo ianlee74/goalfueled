@@ -6,6 +6,17 @@
 
 ## Completed Items
 
+### Improve the Fuel Gauge chart (y-axis ticks + smoothing) — 2026-06-10 CDT
+
+- [x] **Made the Fuel Gauge chart easier to read**: added y-axis (calorie) gridlines + labels and smoothed the trajectory lines.
+
+**NOTES:**
+- Frontend-only, in `src/web/src/components/DailyProgressChart.tsx` (still dependency-free, hand-rolled SVG).
+- **Y-axis ticks:** widened `PAD_LEFT` 8→34 for kcal labels (the plot shifts right automatically since `x()` derives from `PAD_LEFT`). Added a `NICE_STEPS` table + `niceStep(maxAbs)` helper that picks the largest "nice" increment (25/50/100/250/500/1000/2000/5000) fitting the symmetric `±maxAbs` range; draws 3 or 5 subtle dashed horizontal gridlines (`var(--border)`, low opacity) with end-anchored `+N`/`N` labels. The zero baseline stays solid/stronger.
+- **Smoothing:** new `toSmoothPath(pts)` converts the hourly `{hour,net}` points to a Catmull-Rom→cubic-Bézier `<path>` that passes exactly through every data point (endpoints clamped, no invented peaks). Both `<polyline>`s replaced by `<path>`; EXPECTED stays muted/dashed, ACTUAL solid/primary; end-point circles + `<title>` tooltips unchanged. Removed the now-unused `toPolyline` helper.
+- `W/H`/viewBox unchanged (still within the 200px `.log-chart svg` cap); `buildSeries` and all data math untouched; `role="img"` + "Fuel Gauge" aria-label preserved.
+- Verified: `npm run build` + `npm run lint` (0 errors, only the pre-existing `AuthContext.tsx` warning).
+
 ### Rename the "Net calories by hour" chart to "Fuel Gauge" — 2026-06-10 CDT
 
 - [x] **Renamed The Log's "Net calories by hour" chart to "Fuel Gauge".**
