@@ -6,8 +6,6 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-- [] **Show goal summaries on the Dashboard**: show a list of active goals and their progress towards it. Make it motivational.
-
 ## FUTURE FEATURES
 
 >[AI Agent] skip ALL items in this section.

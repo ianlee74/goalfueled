@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
-import { consumptionApi, dashboardApi, weightApi } from '../api/services'
-import { WEIGHT_UNIT_LABELS, type Dashboard, type UnitsPreference, type UpcomingMeal, type WeightUnit } from '../api/types'
+import { consumptionApi, dashboardApi, goalApi, weightApi } from '../api/services'
+import { WEIGHT_UNIT_LABELS, type Dashboard, type Goal, type UnitsPreference, type UpcomingMeal, type WeightUnit } from '../api/types'
 import { NetBalanceChart } from '../components/NetBalanceChart'
+import { goalUnitLabel } from '../lib/goalUnit'
 import { convertWeight, formatWeight, roundWeight, weightUnitFor } from '../lib/weight'
+
+// How many active goals to surface on the dashboard before showing a "View all" link.
+const GOALS_PREVIEW_LIMIT = 4
 
 // Today's calendar date as "yyyy-MM-dd" in the user's local time.
 function todayIso(): string {
@@ -50,6 +54,11 @@ export function DashboardPage() {
   const [weightUnit, setWeightUnit] = useState<WeightUnit>(() => weightUnitFor(preference))
   const [savingWeight, setSavingWeight] = useState(false)
 
+  // Goals summary — fetched independently of the dashboard payload so a goals failure never blocks the
+  // rest of the page (and vice versa). Each goal already carries a computed `progress` snapshot.
+  const [goals, setGoals] = useState<Goal[] | null>(null)
+  const [goalsError, setGoalsError] = useState<string | null>(null)
+
   // Reload the dashboard (used by action handlers after a mutation). The setState calls live in the
   // promise callbacks so they don't run synchronously in any effect body (avoids cascading renders).
   const reload = useCallback(() =>
@@ -77,6 +86,15 @@ export function DashboardPage() {
     return () => { cancelled = true }
     // Runs once on mount; the preferred unit is read for the initial default only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Load the user's goals once on mount (separate from the dashboard load so neither blocks the other).
+  useEffect(() => {
+    let cancelled = false
+    goalApi.list()
+      .then((g) => { if (!cancelled) setGoals(g) })
+      .catch((e) => { if (!cancelled) setGoalsError(e instanceof Error ? e.message : 'Failed to load your goals.') })
+    return () => { cancelled = true }
   }, [])
 
   async function completeMeal(meal: UpcomingMeal) {
@@ -180,10 +198,133 @@ export function DashboardPage() {
         <Link to="/log" className="small">Open The Log →</Link>
       </div>
 
+      {/* Goals summary. */}
+      <div className="card stack">
+        <h2>Your goals 🎯</h2>
+        <GoalsSummary goals={goals} error={goalsError} preference={preference} />
+      </div>
+
       {/* 7-day progress chart + weight-change estimate. */}
       <div className="card stack">
         <h2>Past 7 days 📈</h2>
         {data && <ProgressCard data={data} preference={preference} onNavigate={() => navigate('/profile')} />}
+      </div>
+    </div>
+  )
+}
+
+type GoalTone = 'positive' | 'negative' | 'neutral'
+
+// Mirror GoalProgressVisual's tone/emoji logic so the dashboard's compact rows match the full GoalsPage.
+function goalTone(goal: Goal): GoalTone {
+  const p = goal.progress
+  if (p.status === 'NoData') return 'neutral'
+  if (p.status === 'Missed') return 'negative'
+  // Achieved or in-progress: positive unless the outcome flag says otherwise (e.g. over budget).
+  return p.outcomePositive ? 'positive' : 'negative'
+}
+
+function goalEmoji(goal: Goal): string {
+  const p = goal.progress
+  if (p.status === 'NoData') return '📊'
+  if (p.status === 'Achieved') return p.outcomePositive ? '🎉' : '⚠️'
+  if (p.status === 'Missed') return '😞'
+  return p.outcomePositive ? '🚀' : '⚠️'
+}
+
+const GOAL_TONE_COLOR: Record<GoalTone, string> = {
+  positive: '#16a34a',
+  negative: '#dc2626',
+  neutral: '#6b7280',
+}
+
+function goalNum(v: number): string {
+  return Math.round(v * 10) / 10 + ''
+}
+
+function GoalsSummary({ goals, error, preference }: { goals: Goal[] | null; error: string | null; preference: UnitsPreference }) {
+  if (error) {
+    return <p className="muted small" style={{ margin: 0 }}>{error}</p>
+  }
+  if (goals === null) {
+    return <p className="muted small" style={{ margin: 0 }}>Loading your goals…</p>
+  }
+
+  // "Active" = currently worth nudging the user about. Recurring goals are always active. One-time goals
+  // are active until their deadline passes unmet — i.e. we drop only one-time goals whose status is
+  // 'Missed' (deadline gone, target not hit) to keep the motivational list uncluttered. Everything else
+  // (InProgress, Achieved, NoData, and any still-running recurring goal) stays.
+  const active = goals.filter((g) => !(g.cadence === 'OneTime' && g.progress.status === 'Missed'))
+
+  if (goals.length === 0) {
+    return (
+      <p className="muted small" style={{ margin: 0 }}>
+        You haven't set any goals yet. <Link to="/goals">Set a goal</Link> and we'll cheer you on toward it right here. 🎯
+      </p>
+    )
+  }
+
+  if (active.length === 0) {
+    // Goals exist but none are currently active (e.g. all one-time deadlines passed).
+    return (
+      <p className="muted small" style={{ margin: 0 }}>
+        No active goals right now. Fresh start? <Link to="/goals">Set a new goal</Link> and let's chase it together. 💪
+      </p>
+    )
+  }
+
+  const shown = active.slice(0, GOALS_PREVIEW_LIMIT)
+  const hasMore = active.length > shown.length
+
+  return (
+    <>
+      <div className="list">
+        {shown.map((g) => <GoalRow key={g.id} goal={g} preference={preference} />)}
+      </div>
+      {hasMore ? (
+        <Link to="/goals" className="small">View all {active.length} goals →</Link>
+      ) : (
+        <Link to="/goals" className="small">Open your goals →</Link>
+      )}
+    </>
+  )
+}
+
+function GoalRow({ goal, preference }: { goal: Goal; preference: UnitsPreference }) {
+  const p = goal.progress
+  const tone = goalTone(goal)
+  const color = GOAL_TONE_COLOR[tone]
+  const pct = Math.max(0, Math.min(100, p.percent))
+  const rounded = Math.round(pct)
+
+  return (
+    <div className="card ingredient-item">
+      <div className="fb-icon" aria-hidden="true" style={{ fontSize: '1.3rem' }}>{goalEmoji(goal)}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="row spread" style={{ gap: '0.5rem' }}>
+          <strong style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{goal.name}</strong>
+          <span className="small" style={{ color, fontWeight: 700, whiteSpace: 'nowrap' }}>{rounded}%</span>
+        </div>
+        {/* Accessible horizontal progress bar tinted with the same tone as the full GoalsPage ring. */}
+        <div
+          role="progressbar"
+          aria-valuenow={rounded}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={`${goal.name} progress`}
+          style={{
+            height: 8, borderRadius: 999, background: 'rgba(0,0,0,0.08)',
+            overflow: 'hidden', margin: '0.35rem 0',
+          }}
+        >
+          <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 999, transition: 'width 0.6s ease' }} />
+        </div>
+        <div className="small" style={{ color, fontWeight: 600 }}>{p.message}</div>
+        {p.status !== 'NoData' && (
+          <div className="small muted">
+            {goalNum(p.currentValue)} / {goalNum(p.targetValue)} {goalUnitLabel(goal, preference)} · {p.periodLabel}
+          </div>
+        )}
       </div>
     </div>
   )

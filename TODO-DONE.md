@@ -6,6 +6,19 @@
 
 ## Completed Items
 
+### Show goal summaries on the Dashboard — 2026-06-10 CDT
+
+- [x] **Added a motivational "Your goals 🎯" section to the Dashboard** listing the user's active goals and their progress, reusing the existing computed progress snapshots.
+
+**NOTES:**
+- **Frontend-only** (`src/web/src/pages/DashboardPage.tsx`). Goals fetched via the existing `goalApi.list()` (each `Goal` already carries a computed `progress` snapshot — not recomputed). Placed as a `card stack` between "Up next" and "Past 7 days".
+- **Data load:** a dedicated `useEffect` with its own `goals`/`goalsError` state and the same cancelled-flag pattern, separate from `dashboardApi.get()` so neither blocks the other; shows a loading state.
+- **Compact rendering:** a new inline `GoalRow` (reuses `card ingredient-item`) rather than the large 140px `GoalProgressVisual` ring — shows tone emoji, name, percent, a small accessible horizontal progress bar (`role="progressbar"` + aria values), the friendly `progress.message`, and `current / target {goalUnitLabel} · periodLabel`. Tone/emoji helpers mirror `GoalProgressVisual`'s `toneFor`/`emojiFor` for a consistent look. Units respect the preference via `goalUnitLabel(goal, preference)`.
+- **Active filter (documented):** recurring goals are always active; one-time goals stay active until their deadline passes unmet — so only one-time goals with `status === 'Missed'` are excluded. InProgress/Achieved/NoData/recurring are shown.
+- **States:** no goals → nudge linking to `/goals`; goals exist but none active → a separate "set a new one" nudge (list never silently empties); error → muted, isolated. Overflow capped at 4 with a "View all N goals →" link (no silent hiding).
+- Reused existing CSS classes; no new CSS. No dead code/unused imports.
+- Verified: `npm run build` + `npm run lint` (0 errors, only the pre-existing `AuthContext.tsx` warning).
+
 ### Add a units preference (Metric vs US) to the profile — 2026-06-10 CDT
 
 - [x] **Added a per-user units preference (Metric vs US/Imperial)**, scoped to **weight and height only**, applied to entry defaults and displays throughout the app. Recipe/ingredient units were deliberately NOT touched (per the user's clarification).
