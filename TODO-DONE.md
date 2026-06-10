@@ -6,6 +6,15 @@
 
 ## Completed Items
 
+### Rename the "Net calories by hour" chart to "Fuel Gauge" — 2026-06-10 CDT
+
+- [x] **Renamed The Log's "Net calories by hour" chart to "Fuel Gauge".**
+
+**NOTES:**
+- The task spelled it "Fuel Guage" — corrected to the proper **"Fuel Gauge"** spelling for the user-facing label.
+- Changed the `<h2>` heading in `LogPage.tsx` (kept the "actual vs expected" subtitle span) and the SVG `aria-label` in `DailyProgressChart.tsx` ("Fuel Gauge: cumulative net calories by hour of day, actual versus expected"). The component/file/props and `log-chart` CSS class were left unchanged (only the human-readable labels). One internal code comment describing the data was left as-is.
+- Verified: `npm run build` + `npm run lint` (0 errors, only the pre-existing `AuthContext.tsx` warning).
+
 ### Allow modifying a planned meal's servings when logging it — 2026-06-10 CDT
 
 - [x] **Users can now adjust the serving size when logging a planned meal** (to record eating more or less than planned), both at log time and afterward; the day's nutrition/fuel totals scale accordingly.

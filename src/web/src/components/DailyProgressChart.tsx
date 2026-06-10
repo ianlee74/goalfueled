@@ -129,7 +129,7 @@ export function DailyProgressChart(
       width="100%"
       viewBox={`0 0 ${W} ${H}`}
       role="img"
-      aria-label="Cumulative net calories by hour of day: actual versus expected"
+      aria-label="Fuel Gauge: cumulative net calories by hour of day, actual versus expected"
       style={{ display: 'block' }}
     >
       {/* Zero baseline */}

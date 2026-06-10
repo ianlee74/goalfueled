@@ -443,7 +443,7 @@ export function LogPage() {
       {/* Day-at-a-glance: cumulative net calories by hour, actual vs the plan's expected trajectory. */}
       {hasChartData && (
         <div className="card stack log-chart">
-          <h2>Net calories by hour <span className="muted small">actual vs expected</span></h2>
+          <h2>Fuel Gauge <span className="muted small">actual vs expected</span></h2>
           <DailyProgressChart
             tasks={planned?.tasks ?? []}
             entries={day?.entries ?? []}
