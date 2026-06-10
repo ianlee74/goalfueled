@@ -20,7 +20,16 @@ public sealed record BurnDayDto(
     DateOnly Date,
     IReadOnlyList<BurnActivityDto> Activities,
     /// <summary>Sum of every activity's <see cref="BurnActivityDto.CaloriesBurned"/> for the day.</summary>
-    int TotalCaloriesBurned);
+    int TotalCaloriesBurned,
+    /// <summary>
+    /// The passive "Kindle" cost (kcal, a positive magnitude): the user's daily sedentary calorie usage,
+    /// derived on the fly from their profile (sex, date of birth → age, height) and latest recorded weight
+    /// via Mifflin–St Jeor × 1.2. Null when any required input is missing (the client then prompts the user
+    /// to complete their profile instead of showing a wrong/zero number). Not persisted as a burn activity —
+    /// it is computed per request so it always reflects the current weight. A net-calorie summary subtracts
+    /// it: net = fuel − burn − kindle.
+    /// </summary>
+    int? KindleCost = null);
 
 /// <summary>
 /// One past activity name the user has logged, with the calories from its most-recent entry. Drives the

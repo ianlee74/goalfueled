@@ -58,6 +58,8 @@ public class GoalFueledDbContext : DbContext
             // mapping SexAtBirth the same way keeps the stored shape consistent.
             e.Property(u => u.PrimaryGoal).HasConversion<string?>();
             e.Property(u => u.SexAtBirth).HasConversion<string?>();
+            // DateOfBirth is a plain nullable DateOnly both providers map natively (like the weight-schedule
+            // start date) — no converter needed. Age for the Kindle BMR calc is derived from it at read time.
             // Weight-measurement schedule: a nullable enum + int + DateOnly. Persist the cadence by its
             // string name (consistent with the other onboarding enums); the interval and start date are
             // plain nullable scalars both providers map natively.

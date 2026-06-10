@@ -11,6 +11,8 @@ import { cmToFtIn, ftInToCm, type HeightUnit } from '../lib/height'
  */
 export interface ProfileFieldsValue {
   sex: SexAtBirth | ''
+  /** Date of birth as "yyyy-MM-dd" (the native date input's value); '' when unset. */
+  dob: string
   heightCm: number | null
   heightUnit: HeightUnit
   weight: string
@@ -32,6 +34,11 @@ export function ProfileFields({ value, onChange, disabled, weightRequired = true
   }
 
   const ft = value.heightCm != null ? cmToFtIn(value.heightCm) : { feet: 0, inches: 0 }
+  // Today as "yyyy-MM-dd" in local time, to cap the date-of-birth picker (no future DOBs).
+  const todayIso = (() => {
+    const now = new Date()
+    return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10)
+  })()
 
   function setFtIn(feet: number, inches: number) {
     set('heightCm', ftInToCm(feet, inches))
@@ -51,6 +58,18 @@ export function ProfileFields({ value, onChange, disabled, weightRequired = true
           <option value="Male">{SEX_LABELS.Male}</option>
           <option value="Female">{SEX_LABELS.Female}</option>
         </select>
+      </label>
+
+      <label className="field">
+        Date of birth
+        <input
+          className="input"
+          type="date"
+          value={value.dob}
+          max={todayIso}
+          disabled={disabled}
+          onChange={(e) => set('dob', e.target.value)}
+        />
       </label>
 
       <div className="field">

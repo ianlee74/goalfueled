@@ -16,6 +16,7 @@ export function WelcomePage() {
   const [error, setError] = useState<string | null>(null)
   const [fields, setFields] = useState<ProfileFieldsValue>({
     sex: '',
+    dob: '',
     heightCm: null,
     heightUnit: 'ftin',
     weight: '',
@@ -26,6 +27,7 @@ export function WelcomePage() {
   async function submit() {
     setError(null)
     if (!fields.sex) { setError('Please select your sex at birth.'); return }
+    if (!fields.dob) { setError('Please enter your date of birth.'); return }
     if (!(fields.heightCm && fields.heightCm > 0)) { setError('Please enter your height.'); return }
     const weight = Number(fields.weight)
     if (!(weight > 0)) { setError('Please enter your current weight.'); return }
@@ -36,6 +38,7 @@ export function WelcomePage() {
         primaryGoal: fields.goal,
         sexAtBirth: fields.sex,
         heightCm: fields.heightCm,
+        dateOfBirth: fields.dob,
         currentWeight: weight,
         weightUnit: fields.weightUnit,
       })

@@ -1,5 +1,6 @@
 using GoalFueled.Api.Common;
 using GoalFueled.Data.Repositories;
+using GoalFueled.Domain;
 using GoalFueled.Domain.Contracts;
 using GoalFueled.Domain.Entities;
 
@@ -20,17 +21,46 @@ namespace GoalFueled.Api.Services;
 public sealed class BurnService
 {
     private readonly IBurnActivityRepository _repo;
+    private readonly IWeightEntryRepository _weights;
 
-    public BurnService(IBurnActivityRepository repo) => _repo = repo;
+    public BurnService(IBurnActivityRepository repo, IWeightEntryRepository weights)
+    {
+        _repo = repo;
+        _weights = weights;
+    }
 
-    /// <summary>The caller's burn log for a day (defaulting to today) with the day's total calories burned.</summary>
+    /// <summary>
+    /// The caller's burn log for a day (defaulting to today) with the day's total calories burned and the
+    /// derived passive "Kindle" cost (sedentary calorie usage). The Kindle cost is computed on the fly from
+    /// the user's profile + latest recorded weight (never persisted) and is null when the profile is
+    /// incomplete (so the client prompts the user rather than showing a wrong number).
+    /// </summary>
     public async Task<BurnDayDto> GetDayAsync(AppUser user, DateOnly? date, CancellationToken ct)
     {
         var day = date ?? DateOnly.FromDateTime(DateTime.UtcNow);
         var activities = await _repo.ListForUserAndDateAsync(user.Id, day, ct);
         var dtos = activities.Select(ToDto).ToList();
         var total = dtos.Sum(a => a.CaloriesBurned);
-        return new BurnDayDto(day, dtos, total);
+        var kindle = await ComputeKindleCostAsync(user, ct);
+        return new BurnDayDto(day, dtos, total, kindle);
+    }
+
+    /// <summary>
+    /// The user's daily Kindle cost (Mifflin–St Jeor BMR × 1.2), or null when any required input is missing
+    /// (no sex, no height, no date of birth, or no recorded weight). The latest recorded weight is the user's
+    /// current weight; the calculation always uses it so the Kindle cost tracks weight changes without
+    /// persisting a daily row. Age is derived from the date of birth as of today.
+    /// </summary>
+    private async Task<int?> ComputeKindleCostAsync(AppUser user, CancellationToken ct)
+    {
+        var history = await _weights.ListForUserAsync(user.Id, ct); // most-recent day first
+        var latest = history.Count > 0
+            ? ((double Value, WeightUnit Unit)?)(history[0].Value, history[0].Unit)
+            : null;
+
+        return KindleCostCalculator.TryCompute(
+            user.SexAtBirth, user.HeightCm, user.DateOfBirth, latest,
+            DateOnly.FromDateTime(DateTime.UtcNow));
     }
 
     /// <summary>Logs a burn activity for the caller (a new entry is always appended — no per-day upsert).</summary>

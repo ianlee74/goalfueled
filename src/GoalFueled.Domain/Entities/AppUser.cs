@@ -44,6 +44,13 @@ public class AppUser
     /// </summary>
     public double? HeightCm { get; set; }
 
+    /// <summary>
+    /// The user's date of birth, captured at first login. Stored as a date (rather than a derived age) so
+    /// the user's age stays correct over time; the BMR/Kindle calculation derives age from it and today's
+    /// date. Null until provided.
+    /// </summary>
+    public DateOnly? DateOfBirth { get; set; }
+
     /// <summary>True once the user has completed the first-login welcome flow.</summary>
     public bool HasCompletedOnboarding { get; set; }
 

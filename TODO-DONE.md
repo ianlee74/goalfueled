@@ -6,6 +6,50 @@
 
 ## Completed Items
 
+### Create a `Kindle` cost — 2026-06-10 CDT
+
+- [x] The Log now shows a passive **Kindle cost** — the calories a user burns just staying alive — as its own clearly-labeled `burn` line, and subtracts it in the day's net-calorie summary (**net = fuel − burn − kindle**). The cost is the Mifflin–St Jeor BMR × 1.2 (sedentary factor), derived on the fly from the user's profile (sex, date of birth → age, height) and latest recorded weight. Because the formula needs an **age** the profile didn't capture, a **date of birth** field was added to onboarding and the Profile page (mirroring the recently-added sex/height fields). When any input is missing the cost is unavailable and The Log prompts the user to complete their profile instead of showing a wrong/zero number.
+
+**NOTES:**
+
+**Design decisions**
+- **Pure, unit-testable math:** all BMR/Kindle arithmetic lives in `src/GoalFueled.Domain/KindleCostCalculator.cs` (a static, HTTP/DB-free class). It exposes `SexConstant` (+5 male / −161 female), `ToKilograms` (lb→kg at 1 lb = 0.45359237 kg), `AgeOn(dob, asOf)` (whole-year age derivation respecting whether the birthday has passed), `Bmr`, `Compute` (= `round(BMR × 1.2)`, `MidpointRounding.AwayFromZero`), and `TryCompute(...)` which folds in the graceful-degradation rule. `KindleLimits.MaxAgeYears = 130` bounds plausible ages.
+- **Derived, never stored:** the Kindle cost is computed per request from the current profile + the **latest** `WeightEntry`, so it always reflects the user's current weight and never duplicates/grows a daily `BurnActivity` row. No new entity/table.
+- **Surfacing — extended `BurnDayDto`:** added `int? KindleCost` to `BurnDayDto` (returned by `GET /api/burn`). The Log already loads the burn day for its Burn section and net summary, so this is the cleanest single integration point — no new endpoint. `BurnService` gained an `IWeightEntryRepository` dependency to read the latest weight and calls `KindleCostCalculator.TryCompute`.
+- **Graceful-degradation rule (precise):** `KindleCost` is `null` (and the client shows "Complete your profile … to see your Kindle cost") when **any** of these is true: no `SexAtBirth`, no `HeightCm` (or ≤ 0), no `DateOfBirth`, no recorded weight (or value ≤ 0), or the derived age is < 0 (future DOB) or > 130. Otherwise it is a positive kcal magnitude the client subtracts (treated as negative in the net summary, consistent with logged burn's sign convention).
+- **Added date of birth (the missing input):** chose `DateOnly? DateOfBirth` on `AppUser` (durable — age is derived, not snapshotted) over storing an age. Added to `OnboardingInput`/`ProfileInput`/`CurrentUserDto`, validated in `UserProfileService` (not in the future; implied age ≤ `KindleLimits.MaxAgeYears`) consistent with the existing height/weight validation style. `DateOnly` maps natively in EF for both Cosmos and the in-memory provider (like the weight-schedule start date) — no value converter needed.
+- **The Log presentation:** the Kindle line uses the burn icon/treatment (🔥) and is labeled "Kindle cost · passive", distinct from logged exercise (which remains individually removable; Kindle is not removable). The Burn section heading total and the net-calorie card both include it; when unavailable, both surface a friendly prompt linking to `/profile`.
+
+**Files created**
+- `src/GoalFueled.Domain/KindleCostCalculator.cs` (`KindleCostCalculator` + `KindleLimits`).
+- `tests/GoalFueled.Tests/KindleCostCalculatorTests.cs` (10 pure-math/degradation tests).
+
+**Files changed (backend)**
+- `src/GoalFueled.Domain/Entities/AppUser.cs` — added `DateOnly? DateOfBirth`.
+- `src/GoalFueled.Domain/Contracts/UserDtos.cs` — `DateOfBirth` on `CurrentUserDto`, `OnboardingInput`, `ProfileInput`.
+- `src/GoalFueled.Domain/Contracts/BurnDtos.cs` — `int? KindleCost` on `BurnDayDto`.
+- `src/GoalFueled.Api/Services/UserProfileService.cs` — persist + validate `DateOfBirth` (`ValidateDateOfBirth`).
+- `src/GoalFueled.Api/Functions/UserFunctions.cs` — map `DateOfBirth` into `CurrentUserDto`.
+- `src/GoalFueled.Api/Services/BurnService.cs` — inject `IWeightEntryRepository`; compute `KindleCost` in `GetDayAsync` via `KindleCostCalculator.TryCompute`.
+- `src/GoalFueled.Data/GoalFueledDbContext.cs` — clarifying comment (no converter needed for `DateOfBirth`).
+- `tests/GoalFueled.Tests/UserProfileServiceTests.cs` — DOB in the test helpers/inputs; new DOB persistence + future/too-old validation tests.
+- `tests/GoalFueled.Tests/BurnActivityServiceTests.cs` — updated `BurnService` ctor; new Kindle present/absent tests.
+- (`DependencyInjectionTests` unchanged — `BurnService`'s new dependency `IWeightEntryRepository` was already registered.)
+
+**Files changed (frontend)**
+- `src/web/src/api/types.ts` — `dateOfBirth` on `CurrentUser`/`OnboardingInput`/`ProfileInput`; `kindleCost?` on `BurnDay`.
+- `src/web/src/components/ProfileFields.tsx` — `dob` field + native date input (capped at today).
+- `src/web/src/pages/WelcomePage.tsx` & `pages/ProfilePage.tsx` — seed/validate/submit DOB.
+- `src/web/src/pages/LogPage.tsx` — Kindle passive burn line, net = fuel − burn − kindle, and the incomplete-profile prompts.
+
+**API endpoints**
+- No new endpoints. `GET /api/burn[?date=]` now also returns `kindleCost` (nullable). `POST /api/me/onboarding` and `PUT /api/me/profile` now accept/require `dateOfBirth`; `GET /api/me` returns it.
+
+**Verification**
+- `dotnet test -c Release` → **219/219 passed** (was 203; +16: 10 calculator + 3 DOB profile + 3 Kindle burn).
+- `npm run build` (`src/web`) → **succeeds** (tsc + vite, 77 modules).
+- `npm run lint` (`src/web`) → **0 errors** (only the 1 pre-existing `AuthContext.tsx` warning; no new ones).
+
 ### Log `burn` activities — 2026-06-10 CDT
 
 - [x] Users can log a `burn` activity (a free-form name + calories burned) for a day in The Log's **Burn** section. Calories are stored as a positive magnitude and treated as **negative** in the day's net-calorie summary (net = fuel − burn). The activity-name field autocompletes from the names the user has logged before; selecting a past name pre-fills the calories from that name's most-recent entry (still editable).

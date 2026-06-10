@@ -36,6 +36,7 @@ public sealed class UserProfileService
         ValidateGoal(input.PrimaryGoal);
         ValidateSex(input.SexAtBirth);
         ValidateHeight(input.HeightCm);
+        ValidateDateOfBirth(input.DateOfBirth);
         ValidateWeightUnit(input.WeightUnit);
 
         // Record today's weight first (validates the value/unit and creates the WeightEntry the meal-plan
@@ -45,6 +46,7 @@ public sealed class UserProfileService
         user.PrimaryGoal = input.PrimaryGoal;
         user.SexAtBirth = input.SexAtBirth;
         user.HeightCm = input.HeightCm;
+        user.DateOfBirth = input.DateOfBirth;
         user.HasCompletedOnboarding = true;
         await _users.UpdateAsync(user, ct);
         return user;
@@ -59,6 +61,7 @@ public sealed class UserProfileService
         ValidateGoal(input.PrimaryGoal);
         ValidateSex(input.SexAtBirth);
         ValidateHeight(input.HeightCm);
+        ValidateDateOfBirth(input.DateOfBirth);
 
         if (input.CurrentWeight is { } weight)
         {
@@ -69,6 +72,7 @@ public sealed class UserProfileService
         user.PrimaryGoal = input.PrimaryGoal;
         user.SexAtBirth = input.SexAtBirth;
         user.HeightCm = input.HeightCm;
+        user.DateOfBirth = input.DateOfBirth;
         await _users.UpdateAsync(user, ct);
         return user;
     }
@@ -155,5 +159,19 @@ public sealed class UserProfileService
             throw new ValidationException("Height must be greater than zero.");
         if (heightCm > InputLimits.HeightCmMax)
             throw new ValidationException($"Height must be {InputLimits.HeightCmMax} cm or less.");
+    }
+
+    /// <summary>
+    /// Validates the date of birth: not in the future, and within a plausible age range (no older than
+    /// <see cref="KindleLimits.MaxAgeYears"/>). Age is derived from the DOB and today's date, so we store the
+    /// durable date rather than a snapshot age.
+    /// </summary>
+    private static void ValidateDateOfBirth(DateOnly dateOfBirth)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        if (dateOfBirth > today)
+            throw new ValidationException("Date of birth cannot be in the future.");
+        if (KindleCostCalculator.AgeOn(dateOfBirth, today) > KindleLimits.MaxAgeYears)
+            throw new ValidationException($"Date of birth implies an age over {KindleLimits.MaxAgeYears} years.");
     }
 }

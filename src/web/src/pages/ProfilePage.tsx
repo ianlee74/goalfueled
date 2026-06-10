@@ -16,6 +16,7 @@ export function ProfilePage() {
   // through ProfileFields' controlled inputs, and our own writes keep the form in sync.
   const [fields, setFields] = useState<ProfileFieldsValue>({
     sex: profile?.sexAtBirth ?? '',
+    dob: profile?.dateOfBirth ?? '',
     heightCm: profile?.heightCm ?? null,
     heightUnit: 'ftin',
     weight: '',
@@ -27,6 +28,7 @@ export function ProfilePage() {
     setError(null)
     setSaved(false)
     if (!fields.sex) { setError('Please select your sex at birth.'); return }
+    if (!fields.dob) { setError('Please enter your date of birth.'); return }
     if (!(fields.heightCm && fields.heightCm > 0)) { setError('Please enter your height.'); return }
     // Weight is optional on this page; only validate it when provided.
     let weight: number | undefined
@@ -41,6 +43,7 @@ export function ProfilePage() {
         primaryGoal: fields.goal,
         sexAtBirth: fields.sex,
         heightCm: fields.heightCm,
+        dateOfBirth: fields.dob,
         currentWeight: weight,
         weightUnit: fields.weightUnit,
       })

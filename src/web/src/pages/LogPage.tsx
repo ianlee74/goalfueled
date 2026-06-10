@@ -111,9 +111,12 @@ export function LogPage() {
   const totalCalories = useMemo(
     () => dayTotal.find((n) => n.nutrientId === 'calories')?.value ?? 0,
     [dayTotal])
-  // Burn is stored as a positive magnitude; net calories subtract it (net = fuel − burn).
+  // Burn is stored as a positive magnitude; net calories subtract it (net = fuel − burn − kindle).
   const totalBurned = burnDay?.totalCaloriesBurned ?? 0
-  const netCalories = totalCalories - totalBurned
+  // The passive "Kindle" cost (sedentary calorie usage), derived server-side from the profile + latest
+  // weight. Undefined when the profile is incomplete (we then prompt the user instead of subtracting it).
+  const kindleCost = burnDay?.kindleCost
+  const netCalories = totalCalories - totalBurned - (kindleCost ?? 0)
 
   async function choosePlan(planId: string) {
     setError(null)
@@ -466,11 +469,29 @@ export function LogPage() {
           a past name defaults the calories to that activity's most recent value (still editable). */}
       <div className="card stack fb-section fb-burn">
         <FuelBurnHeading kind="burn">
-          <span className="small muted">−{Math.round(totalBurned)} kcal</span>
+          <span className="small muted">−{Math.round(totalBurned + (kindleCost ?? 0))} kcal</span>
         </FuelBurnHeading>
         <p className="muted small" style={{ margin: 0 }}>
-          Exercise that burns calories.
+          Exercise that burns calories, plus your passive Kindle cost (calories you burn just staying alive).
         </p>
+
+        {/* Kindle — a passive, derived burn line (not a logged activity). Computed server-side from the
+            profile + latest weight; shown as a friendly prompt when the profile is incomplete. */}
+        <div className="card ingredient-item">
+          <div className="ingredient-thumb">🔥</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <strong>Kindle cost <span className="muted small">passive</span></strong>
+            {kindleCost != null ? (
+              <div className="small muted">
+                −{Math.round(kindleCost)} kcal · calories burned just staying alive
+              </div>
+            ) : (
+              <div className="small muted">
+                <Link to="/profile">Complete your profile</Link> (sex, date of birth, height, weight) to see your Kindle cost.
+              </div>
+            )}
+          </div>
+        </div>
 
         <div className="row" style={{ gap: '0.5rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <label className="field" style={{ flex: 1, minWidth: '8rem' }}>
@@ -529,14 +550,21 @@ export function LogPage() {
         </div>
       </div>
 
-      {/* Net calorie summary for the day: fuel consumed minus calories burned. */}
-      {(totalCalories > 0 || totalBurned > 0) && (
+      {/* Net calorie summary for the day: fuel consumed minus logged burn minus the passive Kindle cost. */}
+      {(totalCalories > 0 || totalBurned > 0 || kindleCost != null) && (
         <div className="card stack">
-          <h2>Net calories <span className="muted small">fuel − burn</span></h2>
+          <h2>Net calories <span className="muted small">fuel − burn{kindleCost != null ? ' − kindle' : ''}</span></h2>
           <p className="muted small" style={{ margin: 0 }}>
-            {Math.round(totalCalories)} fuel − {Math.round(totalBurned)} burn ={' '}
+            {Math.round(totalCalories)} fuel − {Math.round(totalBurned)} burn
+            {kindleCost != null && ` − ${Math.round(kindleCost)} kindle`} ={' '}
             <strong>{Math.round(netCalories)} kcal</strong>
           </p>
+          {kindleCost == null && (
+            <p className="muted small" style={{ margin: 0 }}>
+              Add your date of birth, sex, height, and weight in your{' '}
+              <Link to="/profile">profile</Link> to include your passive Kindle cost here.
+            </p>
+          )}
         </div>
       )}
 

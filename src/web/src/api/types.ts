@@ -47,6 +47,8 @@ export interface CurrentUser {
   sexAtBirth?: SexAtBirth
   // Height stored canonically in centimeters; the UI converts to/from ft/in.
   heightCm?: number
+  // Date of birth "yyyy-MM-dd" (drives the Kindle BMR calc); absent until provided.
+  dateOfBirth?: string
   hasCompletedOnboarding: boolean
   // The meal plan the user is currently following (drives The Log); absent if none chosen.
   activeMealPlanId?: string
@@ -80,6 +82,8 @@ export interface OnboardingInput {
   primaryGoal: GoalType
   sexAtBirth: SexAtBirth
   heightCm: number
+  // Date of birth "yyyy-MM-dd" (required; drives the Kindle BMR calc).
+  dateOfBirth: string
   currentWeight: number
   weightUnit: WeightUnit
 }
@@ -89,6 +93,8 @@ export interface ProfileInput {
   primaryGoal: GoalType
   sexAtBirth: SexAtBirth
   heightCm: number
+  // Date of birth "yyyy-MM-dd" (required; drives the Kindle BMR calc).
+  dateOfBirth: string
   currentWeight?: number
   weightUnit: WeightUnit
 }
@@ -454,6 +460,10 @@ export interface BurnDay {
   activities: BurnActivity[]
   // Sum of every activity's calories for the day (positive magnitude).
   totalCaloriesBurned: number
+  // The passive "Kindle" cost: daily sedentary calorie usage (Mifflin–St Jeor BMR × 1.2), a positive
+  // magnitude derived from the user's profile + latest weight. Absent when the profile is incomplete
+  // (the UI then prompts the user to complete it). Subtracted in the net summary: net = fuel − burn − kindle.
+  kindleCost?: number
 }
 
 /** A past activity name with the calories from its most-recent entry, for the burn-name autocomplete. */

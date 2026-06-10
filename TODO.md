@@ -12,8 +12,6 @@ Ignore all files in the `Future Features` section.
   - Height
   - Goal: (already asking)
 
-- [] **Create a `Kindle` cost**: people burn calories by just staying alive. Automatically add a daily `burn` cost to the user's log equal to their daily sedentary calorie usage. To calculate this, use the Mifflin–St Jeor BMR Formula multiplied by 1.2.
-
 - [] **Create a landing page dashboard**: the user should land on a page that gives them an interesting view of their current progress and these actions:
   - List next 3 upcoming meals from their meal plan (with times to consume shown) and an option to mark them as completed.
   - Log their weight (if it's due today).

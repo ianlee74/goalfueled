@@ -25,13 +25,16 @@ public class UserProfileServiceTests
         return (user!, repo, weights, new UserProfileService(repo, weights, plans));
     }
 
+    private static readonly DateOnly DefaultDob = new(1990, 1, 1);
+
     private static OnboardingInput Onboarding(
         GoalType goal = GoalType.WeightLoss,
         SexAtBirth sex = SexAtBirth.Male,
         double heightCm = 180,
         double weight = 180,
-        WeightUnit unit = WeightUnit.Pound) =>
-        new(goal, sex, heightCm, weight, unit);
+        WeightUnit unit = WeightUnit.Pound,
+        DateOnly? dob = null) =>
+        new(goal, sex, heightCm, dob ?? DefaultDob, weight, unit);
 
     [Fact]
     public async Task Onboarding_persists_all_fields_and_marks_complete()
@@ -39,15 +42,59 @@ public class UserProfileServiceTests
         using var db = TestHelpers.NewContext();
         var (user, repo, _, svc) = await SetupAsync(db);
 
+        var dob = new DateOnly(1985, 7, 20);
         await svc.CompleteOnboardingAsync(user,
-            Onboarding(GoalType.WeightGain, SexAtBirth.Female, 165.5, 70, WeightUnit.Kilogram), default);
+            Onboarding(GoalType.WeightGain, SexAtBirth.Female, 165.5, 70, WeightUnit.Kilogram, dob), default);
 
         var saved = await repo.GetByIdAsync(user.Id);
         Assert.NotNull(saved);
         Assert.Equal(GoalType.WeightGain, saved!.PrimaryGoal);
         Assert.Equal(SexAtBirth.Female, saved.SexAtBirth);
         Assert.Equal(165.5, saved.HeightCm);
+        Assert.Equal(dob, saved.DateOfBirth);
         Assert.True(saved.HasCompletedOnboarding);
+    }
+
+    [Fact]
+    public async Task Onboarding_rejects_future_date_of_birth_and_leaves_onboarding_incomplete()
+    {
+        using var db = TestHelpers.NewContext();
+        var (user, repo, weights, svc) = await SetupAsync(db);
+        var future = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(1);
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            svc.CompleteOnboardingAsync(user, Onboarding(dob: future), default));
+
+        var saved = await repo.GetByIdAsync(user.Id);
+        Assert.False(saved!.HasCompletedOnboarding);
+        Assert.Null(saved.DateOfBirth);
+        Assert.Empty(await weights.ListAsync(user, default));
+    }
+
+    [Fact]
+    public async Task Onboarding_rejects_implausibly_old_date_of_birth()
+    {
+        using var db = TestHelpers.NewContext();
+        var (user, _, _, svc) = await SetupAsync(db);
+        var tooOld = DateOnly.FromDateTime(DateTime.UtcNow).AddYears(-(KindleLimits.MaxAgeYears + 1));
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            svc.CompleteOnboardingAsync(user, Onboarding(dob: tooOld), default));
+    }
+
+    [Fact]
+    public async Task UpdateProfile_persists_date_of_birth()
+    {
+        using var db = TestHelpers.NewContext();
+        var (user, repo, _, svc) = await SetupAsync(db);
+        var dob = new DateOnly(1979, 3, 14);
+
+        await svc.CompleteOnboardingAsync(user, Onboarding(), default);
+        await svc.UpdateProfileAsync(user,
+            new ProfileInput(GoalType.WeightManagement, SexAtBirth.Female, 170, dob, null, WeightUnit.Pound), default);
+
+        var saved = await repo.GetByIdAsync(user.Id);
+        Assert.Equal(dob, saved!.DateOfBirth);
     }
 
     [Fact]
@@ -111,7 +158,7 @@ public class UserProfileServiceTests
 
         await svc.CompleteOnboardingAsync(user, Onboarding(), default);
         await svc.UpdateProfileAsync(user,
-            new ProfileInput(GoalType.WeightManagement, SexAtBirth.Female, 170, null, WeightUnit.Pound), default);
+            new ProfileInput(GoalType.WeightManagement, SexAtBirth.Female, 170, DefaultDob, null, WeightUnit.Pound), default);
 
         var saved = await repo.GetByIdAsync(user.Id);
         Assert.Equal(GoalType.WeightManagement, saved!.PrimaryGoal);
@@ -126,7 +173,7 @@ public class UserProfileServiceTests
         var (user, _, weights, svc) = await SetupAsync(db);
 
         await svc.UpdateProfileAsync(user,
-            new ProfileInput(GoalType.WeightLoss, SexAtBirth.Male, 180, null, WeightUnit.Pound), default);
+            new ProfileInput(GoalType.WeightLoss, SexAtBirth.Male, 180, DefaultDob, null, WeightUnit.Pound), default);
 
         Assert.Empty(await weights.ListAsync(user, default));
     }
@@ -139,7 +186,7 @@ public class UserProfileServiceTests
 
         await svc.CompleteOnboardingAsync(user, Onboarding(weight: 180, unit: WeightUnit.Pound), default);
         await svc.UpdateProfileAsync(user,
-            new ProfileInput(GoalType.WeightLoss, SexAtBirth.Male, 180, 175, WeightUnit.Pound), default);
+            new ProfileInput(GoalType.WeightLoss, SexAtBirth.Male, 180, DefaultDob, 175, WeightUnit.Pound), default);
 
         var history = await weights.ListAsync(user, default);
         Assert.Single(history); // upserted today's entry, not duplicated
@@ -154,7 +201,7 @@ public class UserProfileServiceTests
 
         await Assert.ThrowsAsync<ValidationException>(() =>
             svc.UpdateProfileAsync(user,
-                new ProfileInput(GoalType.WeightLoss, SexAtBirth.Male, 0, null, WeightUnit.Pound), default));
+                new ProfileInput(GoalType.WeightLoss, SexAtBirth.Male, 0, DefaultDob, null, WeightUnit.Pound), default));
     }
 
     // ---- weight-measurement schedule ----

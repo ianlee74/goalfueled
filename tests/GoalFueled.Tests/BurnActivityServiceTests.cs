@@ -3,6 +3,7 @@ using GoalFueled.Api.Common;
 using GoalFueled.Api.Services;
 using GoalFueled.Data;
 using GoalFueled.Data.Repositories;
+using GoalFueled.Domain;
 using GoalFueled.Domain.Contracts;
 using GoalFueled.Domain.Entities;
 
@@ -21,7 +22,7 @@ public class BurnActivityServiceTests
             new AuthenticatedIdentity("dev", "other", "other@dev.local", "Other"))
             .GetCurrentUserAsync(TestHelpers.BlankRequest());
 
-        var burn = new BurnService(new BurnActivityRepository(db));
+        var burn = new BurnService(new BurnActivityRepository(db), new WeightEntryRepository(db));
         return (user!, other!, burn);
     }
 
@@ -211,5 +212,59 @@ public class BurnActivityServiceTests
         var mine = await burn.GetSuggestionsAsync(user, default);
         Assert.Single(mine);
         Assert.Equal("Mine", mine[0].Name);
+    }
+
+    // ---- Kindle cost (derived sedentary burn) ----
+
+    [Fact]
+    public async Task Day_view_includes_kindle_cost_when_profile_is_complete()
+    {
+        using var db = TestHelpers.NewContext();
+        var (user, _, burn) = await SetupAsync(db);
+
+        // Complete the profile and record a current weight (the Kindle inputs).
+        user.SexAtBirth = GoalFueled.Domain.SexAtBirth.Male;
+        user.HeightCm = 180;
+        user.DateOfBirth = DateOnly.FromDateTime(DateTime.UtcNow).AddYears(-30);
+        await new UserRepository(db).UpdateAsync(user, default);
+        await new WeightService(new WeightEntryRepository(db))
+            .RecordAsync(user, new WeightEntryInput(80, WeightUnit.Kilogram), default);
+
+        var day = await burn.GetDayAsync(user, Today, default);
+
+        Assert.NotNull(day.KindleCost);
+        // 30-year-old male, 80 kg, 180 cm → BMR 1780 × 1.2 = 2136. Age-30 may land on either side of the
+        // birthday depending on the test date, so allow ±5 kcal (one year of age = 6 kcal in this formula).
+        Assert.InRange(day.KindleCost!.Value, 2130, 2142);
+    }
+
+    [Fact]
+    public async Task Kindle_cost_is_null_when_no_weight_is_recorded()
+    {
+        using var db = TestHelpers.NewContext();
+        var (user, _, burn) = await SetupAsync(db);
+
+        // Full profile but no recorded weight → Kindle unavailable.
+        user.SexAtBirth = GoalFueled.Domain.SexAtBirth.Male;
+        user.HeightCm = 180;
+        user.DateOfBirth = new DateOnly(1990, 1, 1);
+        await new UserRepository(db).UpdateAsync(user, default);
+
+        var day = await burn.GetDayAsync(user, Today, default);
+        Assert.Null(day.KindleCost);
+    }
+
+    [Fact]
+    public async Task Kindle_cost_is_null_when_profile_fields_are_missing()
+    {
+        using var db = TestHelpers.NewContext();
+        var (user, _, burn) = await SetupAsync(db);
+
+        // A weight exists but the profile has no sex/height/DOB → Kindle unavailable.
+        await new WeightService(new WeightEntryRepository(db))
+            .RecordAsync(user, new WeightEntryInput(80, WeightUnit.Kilogram), default);
+
+        var day = await burn.GetDayAsync(user, Today, default);
+        Assert.Null(day.KindleCost);
     }
 }

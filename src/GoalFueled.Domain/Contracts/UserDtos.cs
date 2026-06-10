@@ -13,6 +13,8 @@ public sealed record CurrentUserDto(
     GoalType? PrimaryGoal,
     SexAtBirth? SexAtBirth,
     double? HeightCm,
+    /// <summary>The user's date of birth (drives the Kindle BMR calc); null until provided.</summary>
+    DateOnly? DateOfBirth,
     bool HasCompletedOnboarding,
     /// <summary>The meal plan the user is currently following (drives The Log); null if none chosen.</summary>
     string? ActiveMealPlanId,
@@ -51,6 +53,8 @@ public sealed record OnboardingInput(
     GoalType PrimaryGoal,
     SexAtBirth SexAtBirth,
     double HeightCm,
+    /// <summary>The user's date of birth, "yyyy-MM-dd" (required; drives the Kindle BMR calc).</summary>
+    DateOnly DateOfBirth,
     double CurrentWeight,
     WeightUnit WeightUnit);
 
@@ -62,6 +66,8 @@ public sealed record ProfileInput(
     GoalType PrimaryGoal,
     SexAtBirth SexAtBirth,
     double HeightCm,
+    /// <summary>The user's date of birth, "yyyy-MM-dd" (required; drives the Kindle BMR calc).</summary>
+    DateOnly DateOfBirth,
     double? CurrentWeight,
     WeightUnit WeightUnit);
 
