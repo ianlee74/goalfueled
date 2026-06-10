@@ -43,10 +43,13 @@ public sealed class UserProfileService
         // gate and weight goals read). If it throws, onboarding is not marked complete.
         await _weights.RecordAsync(user, new WeightEntryInput(input.CurrentWeight, input.WeightUnit), ct);
 
+        ValidateUnitsPreference(input.UnitsPreference);
+
         user.PrimaryGoal = input.PrimaryGoal;
         user.SexAtBirth = input.SexAtBirth;
         user.HeightCm = input.HeightCm;
         user.DateOfBirth = input.DateOfBirth;
+        user.UnitsPreference = input.UnitsPreference;
         user.HasCompletedOnboarding = true;
         await _users.UpdateAsync(user, ct);
         return user;
@@ -69,10 +72,13 @@ public sealed class UserProfileService
             await _weights.RecordAsync(user, new WeightEntryInput(weight, input.WeightUnit), ct);
         }
 
+        ValidateUnitsPreference(input.UnitsPreference);
+
         user.PrimaryGoal = input.PrimaryGoal;
         user.SexAtBirth = input.SexAtBirth;
         user.HeightCm = input.HeightCm;
         user.DateOfBirth = input.DateOfBirth;
+        user.UnitsPreference = input.UnitsPreference;
         await _users.UpdateAsync(user, ct);
         return user;
     }
@@ -151,6 +157,12 @@ public sealed class UserProfileService
     {
         if (!Enum.IsDefined(typeof(WeightUnit), unit))
             throw new ValidationException("Unknown weight unit.");
+    }
+
+    private static void ValidateUnitsPreference(UnitsPreference preference)
+    {
+        if (!Enum.IsDefined(typeof(UnitsPreference), preference))
+            throw new ValidationException("Unknown units preference.");
     }
 
     private static void ValidateHeight(double heightCm)

@@ -60,6 +60,20 @@ public enum WeightUnit
 }
 
 /// <summary>
+/// The user's preferred unit system for displaying and entering their <b>body weight and height</b>
+/// (only those). Metric uses kilograms and centimeters; US/Imperial uses pounds and feet/inches. This
+/// preference does NOT affect recipe/ingredient measurement units (see <see cref="UnitOfMeasure"/>).
+/// </summary>
+public enum UnitsPreference
+{
+    /// <summary>Weight in kilograms (kg), height in centimeters (cm).</summary>
+    Metric = 0,
+
+    /// <summary>Weight in pounds (lb), height in feet/inches (ft/in).</summary>
+    UsImperial = 1
+}
+
+/// <summary>
 /// How often a user wants to be reminded to log a weight measurement. The anchor day-of-week (and, for
 /// the "every N" cadences, the recurrence anchor) is taken from the schedule's start date.
 /// </summary>

@@ -22,6 +22,8 @@ export function WelcomePage() {
     weight: '',
     weightUnit: 'Pound',
     goal: 'WeightLoss',
+    // New users default to US/Imperial (matching the lb + ft/in defaults above); they can switch here.
+    unitsPreference: 'UsImperial',
   })
 
   async function submit() {
@@ -41,6 +43,7 @@ export function WelcomePage() {
         dateOfBirth: fields.dob,
         currentWeight: weight,
         weightUnit: fields.weightUnit,
+        unitsPreference: fields.unitsPreference,
       })
       await refresh()
       navigate('/ingredients', { replace: true })

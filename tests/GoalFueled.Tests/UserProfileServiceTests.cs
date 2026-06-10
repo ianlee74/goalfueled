@@ -33,8 +33,9 @@ public class UserProfileServiceTests
         double heightCm = 180,
         double weight = 180,
         WeightUnit unit = WeightUnit.Pound,
-        DateOnly? dob = null) =>
-        new(goal, sex, heightCm, dob ?? DefaultDob, weight, unit);
+        DateOnly? dob = null,
+        UnitsPreference units = UnitsPreference.UsImperial) =>
+        new(goal, sex, heightCm, dob ?? DefaultDob, weight, unit, units);
 
     [Fact]
     public async Task Onboarding_persists_all_fields_and_marks_complete()
@@ -53,6 +54,38 @@ public class UserProfileServiceTests
         Assert.Equal(165.5, saved.HeightCm);
         Assert.Equal(dob, saved.DateOfBirth);
         Assert.True(saved.HasCompletedOnboarding);
+    }
+
+    [Fact]
+    public async Task Units_preference_defaults_to_us_imperial_and_round_trips_as_metric()
+    {
+        using var db = TestHelpers.NewContext();
+        var (user, repo, _, svc) = await SetupAsync(db);
+
+        // A freshly provisioned user defaults to US/Imperial (matches today's lb + ft/in defaults).
+        Assert.Equal(UnitsPreference.UsImperial, user.UnitsPreference);
+
+        // Onboarding can set the preference to Metric and it persists.
+        await svc.CompleteOnboardingAsync(user, Onboarding(units: UnitsPreference.Metric), default);
+        var afterOnboarding = await repo.GetByIdAsync(user.Id);
+        Assert.Equal(UnitsPreference.Metric, afterOnboarding!.UnitsPreference);
+
+        // A later profile update can flip it back to US/Imperial.
+        await svc.UpdateProfileAsync(user,
+            new ProfileInput(GoalType.WeightLoss, SexAtBirth.Male, 180, DefaultDob, null,
+                WeightUnit.Pound, UnitsPreference.UsImperial), default);
+        var afterUpdate = await repo.GetByIdAsync(user.Id);
+        Assert.Equal(UnitsPreference.UsImperial, afterUpdate!.UnitsPreference);
+    }
+
+    [Fact]
+    public async Task Onboarding_rejects_unknown_units_preference()
+    {
+        using var db = TestHelpers.NewContext();
+        var (user, _, _, svc) = await SetupAsync(db);
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            svc.CompleteOnboardingAsync(user, Onboarding(units: (UnitsPreference)99), default));
     }
 
     [Fact]

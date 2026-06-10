@@ -6,11 +6,12 @@ import { NutritionLabel } from '../components/NutritionLabel'
 import { FuelBurnIcon } from '../components/FuelBurnIcon'
 import { DailyProgressChart } from '../components/DailyProgressChart'
 import {
-  CONSUMPTION_SOURCE_LABELS, WEIGHT_UNIT_LABELS,
+  CONSUMPTION_SOURCE_LABELS,
   type BurnActivity, type BurnDay, type BurnSuggestion,
   type ConsumptionDay, type ConsumptionEntry, type ConsumptionSource, type Meal, type MealPlan,
   type PlannedDay, type PlannedMealTask, type Recipe, type WeightTask,
 } from '../api/types'
+import { formatWeight } from '../lib/weight'
 
 // Today's calendar date as "yyyy-MM-dd" in the user's local time.
 function todayIso(): string {
@@ -970,14 +971,16 @@ function BurnRow({ activity, onRemove }: { activity: BurnActivity; onRemove: () 
 
 // The weigh-in task — pending (a measurement is due) or recorded. Links to the weight page either way.
 function WeighInRow({ task }: { task: WeightTask }) {
+  const { profile } = useAuth()
+  const preference = profile?.unitsPreference ?? 'UsImperial'
   return (
     <div className="card ingredient-item" style={{ opacity: task.done ? 0.7 : 1 }}>
       <div className="ingredient-thumb">⚖️</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <strong style={{ textDecoration: task.done ? 'line-through' : 'none' }}>Log your weight</strong>
         <div className="small muted">
-          {task.done && task.recordedValue != null
-            ? `Logged: ${round(task.recordedValue)} ${task.recordedUnit ? WEIGHT_UNIT_LABELS[task.recordedUnit] : ''}`
+          {task.done && task.recordedValue != null && task.recordedUnit
+            ? `Logged: ${formatWeight(task.recordedValue, task.recordedUnit, preference)}`
             : 'A weight measurement is due today.'}
         </div>
       </div>

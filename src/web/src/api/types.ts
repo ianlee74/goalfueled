@@ -7,6 +7,12 @@ export type GoalType = 'WeightLoss' | 'WeightManagement' | 'WeightGain'
 
 export type SexAtBirth = 'Male' | 'Female'
 
+/**
+ * The user's preferred unit system for body WEIGHT and HEIGHT only (never recipe/ingredient units).
+ * Metric → kilograms + centimeters; UsImperial → pounds + feet/inches.
+ */
+export type UnitsPreference = 'Metric' | 'UsImperial'
+
 export type OwnershipScope = 'App' | 'User'
 
 export type UnitOfMeasure =
@@ -54,6 +60,8 @@ export interface CurrentUser {
   activeMealPlanId?: string
   // The user's recurring weight-measurement schedule; absent when none is configured.
   weightSchedule?: WeightSchedule
+  // Preferred unit system for body weight + height (kg/cm vs lb/ft-in). Defaults to UsImperial server-side.
+  unitsPreference: UnitsPreference
 }
 
 export type WeightScheduleCadence = 'Daily' | 'Weekly' | 'EveryNDays' | 'EveryNWeeks'
@@ -86,6 +94,8 @@ export interface OnboardingInput {
   dateOfBirth: string
   currentWeight: number
   weightUnit: WeightUnit
+  // Preferred weight/height unit system.
+  unitsPreference: UnitsPreference
 }
 
 /** Payload for updating profile attributes later. Current weight is optional. */
@@ -97,6 +107,8 @@ export interface ProfileInput {
   dateOfBirth: string
   currentWeight?: number
   weightUnit: WeightUnit
+  // Preferred weight/height unit system.
+  unitsPreference: UnitsPreference
 }
 
 /** A user as shown on the admin user-management screen. */
@@ -584,6 +596,12 @@ export const GOAL_LABELS: Record<GoalType, string> = {
 export const SEX_LABELS: Record<SexAtBirth, string> = {
   Male: 'Male',
   Female: 'Female',
+}
+
+// How the units preference is presented in the profile/onboarding control.
+export const UNITS_PREFERENCE_LABELS: Record<UnitsPreference, string> = {
+  Metric: 'Metric (kg, cm)',
+  UsImperial: 'US (lb, ft/in)',
 }
 
 // Display abbreviations + grouping for the unit selector.

@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { goalApi } from '../api/services'
 import { useNutrients } from '../hooks/useNutrients'
+import { useAuth } from '../auth/AuthContext'
 import { GoalProgressVisual } from '../components/GoalProgressVisual'
 import {
   GOAL_CADENCE_LABELS, GOAL_METRIC_LABELS,
   type Goal, type GoalCadence, type GoalInput, type GoalMetricType,
 } from '../api/types'
+import { goalUnitLabel } from '../lib/goalUnit'
 
 // Today's calendar date as "yyyy-MM-dd" in the user's local time.
 function todayIso(): string {
@@ -28,6 +30,8 @@ const emptyForm = (): GoalInput => ({
 
 export function GoalsPage() {
   const { ordered: nutrients } = useNutrients()
+  const { profile } = useAuth()
+  const preference = profile?.unitsPreference ?? 'UsImperial'
   const [goals, setGoals] = useState<Goal[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -223,12 +227,12 @@ export function GoalsPage() {
                     {g.metricType === 'Nutrient' ? g.nutrientName : 'Weight'}
                     {' · '}
                     {g.cadence === 'OneTime' ? 'One-time' : `Every ${g.recurrenceDays} days`}
-                    {' · target '}{g.targetValue} {g.metricUnit}
+                    {' · target '}{g.targetValue} {goalUnitLabel(g, preference)}
                   </div>
                 </div>
                 <button className="btn btn-sm btn-danger" onClick={() => remove(g.id)}>Delete</button>
               </div>
-              <GoalProgressVisual goal={g} />
+              <GoalProgressVisual goal={g} preference={preference} />
             </div>
           ))}
         </div>

@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { consumptionApi, dashboardApi, weightApi } from '../api/services'
-import { WEIGHT_UNIT_LABELS, type Dashboard, type UpcomingMeal, type WeightUnit } from '../api/types'
+import { WEIGHT_UNIT_LABELS, type Dashboard, type UnitsPreference, type UpcomingMeal, type WeightUnit } from '../api/types'
 import { NetBalanceChart } from '../components/NetBalanceChart'
+import { convertWeight, formatWeight, roundWeight, weightUnitFor } from '../lib/weight'
 
 // Today's calendar date as "yyyy-MM-dd" in the user's local time.
 function todayIso(): string {
@@ -34,6 +35,7 @@ function weekdayLabel(iso: string): string {
 
 export function DashboardPage() {
   const { profile } = useAuth()
+  const preference = profile?.unitsPreference ?? 'UsImperial'
   const navigate = useNavigate()
   const today = todayIso()
 
@@ -44,7 +46,8 @@ export function DashboardPage() {
 
   // Quick-log-weight form (only shown when a measurement is due today and not yet recorded).
   const [weightValue, setWeightValue] = useState('')
-  const [weightUnit, setWeightUnit] = useState<WeightUnit>('Pound')
+  // Default the quick-log unit to the user's preferred weight unit.
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>(() => weightUnitFor(preference))
   const [savingWeight, setSavingWeight] = useState(false)
 
   // Reload the dashboard (used by action handlers after a mutation). The setState calls live in the
@@ -53,12 +56,12 @@ export function DashboardPage() {
     dashboardApi.get()
       .then((dash) => {
         setData(dash)
-        // Default the unit to the one used in the progress series (the user's last-used unit).
-        setWeightUnit(dash.progress.weightUnit)
+        // Default the quick-log unit to the user's preferred weight unit.
+        setWeightUnit(weightUnitFor(preference))
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load your dashboard.'))
       .finally(() => setLoading(false)),
-  [])
+  [preference])
 
   // Load the dashboard once on mount.
   useEffect(() => {
@@ -67,11 +70,13 @@ export function DashboardPage() {
       .then((dash) => {
         if (cancelled) return
         setData(dash)
-        setWeightUnit(dash.progress.weightUnit)
+        setWeightUnit(weightUnitFor(preference))
       })
       .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load your dashboard.') })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
+    // Runs once on mount; the preferred unit is read for the initial default only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function completeMeal(meal: UpcomingMeal) {
@@ -121,6 +126,7 @@ export function DashboardPage() {
           recorded={data.weightDue.alreadyRecorded}
           recordedValue={data.weightDue.recordedValue}
           recordedUnit={data.weightDue.recordedUnit}
+          preference={preference}
           value={weightValue}
           unit={weightUnit}
           saving={savingWeight}
@@ -177,13 +183,13 @@ export function DashboardPage() {
       {/* 7-day progress chart + weight-change estimate. */}
       <div className="card stack">
         <h2>Past 7 days 📈</h2>
-        {data && <ProgressCard data={data} onNavigate={() => navigate('/profile')} />}
+        {data && <ProgressCard data={data} preference={preference} onNavigate={() => navigate('/profile')} />}
       </div>
     </div>
   )
 }
 
-function ProgressCard({ data, onNavigate }: { data: Dashboard; onNavigate: () => void }) {
+function ProgressCard({ data, preference, onNavigate }: { data: Dashboard; preference: UnitsPreference; onNavigate: () => void }) {
   const p = data.progress
   if (!p.hasData) {
     return (
@@ -194,8 +200,10 @@ function ProgressCard({ data, onNavigate }: { data: Dashboard; onNavigate: () =>
     )
   }
 
-  const lost = p.estimatedWeightLost
-  const unit = WEIGHT_UNIT_LABELS[p.weightUnit]
+  // The estimate arrives in the user's last-used weight unit; convert it to the preferred unit.
+  const target = weightUnitFor(preference)
+  const lost = roundWeight(convertWeight(p.estimatedWeightLost, p.weightUnit, target))
+  const unit = WEIGHT_UNIT_LABELS[target]
   // Deficit → positive "lost"; surplus → negative (a gain).
   const isLoss = lost > 0.0005
   const isGain = lost < -0.0005
@@ -258,6 +266,7 @@ function WeightDueCard(props: {
   recorded: boolean
   recordedValue?: number
   recordedUnit?: WeightUnit
+  preference: UnitsPreference
   value: string
   unit: WeightUnit
   saving: boolean
@@ -270,7 +279,7 @@ function WeightDueCard(props: {
       <div className="notice info">
         ⚖️ Weight logged today
         {props.recordedValue != null && props.recordedUnit
-          ? `: ${props.recordedValue} ${WEIGHT_UNIT_LABELS[props.recordedUnit]}`
+          ? `: ${formatWeight(props.recordedValue, props.recordedUnit, props.preference)}`
           : ''}
         . Nice work staying on top of it!
       </div>

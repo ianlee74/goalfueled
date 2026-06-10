@@ -51,6 +51,13 @@ public class AppUser
     /// </summary>
     public DateOnly? DateOfBirth { get; set; }
 
+    /// <summary>
+    /// The user's preferred unit system for body weight and height (kg/cm vs lb/ft-in). Defaults to
+    /// <see cref="UnitsPreference.UsImperial"/> so existing users (whose UI defaulted to lb + ft/in)
+    /// keep the same behavior. Affects ONLY weight/height display and entry — never recipe/ingredient units.
+    /// </summary>
+    public UnitsPreference UnitsPreference { get; set; } = UnitsPreference.UsImperial;
+
     /// <summary>True once the user has completed the first-login welcome flow.</summary>
     public bool HasCompletedOnboarding { get; set; }
 

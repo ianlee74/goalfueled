@@ -99,6 +99,6 @@ public sealed class UserFunctions
         return new(
             u.Id, u.Email, u.DisplayName, u.AvatarUrl, u.Roles, u.IsAdmin,
             u.AdminViewEnabled, u.IsActingAsAdmin, u.PrimaryGoal, u.SexAtBirth, u.HeightCm,
-            u.DateOfBirth, u.HasCompletedOnboarding, u.ActiveMealPlanId, scheduleDto);
+            u.DateOfBirth, u.HasCompletedOnboarding, u.ActiveMealPlanId, scheduleDto, u.UnitsPreference);
     }
 }

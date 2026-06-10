@@ -1,5 +1,9 @@
-import { GOAL_LABELS, SEX_LABELS, WEIGHT_UNIT_LABELS, type GoalType, type SexAtBirth, type WeightUnit } from '../api/types'
-import { cmToFtIn, ftInToCm, type HeightUnit } from '../lib/height'
+import {
+  GOAL_LABELS, SEX_LABELS, UNITS_PREFERENCE_LABELS, WEIGHT_UNIT_LABELS,
+  type GoalType, type SexAtBirth, type UnitsPreference, type WeightUnit,
+} from '../api/types'
+import { cmToFtIn, ftInToCm, heightUnitFor, type HeightUnit } from '../lib/height'
+import { weightUnitFor } from '../lib/weight'
 
 /**
  * The basic-info fields captured at first login and editable later on the Profile page: sex at birth,
@@ -22,6 +26,11 @@ export interface ProfileFieldsValue {
   weight: string
   weightUnit: WeightUnit
   goal: GoalType
+  /**
+   * Preferred unit system for weight + height. Switching it re-defaults the height and weight unit
+   * selectors (Metric → cm + kg, US → ft/in + lb); the user may still override each per-entry.
+   */
+  unitsPreference: UnitsPreference
 }
 
 interface Props {
@@ -35,6 +44,16 @@ interface Props {
 export function ProfileFields({ value, onChange, disabled, showWeight = true }: Props) {
   function set<K extends keyof ProfileFieldsValue>(key: K, v: ProfileFieldsValue[K]) {
     onChange({ ...value, [key]: v })
+  }
+
+  // Changing the units preference re-defaults both the height and weight unit selectors to match it.
+  function setUnitsPreference(pref: UnitsPreference) {
+    onChange({
+      ...value,
+      unitsPreference: pref,
+      heightUnit: heightUnitFor(pref),
+      weightUnit: weightUnitFor(pref),
+    })
   }
 
   const ft = value.heightCm != null ? cmToFtIn(value.heightCm) : { feet: 0, inches: 0 }
@@ -64,6 +83,20 @@ export function ProfileFields({ value, onChange, disabled, showWeight = true }: 
           <option value="" disabled>Select…</option>
           <option value="Male">{SEX_LABELS.Male}</option>
           <option value="Female">{SEX_LABELS.Female}</option>
+        </select>
+      </label>
+
+      <label className="field">
+        Units
+        <select
+          className="select"
+          value={value.unitsPreference}
+          disabled={disabled}
+          onChange={(e) => setUnitsPreference(e.target.value as UnitsPreference)}
+        >
+          {(Object.keys(UNITS_PREFERENCE_LABELS) as UnitsPreference[]).map((p) => (
+            <option key={p} value={p}>{UNITS_PREFERENCE_LABELS[p]}</option>
+          ))}
         </select>
       </label>
 

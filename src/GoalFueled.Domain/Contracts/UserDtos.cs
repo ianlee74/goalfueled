@@ -19,7 +19,9 @@ public sealed record CurrentUserDto(
     /// <summary>The meal plan the user is currently following (drives The Log); null if none chosen.</summary>
     string? ActiveMealPlanId,
     /// <summary>The user's recurring weight-measurement schedule, or null when none is configured.</summary>
-    WeightScheduleDto? WeightSchedule);
+    WeightScheduleDto? WeightSchedule,
+    /// <summary>The user's preferred weight/height unit system (Metric = kg/cm, UsImperial = lb/ft-in).</summary>
+    UnitsPreference UnitsPreference = UnitsPreference.UsImperial);
 
 /// <summary>
 /// A user's recurring weight-measurement schedule as returned to clients. Drives the recurring
@@ -56,7 +58,9 @@ public sealed record OnboardingInput(
     /// <summary>The user's date of birth, "yyyy-MM-dd" (required; drives the Kindle BMR calc).</summary>
     DateOnly DateOfBirth,
     double CurrentWeight,
-    WeightUnit WeightUnit);
+    WeightUnit WeightUnit,
+    /// <summary>Preferred weight/height unit system. Trailing with a default so positional callers don't break.</summary>
+    UnitsPreference UnitsPreference = UnitsPreference.UsImperial);
 
 /// <summary>
 /// Payload for updating the editable profile attributes later (the Profile page). Goal, sex, and
@@ -69,7 +73,9 @@ public sealed record ProfileInput(
     /// <summary>The user's date of birth, "yyyy-MM-dd" (required; drives the Kindle BMR calc).</summary>
     DateOnly DateOfBirth,
     double? CurrentWeight,
-    WeightUnit WeightUnit);
+    WeightUnit WeightUnit,
+    /// <summary>Preferred weight/height unit system. Trailing with a default so positional callers don't break.</summary>
+    UnitsPreference UnitsPreference = UnitsPreference.UsImperial);
 
 /// <summary>Payload for an admin toggling their admin-view on or off.</summary>
 public sealed record AdminViewInput(bool Enabled);

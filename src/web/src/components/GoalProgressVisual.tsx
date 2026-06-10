@@ -1,4 +1,5 @@
-import type { Goal } from '../api/types'
+import type { Goal, UnitsPreference } from '../api/types'
+import { goalUnitLabel } from '../lib/goalUnit'
 
 // A lightweight, dependency-free progress visual: an SVG ring whose sweep tracks progress toward the
 // target, tinted to celebrate (green) or warn (amber/red) based on the computed outcome, with an
@@ -31,7 +32,7 @@ const TONE_COLOR: Record<Tone, string> = {
   neutral: '#6b7280',
 }
 
-export function GoalProgressVisual({ goal }: { goal: Goal }) {
+export function GoalProgressVisual({ goal, preference }: { goal: Goal; preference: UnitsPreference }) {
   const p = goal.progress
   const tone = toneFor(goal)
   const color = TONE_COLOR[tone]
@@ -71,7 +72,7 @@ export function GoalProgressVisual({ goal }: { goal: Goal }) {
       <p className="small" style={{ margin: '0.5rem 0 0', color, fontWeight: 600 }}>{p.message}</p>
       {p.status !== 'NoData' && (
         <p className="small muted" style={{ margin: '0.25rem 0 0' }}>
-          {fmt(p.currentValue)} / {fmt(p.targetValue)} {goal.metricUnit} · {p.periodLabel}
+          {fmt(p.currentValue)} / {fmt(p.targetValue)} {goalUnitLabel(goal, preference)} · {p.periodLabel}
         </p>
       )}
       {p.basedOnLoggedConsumption && (

@@ -3,7 +3,8 @@ import { useAuth } from '../auth/AuthContext'
 import { userApi } from '../api/services'
 import { ProfileFields, type ProfileFieldsValue } from '../components/ProfileFields'
 import { WeightScheduleEditor } from '../components/WeightScheduleEditor'
-import { formatHeight } from '../lib/height'
+import { formatHeight, heightUnitFor } from '../lib/height'
+import { weightUnitFor } from '../lib/weight'
 
 /** Profile page where the user updates the basic info captured at first login. */
 export function ProfilePage() {
@@ -14,16 +15,19 @@ export function ProfilePage() {
   // The authenticated app only mounts this page once `profile` is loaded, so it's safe to seed the
   // form directly from it on first render (no effect needed). `refresh()` after a save flows back
   // through ProfileFields' controlled inputs, and our own writes keep the form in sync.
+  const unitsPreference = profile?.unitsPreference ?? 'UsImperial'
   const [fields, setFields] = useState<ProfileFieldsValue>({
     sex: profile?.sexAtBirth ?? '',
     dob: profile?.dateOfBirth ?? '',
     heightCm: profile?.heightCm ?? null,
-    heightUnit: 'ftin',
+    // Default the height unit selector from the saved units preference.
+    heightUnit: heightUnitFor(unitsPreference),
     // Weight is not editable here (it's recorded through The Log); these seed the shared
     // ProfileFields value but the weight field is hidden via showWeight={false}.
     weight: '',
-    weightUnit: 'Pound',
+    weightUnit: weightUnitFor(unitsPreference),
     goal: profile?.primaryGoal ?? 'WeightLoss',
+    unitsPreference,
   })
 
   async function save() {
@@ -43,6 +47,7 @@ export function ProfilePage() {
         heightCm: fields.heightCm,
         dateOfBirth: fields.dob,
         weightUnit: fields.weightUnit,
+        unitsPreference: fields.unitsPreference,
       })
       await refresh()
       setSaved(true)
@@ -66,7 +71,7 @@ export function ProfilePage() {
         <ProfileFields value={fields} onChange={setFields} disabled={saving} showWeight={false} />
         {profile?.heightCm != null && (
           <p className="muted small" style={{ margin: 0 }}>
-            Current saved height: {formatHeight(profile.heightCm)}
+            Current saved height: {formatHeight(profile.heightCm, fields.unitsPreference)}
           </p>
         )}
         <button className="btn btn-primary" disabled={saving} onClick={save}>

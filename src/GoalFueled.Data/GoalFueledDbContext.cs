@@ -64,6 +64,9 @@ public class GoalFueledDbContext : DbContext
             // string name (consistent with the other onboarding enums); the interval and start date are
             // plain nullable scalars both providers map natively.
             e.Property(u => u.WeightScheduleCadence).HasConversion<string?>();
+            // Persist the units preference (weight/height display) by its string name, like the other
+            // onboarding enums. Defaults to UsImperial on the entity for users created before it existed.
+            e.Property(u => u.UnitsPreference).HasConversion<string>();
         });
 
         // --- Ingredients ---

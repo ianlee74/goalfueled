@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { weightApi } from '../api/services'
 import { WEIGHT_UNIT_LABELS, type WeightEntry, type WeightUnit } from '../api/types'
+import { useAuth } from '../auth/AuthContext'
+import { formatWeight, weightUnitFor } from '../lib/weight'
 
 // Today's calendar date as "yyyy-MM-dd" in the user's local time.
 function todayIso(): string {
@@ -20,11 +22,14 @@ function safeReturnTo(raw: string | null): string | null {
 
 export function WeightPage() {
   const navigate = useNavigate()
+  const { profile } = useAuth()
+  const preference = profile?.unitsPreference ?? 'UsImperial'
   const [searchParams] = useSearchParams()
   const returnTo = safeReturnTo(searchParams.get('returnTo'))
   const [entries, setEntries] = useState<WeightEntry[]>([])
   const [value, setValue] = useState('')
-  const [unit, setUnit] = useState<WeightUnit>('Pound')
+  // Default the unit to the user's preferred weight unit (overridden by their last entry on load).
+  const [unit, setUnit] = useState<WeightUnit>(() => weightUnitFor(preference))
   const [date, setDate] = useState(todayIso())
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -134,7 +139,7 @@ export function WeightPage() {
               <div className="ingredient-thumb">⚖️</div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="row spread">
-                  <strong>{e.value} {WEIGHT_UNIT_LABELS[e.unit]}</strong>
+                  <strong>{formatWeight(e.value, e.unit, preference)}</strong>
                   <span className="small muted">{e.date}</span>
                 </div>
               </div>

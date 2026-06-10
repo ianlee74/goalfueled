@@ -6,8 +6,6 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-- [] **Add units preference to user profile**: allow the user to indicate if they prefer metric or US units in their profile. Show labels appropriately throughout the app based on their preference.
-
 - [] **Show goal summaries on the Dashboard**: show a list of active goals and their progress towards it. Make it motivational.
 
 ## FUTURE FEATURES

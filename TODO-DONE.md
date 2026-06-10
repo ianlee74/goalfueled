@@ -6,6 +6,18 @@
 
 ## Completed Items
 
+### Add a units preference (Metric vs US) to the profile — 2026-06-10 CDT
+
+- [x] **Added a per-user units preference (Metric vs US/Imperial)**, scoped to **weight and height only**, applied to entry defaults and displays throughout the app. Recipe/ingredient units were deliberately NOT touched (per the user's clarification).
+
+**NOTES:**
+- **Enum/default:** new `UnitsPreference` enum (`Metric = 0`, `UsImperial = 1`) in `Enums.cs`; `AppUser.UnitsPreference` defaults to **`UsImperial`** (matches today's lb + ft/in defaults, so existing users see no change). Persisted via `.HasConversion<string>()`. Metric → kg + cm; US → lb + ft/in.
+- **Backend:** surfaced on `CurrentUserDto`; added as a trailing defaulted param on `OnboardingInput` and `ProfileInput` (positional callers/tests unaffected); `UserProfileService` validates + persists it (onboarding + update); `UserFunctions.ToDto` passes it through. +2 tests in `UserProfileServiceTests` (default + round-trip + reject unknown).
+- **Frontend:** `UnitsPreference` type + `UNITS_PREFERENCE_LABELS` on the user/profile/onboarding types. New `lib/weight.ts` (`weightUnitFor`, `convertWeight` kg↔lb mirroring the server's `KilogramsPerPound`, `roundWeight`, `formatWeight`) and `lib/goalUnit.ts` (`goalUnitLabel`). `lib/height.ts` gained `heightUnitFor`; `formatHeight(cm, preference)` now shows cm (Metric) or ft/in (US). `ProfileFields` gained a Units selector that re-defaults the height/weight unit selectors; `WelcomePage`/`ProfilePage` seed & send it.
+- **Where it now applies:** entry defaults — ProfileFields height+weight selectors, WeightPage record unit, Dashboard quick-log unit, onboarding current-weight unit. Displays (converted + labeled): WeightPage history, Dashboard recorded value + 7-day estimated-loss, Log `WeighInRow`, Profile saved-height, Goals list + `GoalProgressVisual` (weight goals use the preferred weight label; nutrient goals keep their own units).
+- **Scope confirmed:** `UnitOfMeasure`/`UnitOfMeasureInfo` and recipe/ingredient forms untouched.
+- Verified: backend `dotnet build` (0 warnings/errors) + `dotnet test` (253 passed); frontend `npm run build` + `npm run lint` (0 errors, only the pre-existing `AuthContext.tsx` warning).
+
 ### Improve the Fuel Gauge chart (y-axis ticks + smoothing) — 2026-06-10 CDT
 
 - [x] **Made the Fuel Gauge chart easier to read**: added y-axis (calorie) gridlines + labels and smoothed the trajectory lines.
