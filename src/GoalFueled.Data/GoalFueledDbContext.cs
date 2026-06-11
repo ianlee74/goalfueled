@@ -65,8 +65,10 @@ public class GoalFueledDbContext : DbContext
             // plain nullable scalars both providers map natively.
             e.Property(u => u.WeightScheduleCadence).HasConversion<string?>();
             // Persist the units preference (weight/height display) by its string name, like the other
-            // onboarding enums. Defaults to UsImperial on the entity for users created before it existed.
-            e.Property(u => u.UnitsPreference).HasConversion<string>();
+            // onboarding enums. Nullable so user documents written before this field existed (which have no
+            // UnitsPreference property) materialize as null instead of throwing; callers fall back to
+            // UsImperial. A non-nullable conversion here threw "Nullable object must have a value" on read.
+            e.Property(u => u.UnitsPreference).HasConversion<string?>();
         });
 
         // --- Ingredients ---

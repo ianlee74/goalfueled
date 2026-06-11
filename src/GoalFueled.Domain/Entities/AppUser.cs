@@ -52,11 +52,14 @@ public class AppUser
     public DateOnly? DateOfBirth { get; set; }
 
     /// <summary>
-    /// The user's preferred unit system for body weight and height (kg/cm vs lb/ft-in). Defaults to
-    /// <see cref="UnitsPreference.UsImperial"/> so existing users (whose UI defaulted to lb + ft/in)
-    /// keep the same behavior. Affects ONLY weight/height display and entry — never recipe/ingredient units.
+    /// The user's preferred unit system for body weight and height (kg/cm vs lb/ft-in). Nullable so that
+    /// user documents written before this field existed (which have no UnitsPreference property) read back
+    /// as null instead of throwing; callers treat null as <see cref="UnitsPreference.UsImperial"/> (the UI's
+    /// historical default of lb + ft/in). Newly created users still default to UsImperial. Affects ONLY
+    /// weight/height display and entry — never recipe/ingredient units.
     /// </summary>
-    public UnitsPreference UnitsPreference { get; set; } = UnitsPreference.UsImperial;
+    // Fully qualified so the initializer binds the enum type, not this same-named property (CS0236).
+    public UnitsPreference? UnitsPreference { get; set; } = GoalFueled.Domain.UnitsPreference.UsImperial;
 
     /// <summary>True once the user has completed the first-login welcome flow.</summary>
     public bool HasCompletedOnboarding { get; set; }

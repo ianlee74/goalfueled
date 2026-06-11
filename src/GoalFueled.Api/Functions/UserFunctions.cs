@@ -2,6 +2,7 @@ using GoalFueled.Api.Auth;
 using GoalFueled.Api.Common;
 using GoalFueled.Api.Services;
 using GoalFueled.Data.Repositories;
+using GoalFueled.Domain;
 using GoalFueled.Domain.Contracts;
 using GoalFueled.Domain.Entities;
 using Microsoft.AspNetCore.Http;
@@ -99,6 +100,7 @@ public sealed class UserFunctions
         return new(
             u.Id, u.Email, u.DisplayName, u.AvatarUrl, u.Roles, u.IsAdmin,
             u.AdminViewEnabled, u.IsActingAsAdmin, u.PrimaryGoal, u.SexAtBirth, u.HeightCm,
-            u.DateOfBirth, u.HasCompletedOnboarding, u.ActiveMealPlanId, scheduleDto, u.UnitsPreference);
+            u.DateOfBirth, u.HasCompletedOnboarding, u.ActiveMealPlanId, scheduleDto,
+            u.UnitsPreference ?? UnitsPreference.UsImperial);
     }
 }

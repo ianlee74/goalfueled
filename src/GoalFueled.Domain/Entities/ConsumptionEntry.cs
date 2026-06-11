@@ -66,9 +66,12 @@ public class ConsumptionEntry
     /// True when this entry records that a planned-meal task was <em>skipped</em> rather than eaten: it
     /// carries the task's <see cref="PlannedMealRef"/> so The Log can show the task as skipped, but it
     /// contributes <em>zero</em> nutrition and is excluded from the day's logged-items list and totals
-    /// (a skip must never inflate or deflate intake). Always false for real (eaten) entries.
+    /// (a skip must never inflate or deflate intake).
+    /// <para>Nullable so entries logged before this field existed (which have no Skipped property) read back
+    /// as null instead of throwing on materialization; null and false both mean a real (eaten) entry. Only
+    /// the explicit <c>true</c> on a skip marker is meaningful — callers test <c>Skipped == true</c>.</para>
     /// </summary>
-    public bool Skipped { get; set; }
+    public bool? Skipped { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 

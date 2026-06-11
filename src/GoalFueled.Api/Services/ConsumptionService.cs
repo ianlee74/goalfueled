@@ -53,7 +53,7 @@ public sealed class ConsumptionService
         // Skip entries are bookkeeping only — they correlate a skipped task but are not eaten items, so they
         // never appear as logged entries nor add to the day's total.
         var entries = (await _repo.ListForUserAndDateAsync(user.Id, day, ct))
-            .Where(e => !e.Skipped)
+            .Where(e => e.Skipped != true)
             .ToList();
 
         var dtos = new List<ConsumptionEntryDto>(entries.Count);
@@ -147,7 +147,7 @@ public sealed class ConsumptionService
         // takes precedence over a skip (the meal was actually eaten).
         var resolved = tasks
             .Select(t => completionByRef.TryGetValue(t.Ref, out var entry)
-                ? entry.Skipped
+                ? entry.Skipped == true
                     ? t with { Skipped = true }
                     : t with { Done = true, CompletedEntryId = entry.Id }
                 : t)
@@ -207,7 +207,7 @@ public sealed class ConsumptionService
         // logging a duplicate (totals never double-count). A skip entry is treated as no completion here —
         // checking the box turns it into a real completion below (mirrors how a skip replaces a completion).
         var existing = (await _repo.ListForUserAndDateAsync(user.Id, day, ct))
-            .FirstOrDefault(e => e.PlannedMealRef == input.Ref && !e.Skipped);
+            .FirstOrDefault(e => e.PlannedMealRef == input.Ref && e.Skipped != true);
         if (existing is not null)
         {
             // Omitting servings keeps the existing entry as-is (idempotent re-complete); supplying a value
@@ -335,7 +335,7 @@ public sealed class ConsumptionService
         var byDay = new Dictionary<DateOnly, List<IReadOnlyList<NutrientAmount>>>();
         foreach (var entry in entries)
         {
-            if (entry.Skipped) continue; // a skipped meal contributes no nutrition to the roll-ups.
+            if (entry.Skipped == true) continue; // a skipped meal contributes no nutrition to the roll-ups.
             var nutrition = await ComputeNutritionAsync(entry, user, ct);
             if (!byDay.TryGetValue(entry.Date, out var list))
                 byDay[entry.Date] = list = new List<IReadOnlyList<NutrientAmount>>();
