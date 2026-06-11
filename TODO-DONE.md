@@ -6,6 +6,14 @@
 
 ## Completed Items
 
+### Rename the "Home" menu item to "Dashboard" — 2026-06-10 CDT
+
+- [x] **Renamed the "Home" navigation menu item to "Dashboard".**
+
+**NOTES:**
+- Changed the nav `label` from `'Home'` to `'Dashboard'` in `src/web/src/components/Layout.tsx` (the `{ to: '/' }` entry; route and 🏠 icon unchanged) and updated the adjacent code comment ("The Dashboard link points at the index route"). A scan found no other user-facing "Home" nav label.
+- Verified: `npm run build` + `npm run lint` (0 errors, only the pre-existing `AuthContext.tsx` warning).
+
 ### Show goal summaries on the Dashboard — 2026-06-10 CDT
 
 - [x] **Added a motivational "Your goals 🎯" section to the Dashboard** listing the user's active goals and their progress, reusing the existing computed progress snapshots.
