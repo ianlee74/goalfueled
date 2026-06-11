@@ -6,6 +6,16 @@
 
 ## Completed Items
 
+### Clicking the app logo goes to the Dashboard — 2026-06-11 CDT
+
+- [x] **Made the app logo (brand area) clickable so it navigates to the Dashboard (index route `/`).**
+
+**NOTES:**
+- `src/web/src/components/Layout.tsx`: changed the `.brand` element (rocket 🚀 mark + "GoalFueled" wordmark) from a `<div>` to a react-router `<NavLink to="/" end>`, matching the existing nav routing approach. Added `aria-label="Go to Dashboard"` for accessibility; kept `aria-hidden` on the rocket mark.
+- `src/web/src/index.css`: added `color: inherit; text-decoration: none; cursor: pointer;` to the `.brand` rule so the now-anchor element keeps its original appearance (no link underline/color) while showing a pointer cursor. Existing flex layout and gradient wordmark styling untouched.
+- Assumption: the "logo" is the brand block (rocket emoji + name); there is no separate image asset.
+- Verified: `npm run build` (tsc + vite, succeeded) and `npm run lint` (0 errors, only the known pre-existing `AuthContext.tsx` warning).
+
 ### Rename the "Home" menu item to "Dashboard" — 2026-06-10 CDT
 
 - [x] **Renamed the "Home" navigation menu item to "Dashboard".**

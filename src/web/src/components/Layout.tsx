@@ -49,10 +49,10 @@ export function Layout() {
           >
             ☰
           </button>
-          <div className="brand">
+          <NavLink to="/" end className="brand" aria-label="Go to Dashboard">
             <span className="brand-mark" aria-hidden="true">🚀</span>
             <span className="brand-name">GoalFueled</span>
-          </div>
+          </NavLink>
         </div>
         <div className="row" style={{ gap: '0.75rem' }}>
           <ThemePicker />

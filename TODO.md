@@ -16,6 +16,8 @@ Ignore all files in the `Future Features` section.
 
 - [] **Integrate with Google Health**: synchronize weight data with Google Health. What else can we sync with it?
 
+- [] **Add log sharing**: create a way for users to view their log with their doctor/trainer/etc.
+
 ### Real authentication (Microsoft Entra External ID)
 
 - [ ] Provision an Entra External ID tenant + user flow; add **Google**, **Microsoft**, **Facebook** social IdPs.
