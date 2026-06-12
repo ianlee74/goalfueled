@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ingredientApi, recipeApi } from '../api/services'
 import { ImageUpload } from '../components/ImageUpload'
+import { IngredientFinder } from '../components/IngredientFinder'
 import { NutritionLabel } from '../components/NutritionLabel'
 import { SanitizedHtml } from '../components/SanitizedHtml'
 import { useAuth } from '../auth/AuthContext'
@@ -223,14 +224,13 @@ export function RecipeFormPage() {
 
         {items.map((item) => (
           <div key={item.key} className="recipe-item-row">
-            <select className="select" value={item.ingredientId} disabled={readOnly}
-              onChange={(e) => {
-                const ing = ingredientById.get(e.target.value)
-                updateItem(item.key, { ingredientId: e.target.value, unit: ing?.unit ?? item.unit })
-              }}>
-              <option value="">Select an ingredient…</option>
-              {ingredients.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
-            </select>
+            <IngredientFinder
+              ingredients={ingredients}
+              value={item.ingredientId}
+              disabled={readOnly}
+              title="Ingredient"
+              onSelect={(ing) => updateItem(item.key, { ingredientId: ing.id, unit: ing.unit })}
+            />
             <input className="input" type="number" min="0" step="any" value={item.quantity}
               disabled={readOnly}
               onChange={(e) => updateItem(item.key, { quantity: Number(e.target.value) })} />

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ingredientApi, mealApi, mealPlanApi, weightApi } from '../api/services'
+import { IngredientFinder } from '../components/IngredientFinder'
 import { NutritionLabel } from '../components/NutritionLabel'
 import { TimePicker } from '../components/TimePicker'
 import { useAuth } from '../auth/AuthContext'
@@ -621,12 +622,21 @@ export function PlanFormPage() {
               <option value="ingredient">Ingredient</option>
               <option value="meal">Meal</option>
             </select>
-            <select className="select" value={u.refId} disabled={readOnly}
-              onChange={(e) => updateUntimed(u.key, { refId: e.target.value })}>
-              <option value="">Select…</option>
-              {(u.kind === 'ingredient' ? ingredients : meals).map((o) =>
-                <option key={o.id} value={o.id}>{o.name}</option>)}
-            </select>
+            {u.kind === 'ingredient' ? (
+              <IngredientFinder
+                ingredients={ingredients}
+                value={u.refId}
+                disabled={readOnly}
+                title="Ingredient"
+                onSelect={(i) => updateUntimed(u.key, { refId: i.id })}
+              />
+            ) : (
+              <select className="select" value={u.refId} disabled={readOnly} title="Meal"
+                onChange={(e) => updateUntimed(u.key, { refId: e.target.value })}>
+                <option value="">Select…</option>
+                {meals.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+              </select>
+            )}
             {u.kind === 'ingredient' ? (
               <input className="input" type="number" min="0" step="any" placeholder="qty"
                 value={u.quantity} disabled={readOnly}

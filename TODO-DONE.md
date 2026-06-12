@@ -6,6 +6,27 @@
 
 ## Completed Items
 
+### Design an Ingredient finder — 2026-06-12 CDT
+
+- [x] **Designed an Ingredient finder**: replaced the plain ingredient drop-downs with a searchable, filterable combobox and enriched ingredient data with tags, aliases, and non-English names that are matched in search.
+
+**NOTES:**
+
+**Design decisions**
+- **Searchable finder component** (`src/web/src/components/IngredientFinder.tsx`, new): a type-ahead combobox replacing the old `<select>`s. Filters the already-loaded ingredient catalog client-side; shows a "why it matched" hint (`aka garbanzo beans`, `es: garbanzos`, `#legume`), per-option serving size + kcal + a "Mine" badge, full keyboard navigation (arrows/Enter/Escape), proper combobox ARIA (`aria-controls`/listbox `id`), options capped at 50 rendered, and up to 10 most-common tags as toggleable filter chips.
+- **Accent/case-insensitive matching, mirrored on both sides:** `src/GoalFueled.Domain/SearchText.cs` (new) folds text via lower-casing + Unicode NFD decomposition stripping combining diacritics, so "jalapeno" ↔ "jalapeño" match bidirectionally; `IngredientFinder.tsx` implements the identical folding in TS. Server-side, `IngredientRepository.Refine` applies `SearchText.MatchesIngredient` (name, aliases, tags, localized names) to the `?search=` param on the list endpoints — the Ingredients page's existing debounced search box now matches the metadata too.
+- **Enriched data model:** `Ingredient` gained `Tags`, `Aliases`, and `LocalizedNames` (with a `LocalizedName` owned type, mapped via `OwnsMany`). All new persisted fields are **nullable** per the project's Cosmos rule (new non-nullable value-type fields throw on read for old documents). DTO exposes never-null lists; input accepts optional lists. `IngredientService` normalizes on save (trim, de-dup, lower-cased language codes, null when empty) and validates limits (max 50 entries/list via `InputLimits.IngredientSearchTermsMax`, length caps).
+- **Seed enrichment + backfill:** all ~40 seed ingredients in `DatabaseInitializer` got meaningful tags/aliases/localized names (es/fr/zh/de/it…), plus a one-time backfill that adds metadata to already-seeded rows only if they have none (never clobbers admin edits).
+- **Metadata is editable:** `IngredientFormPage` gained a "Search & discovery" card — chip editors for tags and aliases (Enter/Add, case-insensitive de-dup) and language-code + name rows for non-English names. This also fixed a real bug: the form previously never sent these fields, so saving an edit would have wiped the metadata server-side.
+- **Where the finder is used:** `RecipeFormPage` ingredient rows (still auto-sets the unit on pick) and `PlanFormPage` untimed-item refs when the kind is ingredient (meals keep the plain select). `IngredientsPage` shows tag badges on list cards and a search placeholder advertising alias/tag/non-English search.
+- **Styling** in `src/web/src/index.css` matches the athletic design language: condensed-caps tag chips, emerald match hints, surface popover with raised shadow, high-contrast border and coarse-pointer tap-target refinements.
+
+**Verification**
+- `dotnet build` — succeeded (0 errors).
+- `dotnet test` — **270/270 passed** (incl. 3 new `IngredientServiceTests`: alias/tag/localized matching, bidirectional accent-insensitivity, save-time normalization).
+- `npm run build` (`src/web`) — succeeds (tsc + vite, 91 modules).
+- `npm run lint` — 0 errors (only 3 pre-existing warnings in untouched files).
+
 ### Clicking the app logo goes to the Dashboard — 2026-06-11 CDT
 
 - [x] **Made the app logo (brand area) clickable so it navigates to the Dashboard (index route `/`).**

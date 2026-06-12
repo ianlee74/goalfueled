@@ -43,7 +43,7 @@ export function IngredientsPage() {
 
       <input
         className="input"
-        placeholder="Search ingredients…"
+        placeholder="Search by name, alias, tag, or non-English name…"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
@@ -80,6 +80,12 @@ export function IngredientsPage() {
                 Per {i.servingSize} {UNIT_LABELS[i.unit]}
                 {caloriesOf(i) != null && ` · ${caloriesOf(i)} kcal`}
               </div>
+              {i.tags.length > 0 && (
+                <div className="row wrap" style={{ gap: '0.25rem', marginTop: '0.25rem' }}>
+                  {i.tags.slice(0, 4).map((t) => <span key={t} className="badge">{t}</span>)}
+                  {i.tags.length > 4 && <span className="small muted">+{i.tags.length - 4}</span>}
+                </div>
+              )}
             </div>
           </Link>
         ))}

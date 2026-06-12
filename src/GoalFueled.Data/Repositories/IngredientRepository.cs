@@ -31,14 +31,18 @@ public class IngredientRepository : IIngredientRepository
         return Refine(all, search);
     }
 
-    /// <summary>Applies the optional case-insensitive name search and a stable name ordering in memory.</summary>
+    /// <summary>
+    /// Applies the optional search and a stable name ordering in memory. The search is
+    /// case- and accent-insensitive and matches name, aliases, tags and non-English names
+    /// (see <see cref="SearchText"/>).
+    /// </summary>
     private static IReadOnlyList<Ingredient> Refine(List<Ingredient> ingredients, string? search)
     {
         IEnumerable<Ingredient> result = ingredients;
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var term = search.Trim();
-            result = result.Where(i => i.Name.Contains(term, StringComparison.OrdinalIgnoreCase));
+            var term = SearchText.Fold(search.Trim());
+            result = result.Where(i => SearchText.MatchesIngredient(i, term));
         }
         return result.OrderBy(i => i.Name, StringComparer.OrdinalIgnoreCase).ToList();
     }

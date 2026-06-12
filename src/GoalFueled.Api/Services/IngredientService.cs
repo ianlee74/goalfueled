@@ -51,6 +51,9 @@ public sealed class IngredientService
             Unit = input.Unit,
             ServingSize = input.ServingSize,
             NutritionPerServing = NormalizeNutrition(input.NutritionPerServing),
+            Tags = NormalizeTerms(input.Tags),
+            Aliases = NormalizeTerms(input.Aliases),
+            LocalizedNames = NormalizeLocalizedNames(input.LocalizedNames),
             Scope = appLevel ? OwnershipScope.App : OwnershipScope.User,
             OwnerUserId = appLevel ? null : user.Id,
         };
@@ -71,6 +74,9 @@ public sealed class IngredientService
         ingredient.Unit = input.Unit;
         ingredient.ServingSize = input.ServingSize;
         ingredient.NutritionPerServing = NormalizeNutrition(input.NutritionPerServing);
+        ingredient.Tags = NormalizeTerms(input.Tags);
+        ingredient.Aliases = NormalizeTerms(input.Aliases);
+        ingredient.LocalizedNames = NormalizeLocalizedNames(input.LocalizedNames);
         ingredient.UpdatedAt = DateTimeOffset.UtcNow;
 
         // Admins may move an ingredient to/from app level via the AppLevel flag.
@@ -124,6 +130,20 @@ public sealed class IngredientService
             throw new ValidationException("Unknown unit of measure.");
         InputLimits.LimitCount(input.NutritionPerServing?.Count ?? 0, InputLimits.NutritionEntriesMax, "nutrition entries");
 
+        // Search metadata: bounded lists of short text terms.
+        InputLimits.LimitCount(input.Tags?.Count ?? 0, InputLimits.IngredientSearchTermsMax, "tags");
+        InputLimits.LimitCount(input.Aliases?.Count ?? 0, InputLimits.IngredientSearchTermsMax, "aliases");
+        InputLimits.LimitCount(input.LocalizedNames?.Count ?? 0, InputLimits.IngredientSearchTermsMax, "localized names");
+        foreach (var tag in input.Tags ?? Array.Empty<string>())
+            InputLimits.LimitText(tag, InputLimits.NameMaxLength, "Tag");
+        foreach (var alias in input.Aliases ?? Array.Empty<string>())
+            InputLimits.LimitText(alias, InputLimits.NameMaxLength, "Alias");
+        foreach (var localized in input.LocalizedNames ?? Array.Empty<LocalizedName>())
+        {
+            InputLimits.LimitText(localized.Language, LanguageCodeMaxLength, "Language code");
+            InputLimits.LimitText(localized.Name, InputLimits.NameMaxLength, "Localized name");
+        }
+
         foreach (var amount in input.NutritionPerServing ?? Array.Empty<NutrientAmount>())
         {
             if (!NutrientCatalog.IsKnown(amount.NutrientId))
@@ -131,6 +151,40 @@ public sealed class IngredientService
             if (amount.Value < 0)
                 throw new ValidationException($"Nutrient '{amount.NutrientId}' cannot be negative.");
         }
+    }
+
+    /// <summary>Generous ceiling for a localized-name language code ("es", "pt-BR", …).</summary>
+    private const int LanguageCodeMaxLength = 20;
+
+    /// <summary>
+    /// Trims search terms (tags/aliases), drops blanks and case-insensitive duplicates.
+    /// Returns null when nothing remains so empty lists aren't persisted on every document.
+    /// </summary>
+    private static List<string>? NormalizeTerms(IReadOnlyList<string>? terms)
+    {
+        if (terms is null || terms.Count == 0) return null;
+        var result = terms
+            .Select(t => t?.Trim() ?? string.Empty)
+            .Where(t => t.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        return result.Count == 0 ? null : result;
+    }
+
+    /// <summary>
+    /// Trims localized names, drops entries missing a language or name, lower-cases the language
+    /// code, and collapses duplicate (language, name) pairs. Null when nothing remains.
+    /// </summary>
+    private static List<LocalizedName>? NormalizeLocalizedNames(IReadOnlyList<LocalizedName>? names)
+    {
+        if (names is null || names.Count == 0) return null;
+        var result = names
+            .Select(n => new LocalizedName((n.Language ?? string.Empty).Trim().ToLowerInvariant(), (n.Name ?? string.Empty).Trim()))
+            .Where(n => n.Language.Length > 0 && n.Name.Length > 0)
+            .GroupBy(n => (n.Language, Name: n.Name.ToLowerInvariant()))
+            .Select(g => g.First())
+            .ToList();
+        return result.Count == 0 ? null : result;
     }
 
     /// <summary>Drops unknown nutrients and collapses duplicates, preserving catalog order.</summary>
@@ -149,7 +203,11 @@ public sealed class IngredientService
     }
 
     private static IngredientDto ToDto(Ingredient i, AppUser user) => new(
-        i.Id, i.Name, i.Description, i.ImageUrl, i.Unit, i.ServingSize,
+        i.Id, i.Name, i.Description, i.ImageUrl,
+        i.Tags ?? (IReadOnlyList<string>)Array.Empty<string>(),
+        i.Aliases ?? (IReadOnlyList<string>)Array.Empty<string>(),
+        i.LocalizedNames ?? (IReadOnlyList<LocalizedName>)Array.Empty<LocalizedName>(),
+        i.Unit, i.ServingSize,
         i.NutritionPerServing, i.Scope, i.OwnerUserId, i.CreatedAt, i.UpdatedAt,
         CanEdit(i, user));
 }

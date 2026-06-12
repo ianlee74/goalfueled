@@ -215,4 +215,59 @@ public class IngredientServiceTests
         Assert.Single(results);
         Assert.Equal("Brown Rice", results[0].Name);
     }
+
+    [Fact]
+    public async Task Search_matches_aliases_tags_and_localized_names()
+    {
+        using var db = TestHelpers.NewContext();
+        var (_, user, svc) = await SetupAsync(db);
+        var chickpeas = new IngredientInput(
+            "Chickpeas", null, null, UnitOfMeasure.Gram, 100, null,
+            Tags: new[] { "legume", "protein" },
+            Aliases: new[] { "Garbanzo Beans" },
+            LocalizedNames: new[] { new LocalizedName("es", "garbanzos"), new LocalizedName("fr", "pois chiches") });
+        await svc.CreateAsync(user, chickpeas, default);
+        await svc.CreateAsync(user, Input("Quinoa"), default);
+
+        Assert.Equal("Chickpeas", Assert.Single(await svc.ListAsync(user, "GARBANZO", default)).Name); // alias
+        Assert.Equal("Chickpeas", Assert.Single(await svc.ListAsync(user, "legume", default)).Name);   // tag
+        Assert.Equal("Chickpeas", Assert.Single(await svc.ListAsync(user, "pois chiches", default)).Name); // non-English name
+    }
+
+    [Fact]
+    public async Task Search_is_accent_insensitive_in_both_directions()
+    {
+        using var db = TestHelpers.NewContext();
+        var (_, user, svc) = await SetupAsync(db);
+        await svc.CreateAsync(user, Input("Jalapeño Pepper"), default);
+        await svc.CreateAsync(user, Input("Quinoa"), default);
+
+        Assert.Single(await svc.ListAsync(user, "jalapeno", default)); // plain query matches accented name
+        Assert.Single(await svc.ListAsync(user, "jalapeño", default)); // accented query still matches
+    }
+
+    [Fact]
+    public async Task Search_metadata_is_normalized_on_save()
+    {
+        using var db = TestHelpers.NewContext();
+        var (_, user, svc) = await SetupAsync(db);
+
+        var input = new IngredientInput(
+            "Chickpeas", null, null, UnitOfMeasure.Gram, 100, null,
+            Tags: new[] { " Protein ", "protein", "" },
+            Aliases: new[] { "   ", "Garbanzo Beans " },
+            LocalizedNames: new[]
+            {
+                new LocalizedName(" ES ", " Garbanzos "),
+                new LocalizedName("es", "garbanzos"), // duplicate (language, name) pair
+                new LocalizedName("", "orphan"),      // missing language → dropped
+            });
+        var created = await svc.CreateAsync(user, input, default);
+
+        Assert.Equal(new[] { "Protein" }, created.Tags);
+        Assert.Equal(new[] { "Garbanzo Beans" }, created.Aliases);
+        var localized = Assert.Single(created.LocalizedNames);
+        Assert.Equal("es", localized.Language);
+        Assert.Equal("Garbanzos", localized.Name);
+    }
 }

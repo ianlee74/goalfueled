@@ -79,6 +79,11 @@ public class GoalFueledDbContext : DbContext
             e.HasPartitionKey(i => i.Id);
             e.HasKey(i => i.Id);
             e.OwnsMany(i => i.NutritionPerServing);
+            // Localized (non-English) names serialize into the document like the nutrition list.
+            // Tags/Aliases are primitive string collections both providers map natively. All three
+            // are nullable so ingredient documents written before the fields existed read back as
+            // null instead of throwing (see the UnitsPreference note on AppUser above).
+            e.OwnsMany(i => i.LocalizedNames);
         });
 
         // --- Recipes ---

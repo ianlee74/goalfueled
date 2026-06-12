@@ -26,6 +26,9 @@ public static class InputLimits
     /// <summary>Max nutrition entries on a single ingredient (bounded by the catalog in practice).</summary>
     public const int NutritionEntriesMax = 200;
 
+    /// <summary>Max entries in each of an ingredient's search-metadata lists (tags, aliases, localized names).</summary>
+    public const int IngredientSearchTermsMax = 50;
+
     /// <summary>Max portions in a single meal.</summary>
     public const int MealPortionsMax = 100;
 

@@ -7,10 +7,17 @@ import { useNutrients } from '../hooks/useNutrients'
 import { useAuth } from '../auth/AuthContext'
 import {
   NUTRIENT_UNIT_ABBR, UNIT_LABELS,
-  type IngredientInput, type NutrientAmount, type UnitOfMeasure,
+  type IngredientInput, type LocalizedName, type NutrientAmount, type UnitOfMeasure,
 } from '../api/types'
 
 const UNIT_OPTIONS = Object.keys(UNIT_LABELS) as UnitOfMeasure[]
+
+// A localized-name editor row; keyed locally so removing a row never re-targets inputs.
+interface LocalizedRow extends LocalizedName {
+  key: number
+}
+
+let nextLocalizedKey = 1
 
 export function IngredientFormPage() {
   const { id } = useParams<{ id: string }>()
@@ -27,6 +34,12 @@ export function IngredientFormPage() {
   const [appLevel, setAppLevel] = useState(false)
   const [amounts, setAmounts] = useState<NutrientAmount[]>([])
   const [canEdit, setCanEdit] = useState(true)
+
+  // Finder search metadata: tags double as browse categories, aliases cover alternate names,
+  // localized names let the finder match non-English searches.
+  const [tags, setTags] = useState<string[]>([])
+  const [aliases, setAliases] = useState<string[]>([])
+  const [localizedNames, setLocalizedNames] = useState<LocalizedRow[]>([])
 
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
@@ -51,6 +64,9 @@ export function IngredientFormPage() {
         setUnit(i.unit)
         setServingSize(String(i.servingSize))
         setAmounts(i.nutritionPerServing)
+        setTags(i.tags)
+        setAliases(i.aliases)
+        setLocalizedNames(i.localizedNames.map((l) => ({ key: nextLocalizedKey++, ...l })))
         setAppLevel(i.scope === 'App')
         setCanEdit(i.canEdit)
       })
@@ -72,6 +88,16 @@ export function IngredientFormPage() {
   }
   function removeNutrient(nutrientId: string) {
     setAmounts((prev) => prev.filter((a) => a.nutrientId !== nutrientId))
+  }
+
+  function addLocalized() {
+    setLocalizedNames((prev) => [...prev, { key: nextLocalizedKey++, language: '', name: '' }])
+  }
+  function updateLocalized(key: number, patch: Partial<LocalizedName>) {
+    setLocalizedNames((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)))
+  }
+  function removeLocalized(key: number) {
+    setLocalizedNames((prev) => prev.filter((l) => l.key !== key))
   }
 
   // Fetches nutrition for the typed name and pre-fills the (still editable) nutrient fields. The
@@ -118,6 +144,13 @@ export function IngredientFormPage() {
       servingSize: serving,
       nutritionPerServing: amounts.filter((a) => Number.isFinite(a.value)),
       appLevel: appLevel && !!profile?.isActingAsAdmin,
+      // Always sent (even when empty) so editing never silently wipes saved metadata; the
+      // server trims and de-duplicates.
+      tags,
+      aliases,
+      localizedNames: localizedNames
+        .map(({ language, name: n }) => ({ language: language.trim(), name: n.trim() }))
+        .filter((l) => l.language && l.name),
     }
 
     setSaving(true)
@@ -217,6 +250,55 @@ export function IngredientFormPage() {
       </div>
 
       <div className="card stack">
+        <h2>Search & discovery <span className="muted small">helps the ingredient finder</span></h2>
+
+        <TermListEditor
+          label="Tags"
+          hint="categories like protein, vegetable, breakfast"
+          placeholder="e.g. protein"
+          terms={tags}
+          onChange={setTags}
+          readOnly={readOnly}
+        />
+
+        <TermListEditor
+          label="Aliases"
+          hint="other names this ingredient goes by"
+          placeholder="e.g. garbanzo beans"
+          terms={aliases}
+          onChange={setAliases}
+          readOnly={readOnly}
+        />
+
+        <div className="field">
+          <span>Non-English names <span className="hint">language code + name, e.g. es / garbanzos</span></span>
+          {localizedNames.length === 0 && readOnly && (
+            <p className="muted small" style={{ margin: 0 }}>None.</p>
+          )}
+          {localizedNames.map((l) => (
+            <div key={l.key} className="localized-row">
+              <input className="input" value={l.language} disabled={readOnly}
+                placeholder="es" title="Language code" maxLength={20}
+                onChange={(e) => updateLocalized(l.key, { language: e.target.value })} />
+              <input className="input" value={l.name} disabled={readOnly}
+                placeholder="garbanzos" title="Name in that language"
+                onChange={(e) => updateLocalized(l.key, { name: e.target.value })} />
+              {!readOnly && (
+                <button type="button" className="btn btn-sm btn-danger" title="Remove"
+                  onClick={() => removeLocalized(l.key)}>✕</button>
+              )}
+            </div>
+          ))}
+          {!readOnly && (
+            <button type="button" className="btn btn-sm" style={{ alignSelf: 'flex-start' }}
+              onClick={addLocalized}>
+              + Add non-English name
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="card stack">
         <h2>Nutrition <span className="muted small">per serving</span></h2>
 
         {amounts.length === 0 && <p className="muted small" style={{ margin: 0 }}>No nutrients added yet.</p>}
@@ -261,6 +343,56 @@ export function IngredientFormPage() {
           {!isNew && (
             <button className="btn btn-danger" disabled={saving} onClick={remove}>Delete</button>
           )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Chip-list editor for short free-text search terms (tags / aliases). Enter or Add commits the draft. */
+function TermListEditor({ label, hint, placeholder, terms, onChange, readOnly }: {
+  label: string
+  hint: string
+  placeholder: string
+  terms: string[]
+  onChange: (terms: string[]) => void
+  readOnly: boolean
+}) {
+  const [draft, setDraft] = useState('')
+
+  function add() {
+    const term = draft.trim()
+    if (!term) return
+    // Case-insensitive de-dup, mirroring the server's normalization.
+    if (!terms.some((t) => t.toLowerCase() === term.toLowerCase())) onChange([...terms, term])
+    setDraft('')
+  }
+  function remove(term: string) {
+    onChange(terms.filter((t) => t !== term))
+  }
+
+  return (
+    <div className="field">
+      <span>{label} <span className="hint">{hint}</span></span>
+      {terms.length > 0 && (
+        <div className="term-chips">
+          {terms.map((t) => (
+            <span key={t} className={`term-chip ${readOnly ? 'static' : ''}`}>
+              {t}
+              {!readOnly && (
+                <button type="button" title={`Remove ${t}`} onClick={() => remove(t)}>✕</button>
+              )}
+            </span>
+          ))}
+        </div>
+      )}
+      {terms.length === 0 && readOnly && <p className="muted small" style={{ margin: 0 }}>None.</p>}
+      {!readOnly && (
+        <div className="term-add">
+          <input className="input" value={draft} placeholder={placeholder} title={label} maxLength={200}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add() } }} />
+          <button type="button" className="btn btn-sm" onClick={add} disabled={!draft.trim()}>Add</button>
         </div>
       )}
     </div>

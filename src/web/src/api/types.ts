@@ -122,11 +122,22 @@ export interface AdminUser {
   isSelf: boolean
 }
 
+/** A non-English name for an ingredient, matched by the ingredient finder. */
+export interface LocalizedName {
+  // Lower-case ISO 639-1 language code (e.g. "es", "fr", "zh").
+  language: string
+  name: string
+}
+
 export interface Ingredient {
   id: string
   name: string
   description?: string
   imageUrl?: string
+  // Finder search metadata; the API always returns these as (possibly empty) arrays.
+  tags: string[]
+  aliases: string[]
+  localizedNames: LocalizedName[]
   unit: UnitOfMeasure
   servingSize: number
   nutritionPerServing: NutrientAmount[]
@@ -145,6 +156,10 @@ export interface IngredientInput {
   servingSize: number
   nutritionPerServing: NutrientAmount[]
   appLevel: boolean
+  // Optional finder search metadata; trimmed and de-duplicated server-side.
+  tags?: string[]
+  aliases?: string[]
+  localizedNames?: LocalizedName[]
 }
 
 /** Result of an automatic nutrition lookup; amounts are per 100 g, mapped to the app's catalog. */
