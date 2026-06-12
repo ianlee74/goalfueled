@@ -26,6 +26,11 @@ internal static class TestHelpers
     }
 
     public static HttpRequest BlankRequest() => new DefaultHttpContext().Request;
+
+    /// <summary>A real award service over the same context (fuel-point side effects run in tests too).</summary>
+    public static GoalFueled.Api.Services.GamificationAwardService NewAwards(GoalFueledDbContext db) =>
+        new(new UserStatsRepository(db), new ConsumptionEntryRepository(db),
+            NullLogger<GoalFueled.Api.Services.GamificationAwardService>.Instance);
 }
 
 /// <summary>An identity provider that always returns a preset identity (or none).</summary>

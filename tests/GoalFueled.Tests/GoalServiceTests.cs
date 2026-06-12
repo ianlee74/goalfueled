@@ -29,7 +29,7 @@ public class GoalServiceTests
             new AuthenticatedIdentity("dev", "other", "other@dev.local", "Other"))
             .GetCurrentUserAsync(TestHelpers.BlankRequest());
 
-        var weights = new WeightService(new WeightEntryRepository(db));
+        var weights = new WeightService(new WeightEntryRepository(db), TestHelpers.NewAwards(db));
         var ingredients = new IngredientService(new IngredientRepository(db));
         var recipes = new RecipeService(new RecipeRepository(db), new IngredientRepository(db));
         var meals = new MealService(new MealRepository(db), new RecipeRepository(db), new IngredientRepository(db));
@@ -39,7 +39,7 @@ public class GoalServiceTests
         var consumption = new ConsumptionService(
             new ConsumptionEntryRepository(db), new MealRepository(db),
             new RecipeRepository(db), new IngredientRepository(db),
-            new WeightEntryRepository(db), plans);
+            new WeightEntryRepository(db), plans, TestHelpers.NewAwards(db));
         var goals = new GoalService(
             new GoalRepository(db), new WeightEntryRepository(db), new MealPlanRepository(db),
             new MealRepository(db), new RecipeRepository(db), new IngredientRepository(db), consumption);

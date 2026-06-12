@@ -43,13 +43,13 @@ public class DashboardServiceTests
             new MealPlanRepository(db), new MealRepository(db),
             new RecipeRepository(db), new IngredientRepository(db));
         var users = new UserRepository(db);
-        var weights = new WeightService(new WeightEntryRepository(db));
+        var weights = new WeightService(new WeightEntryRepository(db), TestHelpers.NewAwards(db));
         var profile = new UserProfileService(users, weights, plans);
         var consumption = new ConsumptionService(
             new ConsumptionEntryRepository(db), new MealRepository(db),
             new RecipeRepository(db), new IngredientRepository(db),
-            new WeightEntryRepository(db), plans);
-        var burn = new BurnService(new BurnActivityRepository(db), new WeightEntryRepository(db));
+            new WeightEntryRepository(db), plans, TestHelpers.NewAwards(db));
+        var burn = new BurnService(new BurnActivityRepository(db), new WeightEntryRepository(db), TestHelpers.NewAwards(db));
         var dashboard = new DashboardService(plans, consumption, burn, new WeightEntryRepository(db));
 
         return new Ctx(admin!, user!, ingredients, recipes, meals, plans, profile,

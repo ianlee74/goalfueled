@@ -18,7 +18,7 @@ public class UserProfileServiceTests
             new AuthenticatedIdentity("dev", "user", "user@dev.local", "User"))
             .GetCurrentUserAsync(TestHelpers.BlankRequest());
         var repo = new UserRepository(db);
-        var weights = new WeightService(new WeightEntryRepository(db));
+        var weights = new WeightService(new WeightEntryRepository(db), TestHelpers.NewAwards(db));
         var plans = new MealPlanService(
             new MealPlanRepository(db), new MealRepository(db),
             new RecipeRepository(db), new IngredientRepository(db));

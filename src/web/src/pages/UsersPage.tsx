@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { adminApi } from '../api/services'
 import { useAuth } from '../auth/AuthContext'
 import type { AdminUser } from '../api/types'
+import { IconUser, IconUsers } from '../components/icons'
+import { EmptyState, SkeletonList } from '../components/Placeholders'
 
 /** Admin-only screen: list users and promote/demote the App Admin role. */
 export function UsersPage() {
@@ -59,18 +61,16 @@ export function UsersPage() {
       </div>
 
       {error && <div className="notice error">{error}</div>}
-      {loading && items.length === 0 && <p className="muted">Loading…</p>}
+      {loading && items.length === 0 && <SkeletonList />}
       {!loading && items.length === 0 && !error && (
-        <div className="card">
-          <p className="muted" style={{ margin: 0 }}>No users found.</p>
-        </div>
+        <EmptyState icon={<IconUsers size={28} />} title="No users found" />
       )}
 
       <div className="list">
         {items.map((u) => (
           <div key={u.id} className="card ingredient-item">
             <div className="ingredient-thumb">
-              {u.avatarUrl ? <img src={u.avatarUrl} alt="" /> : '👤'}
+              {u.avatarUrl ? <img src={u.avatarUrl} alt="" /> : <IconUser size={22} />}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="row spread">

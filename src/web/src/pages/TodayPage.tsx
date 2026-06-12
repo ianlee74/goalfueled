@@ -1,15 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { burnApi, consumptionApi, mealApi, mealPlanApi, recipeApi, userApi } from '../api/services'
+import { Link, useSearchParams } from 'react-router-dom'
+import { burnApi, consumptionApi, gamificationApi, goalApi, mealApi, mealPlanApi, recipeApi, userApi } from '../api/services'
 import { useAuth } from '../auth/AuthContext'
 import { NutritionLabel } from '../components/NutritionLabel'
 import { FuelBurnIcon } from '../components/FuelBurnIcon'
+import { FuelGauge } from '../components/FuelGauge'
+import { LevelUpOverlay } from '../components/LevelUp'
+import { detectLevelUp } from '../lib/levelUp'
+import { IconBurn, IconJournal, IconLevel, IconMeal, IconRecipe, IconReview, IconScore, IconWeight } from '../components/icons'
 import { DailyProgressChart } from '../components/DailyProgressChart'
 import {
   CONSUMPTION_SOURCE_LABELS,
   type BurnActivity, type BurnDay, type BurnSuggestion,
-  type ConsumptionDay, type ConsumptionEntry, type ConsumptionSource, type Meal, type MealPlan,
-  type PlannedDay, type PlannedMealTask, type Recipe, type WeightTask,
+  type ConsumptionDay, type ConsumptionEntry, type ConsumptionSource, type GamificationSummary,
+  type Goal, type Level, type Meal,
+  type MealPlan, type PlannedDay, type PlannedMealTask, type Recipe, type WeightTask,
 } from '../api/types'
 import { formatWeight } from '../lib/weight'
 
@@ -88,7 +93,7 @@ function formatClock(iso: string): string {
 //     missing they sort as time 0 (start of day).
 type TimelineItem = { key: string; sortKey: number; node: React.ReactNode }
 
-export function LogPage() {
+export function TodayPage() {
   const today = todayIso()
   const { profile, refresh } = useAuth()
   const activePlanId = profile?.activeMealPlanId ?? ''
@@ -113,6 +118,11 @@ export function LogPage() {
   // Catalog pickers (the user's own + app-level + public) for the ad-hoc log.
   const [meals, setMeals] = useState<Meal[]>([])
   const [recipes, setRecipes] = useState<Recipe[]>([])
+  // Goals feed the gauge's budget (a recurring calorie-cap goal wins over maintenance).
+  const [goals, setGoals] = useState<Goal[]>([])
+  // Fuel Points / level / week score for the header chips and the level-up moment.
+  const [summary, setSummary] = useState<GamificationSummary | null>(null)
+  const [levelUp, setLevelUp] = useState<Level | null>(null)
 
   // Ad-hoc add-entry form state.
   const [showFuelForm, setShowFuelForm] = useState(false)
@@ -131,12 +141,31 @@ export function LogPage() {
   const [burnTime, setBurnTime] = useState(nowTime)
   const [savingBurn, setSavingBurn] = useState(false)
 
+  // Quick-log deep link (?add=fuel|burn from the LOG sheet): open the matching form, then clean
+  // the URL so refreshes/back-nav don't re-open it. The form-open adjustment happens during
+  // render (React's derived-state pattern); only the URL cleanup is an effect.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const addParam = searchParams.get('add')
+  if (addParam === 'fuel' && !showFuelForm) setShowFuelForm(true)
+  if (addParam === 'burn' && !showBurnForm) setShowBurnForm(true)
+  useEffect(() => {
+    if (searchParams.get('add')) setSearchParams({}, { replace: true })
+  }, [searchParams, setSearchParams])
+
   // Load catalog + plan options + burn-name suggestions once.
   useEffect(() => {
     let cancelled = false
-    Promise.all([mealApi.list(), recipeApi.list(), mealPlanApi.list(), burnApi.suggestions()])
-      .then(([m, r, p, s]) => {
-        if (!cancelled) { setMeals(m); setRecipes(r); setPlans(p); setBurnSuggestions(s) }
+    Promise.all([mealApi.list(), recipeApi.list(), mealPlanApi.list(), burnApi.suggestions(), goalApi.list()])
+      .then(([m, r, p, s, g]) => {
+        if (!cancelled) { setMeals(m); setRecipes(r); setPlans(p); setBurnSuggestions(s); setGoals(g) }
+      })
+      .catch(() => {})
+    gamificationApi.summary()
+      .then((s) => {
+        if (cancelled) return
+        setSummary(s)
+        // The single celebration moment: surface a freshly crossed level once (DESIGN.md §4.2).
+        if (detectLevelUp(s.level)) setLevelUp(s.level)
       })
       .catch(() => {})
     return () => { cancelled = true }
@@ -152,6 +181,13 @@ export function LogPage() {
     setDay(d)
     setPlanned(pl)
     setBurnDay(b)
+    // Logging may have earned Fuel Points; refresh the chips quietly (and catch a level-up).
+    gamificationApi.summary()
+      .then((s) => {
+        setSummary(s)
+        if (detectLevelUp(s.level)) setLevelUp(s.level)
+      })
+      .catch(() => {})
   }, [date])
 
   // Load the day's log + planned tasks + burn whenever the date or the active plan changes. The setState
@@ -181,6 +217,16 @@ export function LogPage() {
   // weight. Undefined when the profile is incomplete (we then prompt the user instead of subtracting it).
   const kindleCost = burnDay?.kindleCost
   const netCalories = totalCalories - totalBurned - (kindleCost ?? 0)
+
+  // ---- The gauge's daily fuel budget (DESIGN.md §3.1) ----
+  // A recurring calorie-cap goal is the authoritative budget; otherwise fall back to the
+  // maintenance line (kindle + active burn = the fuel that would leave the day net-even).
+  const capGoal = goals.find(
+    (g) => g.metricType === 'Nutrient' && g.nutrientId === 'calories'
+      && g.cadence === 'Recurring' && !g.exceedingIsPositive,
+  )
+  const budget = capGoal ? capGoal.targetValue : (kindleCost != null ? kindleCost + totalBurned : null)
+  const budgetLabel = capGoal ? 'kcal to limit' : 'kcal to break even'
 
   // How far the ACTUAL line should be drawn: through the current hour for today (no future data), or the
   // full day for a past date. Updated each render via `date`/`today` (no live ticking needed).
@@ -414,7 +460,7 @@ export function LogPage() {
   return (
     <div className="stack">
       <div className="row spread">
-        <h1>The Log</h1>
+        <h1>{date === today ? 'Today' : 'The Log'}</h1>
         <label className="field">
           Date
           <input
@@ -427,32 +473,68 @@ export function LogPage() {
         </label>
       </div>
 
+      {/* Level + week-score chips, plus the weekly-review prompt when one is waiting. */}
+      {summary && (
+        <div className="row wrap" style={{ gap: '0.4rem' }}>
+          <span className="chip" title={`${summary.fuelPoints.toLocaleString()} Fuel Points`}>
+            <span className="ico"><IconLevel size={13} /></span>
+            LV{summary.level.number} {summary.level.rank}
+          </span>
+          <span className="chip" title="Your running score for this week">
+            <span className="ico"><IconScore size={13} /></span>
+            Week {summary.currentWeekScore}
+          </span>
+          {summary.pendingReviewWeekStart && (
+            <Link className="chip chip-accent" to={`/review?weekStart=${summary.pendingReviewWeekStart}`}>
+              <span className="ico" style={{ color: 'inherit' }}><IconReview size={13} /></span>
+              Review your week
+            </Link>
+          )}
+        </div>
+      )}
+
       {error && <div className="notice error">{error}</div>}
 
-      {/* Totals header — the day at a glance: Fuel, Burn, Net. */}
-      <div className="card log-totals">
-        <Total label="Fuel" kind="fuel" value={`+${Math.round(totalCalories)}`} />
-        <Total label="Burn" kind="burn" value={`−${Math.round(totalBurned + (kindleCost ?? 0))}`} />
-        <Total
-          label="Net Calories"
-          value={`${Math.round(netCalories)}`}
-          sub={`fuel − burn${kindleCost != null ? ' − kindle' : ''}`}
-          emphasis
-        />
-      </div>
-
-      {/* Day-at-a-glance: cumulative net calories by hour, actual vs the plan's expected trajectory. */}
-      {hasChartData && (
-        <div className="card stack log-chart">
-          <h2>Fuel Gauge <span className="muted small">actual vs expected</span></h2>
-          <DailyProgressChart
-            tasks={planned?.tasks ?? []}
-            entries={day?.entries ?? []}
-            activities={burnDay?.activities ?? []}
-            kindleCost={kindleCost}
-            actualMaxHour={actualMaxHour}
+      {/* Hero: the fuel gauge (when a budget is known) over the day's Fuel/Burn/Net stat strip. */}
+      <div className="card stack">
+        {budget != null && budget > 0 && (
+          <FuelGauge consumed={totalCalories} budget={budget} label={budgetLabel} />
+        )}
+        <div className="log-totals">
+          <Total label="Fuel" kind="fuel" value={`+${Math.round(totalCalories)}`} />
+          <Total label="Burn" kind="burn" value={`−${Math.round(totalBurned + (kindleCost ?? 0))}`} />
+          <Total
+            label="Net"
+            value={`${Math.round(netCalories)}`}
+            sub={`fuel − burn${kindleCost != null ? ' − kindle' : ''}`}
+            emphasis
           />
         </div>
+        {budget == null && (
+          <p className="muted small" style={{ margin: 0 }}>
+            <Link to="/you">Complete your profile</Link> or set a recurring calorie goal to see your fuel gauge.
+          </p>
+        )}
+      </div>
+
+      {/* Hourly detail: cumulative net calories by hour, actual vs the plan's expected trajectory.
+          Collapsed by default — the gauge above is the at-a-glance instrument. */}
+      {hasChartData && (
+        <details className="card log-plan log-chart">
+          <summary>
+            <span><strong>Hourly detail</strong> <span className="muted small">actual vs expected</span></span>
+            <span className="small muted">expand</span>
+          </summary>
+          <div style={{ marginTop: '0.6rem' }}>
+            <DailyProgressChart
+              tasks={planned?.tasks ?? []}
+              entries={day?.entries ?? []}
+              activities={burnDay?.activities ?? []}
+              kindleCost={kindleCost}
+              actualMaxHour={actualMaxHour}
+            />
+          </div>
+        </details>
       )}
 
       {/* Compact, rarely-changed plan picker collapsed into a one-line disclosure. */}
@@ -716,7 +798,9 @@ export function LogPage() {
             server-side from the profile + latest weight; prompts to complete the profile when unknown. */}
         <div className="list">
           <div className="card ingredient-item log-kindle">
-            <div className="ingredient-thumb">🔥</div>
+            <div className="ingredient-thumb" style={{ color: 'var(--accent)', background: 'var(--accent-soft)' }}>
+              <IconBurn size={22} />
+            </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <strong>Kindle cost <span className="muted small">passive · start of day</span></strong>
               {kindleCost != null ? (
@@ -739,6 +823,8 @@ export function LogPage() {
           <NutritionLabel amounts={dayTotal} />
         </div>
       )}
+
+      {levelUp && <LevelUpOverlay level={levelUp} onClose={() => setLevelUp(null)} />}
     </div>
   )
 }
@@ -749,17 +835,17 @@ function Total(
   { label: string; value: string; kind?: 'fuel' | 'burn'; sub?: string; emphasis?: boolean },
 ) {
   return (
-    <div className="log-total">
+    <div className="log-total stat">
       <div className="row" style={{ gap: '0.4rem' }}>
         {kind && <FuelBurnIcon kind={kind} />}
-        <span className="small muted">{label}</span>
+        <span className="stat-label">{label}</span>
       </div>
-      <strong
-        className={emphasis ? 'log-total-net' : undefined}
-        style={{ fontSize: emphasis ? '1.6rem' : '1.4rem' }}
+      <span
+        className={`stat-num${emphasis ? ' log-total-net' : ''}`}
+        style={{ fontSize: emphasis ? '2.1rem' : undefined }}
       >
         {value}
-      </strong>
+      </span>
       {sub && <span className="small muted">{sub}</span>}
     </div>
   )
@@ -791,7 +877,7 @@ function PlannedMealRow(
           onChange={onToggle}
           style={{ width: '1.25rem', height: '1.25rem' }}
         />
-        <div className="fb-icon fb-fuel" aria-hidden="true">🍽️</div>
+        <FuelBurnIcon kind="fuel" />
         <div style={{ flex: 1, minWidth: 0 }}>
           <strong>{task.mealName ?? '(meal removed)'}</strong>
           <div className="small muted">
@@ -827,7 +913,7 @@ function SkippedMealRow(
   const kcal = task.nutrition.find((n) => n.nutrientId === 'calories')?.value
   return (
     <div className="card ingredient-item" style={{ opacity: 0.7 }}>
-      <div className="fb-icon fb-fuel" aria-hidden="true">🍽️</div>
+      <FuelBurnIcon kind="fuel" />
       <div style={{ flex: 1, minWidth: 0 }}>
         <strong style={{ textDecoration: 'line-through' }}>{task.mealName ?? '(meal removed)'}</strong>
         <div className="small muted">
@@ -864,7 +950,7 @@ function DoneMealRow(
 
   return (
     <>
-      <div className="fb-icon fb-fuel" aria-hidden="true">🍽️</div>
+      <FuelBurnIcon kind="fuel" />
       <div style={{ flex: 1, minWidth: 0 }}>
         <strong style={{ textDecoration: 'line-through' }}>{task.mealName ?? '(meal removed)'}</strong>
         <div className="small muted">
@@ -931,7 +1017,7 @@ function FuelRow({ entry, onRemove }: { entry: ConsumptionEntry; onRemove: () =>
   return (
     <>
       <div className="ingredient-thumb">
-        {entry.source === 'Meal' ? '🍽️' : entry.source === 'Recipe' ? '🍳' : '🍪'}
+        {entry.source === 'Meal' ? <IconMeal size={22} /> : entry.source === 'Recipe' ? <IconRecipe size={22} /> : <IconJournal size={22} />}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="row spread">
@@ -954,7 +1040,7 @@ function FuelRow({ entry, onRemove }: { entry: ConsumptionEntry; onRemove: () =>
 function BurnRow({ activity, onRemove }: { activity: BurnActivity; onRemove: () => void }) {
   return (
     <>
-      <div className="fb-icon fb-burn" aria-hidden="true">🔥</div>
+      <FuelBurnIcon kind="burn" />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="row spread">
           <strong>{activity.name}</strong>
@@ -975,7 +1061,7 @@ function WeighInRow({ task }: { task: WeightTask }) {
   const preference = profile?.unitsPreference ?? 'UsImperial'
   return (
     <div className="card ingredient-item" style={{ opacity: task.done ? 0.7 : 1 }}>
-      <div className="ingredient-thumb">⚖️</div>
+      <div className="ingredient-thumb"><IconWeight size={22} /></div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <strong style={{ textDecoration: task.done ? 'line-through' : 'none' }}>Log your weight</strong>
         <div className="small muted">
@@ -986,7 +1072,7 @@ function WeighInRow({ task }: { task: WeightTask }) {
       </div>
       <Link
         className="btn btn-sm btn-primary"
-        to={`/weight?returnTo=${encodeURIComponent('/log')}`}
+        to={`/weight?returnTo=${encodeURIComponent('/')}`}
       >
         {task.done ? 'Update' : 'Log weight'}
       </Link>

@@ -26,6 +26,7 @@ public sealed class ConsumptionService
     private readonly IRecipeRepository _recipes;
     private readonly IWeightEntryRepository _weights;
     private readonly MealPlanService _plans;
+    private readonly GamificationAwardService _awards;
     private readonly MealNutritionCalculator _mealNutrition;
     private readonly RecipeNutritionCalculator _recipeNutrition;
 
@@ -35,13 +36,15 @@ public sealed class ConsumptionService
         IRecipeRepository recipes,
         IIngredientRepository ingredients,
         IWeightEntryRepository weights,
-        MealPlanService plans)
+        MealPlanService plans,
+        GamificationAwardService awards)
     {
         _repo = repo;
         _meals = meals;
         _recipes = recipes;
         _weights = weights;
         _plans = plans;
+        _awards = awards;
         _mealNutrition = new MealNutritionCalculator(recipes, ingredients);
         _recipeNutrition = new RecipeNutritionCalculator(ingredients);
     }
@@ -110,6 +113,7 @@ public sealed class ConsumptionService
         }
 
         await _repo.AddAsync(entry, ct);
+        await _awards.TryAwardFuelLoggedAsync(user, date, ct);
         return await ToDtoAsync(entry, user, ct);
     }
 
@@ -237,6 +241,7 @@ public sealed class ConsumptionService
             PlannedMealRef = input.Ref,
         };
         await _repo.AddAsync(entry, ct);
+        await _awards.TryAwardFuelLoggedAsync(user, day, ct);
         return await ToDtoAsync(entry, user, ct);
     }
 

@@ -4,6 +4,9 @@ import { weightApi } from '../api/services'
 import { WEIGHT_UNIT_LABELS, type WeightEntry, type WeightUnit } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { formatWeight, weightUnitFor } from '../lib/weight'
+import { IconWeight } from '../components/icons'
+import { EmptyState, SkeletonList } from '../components/Placeholders'
+import { WeightTrendChart } from '../components/WeightTrendChart'
 
 // Today's calendar date as "yyyy-MM-dd" in the user's local time.
 function todayIso(): string {
@@ -84,6 +87,14 @@ export function WeightPage() {
 
       {error && <div className="notice error">{error}</div>}
 
+      {/* Progress first: the trend leads, entry follows (DESIGN.md §3.2). */}
+      {entries.length >= 2 && (
+        <div className="card stack">
+          <h2>Trend</h2>
+          <WeightTrendChart entries={entries} preference={preference} />
+        </div>
+      )}
+
       <div className="card stack">
         <h2>{alreadyLogged ? 'Update weight' : 'Record weight'}</h2>
         <div className="row" style={{ gap: '0.5rem', alignItems: 'flex-end' }}>
@@ -129,14 +140,16 @@ export function WeightPage() {
 
       <div className="card stack">
         <h2>History</h2>
-        {loading && entries.length === 0 && <p className="muted">Loading…</p>}
+        {loading && entries.length === 0 && <SkeletonList rows={4} />}
         {!loading && entries.length === 0 && (
-          <p className="muted small" style={{ margin: 0 }}>No weight recorded yet.</p>
+          <EmptyState icon={<IconWeight size={28} />} title="No weight recorded yet">
+            Use the LOG button to record your first weigh-in.
+          </EmptyState>
         )}
         <div className="list">
           {entries.map((e) => (
             <div key={e.id} className="card ingredient-item">
-              <div className="ingredient-thumb">⚖️</div>
+              <div className="ingredient-thumb"><IconWeight size={22} /></div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="row spread">
                   <strong>{formatWeight(e.value, e.unit, preference)}</strong>

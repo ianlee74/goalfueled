@@ -2,10 +2,10 @@ import { api } from './client'
 import type {
   AdminUser, BurnActivity, BurnActivityInput, BurnDay, BurnSuggestion,
   CompletePlannedMealInput, ConsumptionDay, ConsumptionEntry, ConsumptionEntryInput,
-  CurrentUser, Dashboard, Goal, GoalInput, Ingredient, IngredientInput, Meal, MealInput,
-  MealPlan, MealPlanInput, NutrientDefinition, NutritionLookupResult, OnboardingInput,
-  PlannedDay, ProfileInput, Recipe, RecipeInput, WeightEntry, WeightEntryInput,
-  WeightScheduleInput,
+  CurrentUser, Dashboard, GamificationSummary, Goal, GoalInput, Ingredient, IngredientInput,
+  Meal, MealInput, MealPlan, MealPlanInput, NutrientDefinition, NutritionLookupResult,
+  OnboardingInput, PlannedDay, ProfileInput, Recipe, RecipeInput, WeeklyReview, WeightEntry,
+  WeightEntryInput, WeightScheduleInput,
 } from './types'
 
 export const userApi = {
@@ -142,4 +142,15 @@ export const dashboardApi = {
 export const imageApi = {
   // Uploads an image and returns its public blob URL.
   upload: (file: File) => api.upload<{ url: string }>('/images', file),
+}
+
+export const gamificationApi = {
+  // Lifetime Fuel Points, level, current week score, and review state.
+  summary: () => api.get<GamificationSummary>('/gamification'),
+  // The "your week in fuel" review; weekStart "yyyy-MM-dd" defaults to the last finished week.
+  review: (weekStart?: string) =>
+    api.get<WeeklyReview>(`/gamification/review${weekStart ? `?weekStart=${weekStart}` : ''}`),
+  // Completes (claims) a finished week's review, granting the one-time bonus.
+  completeReview: (weekStart: string) =>
+    api.post<WeeklyReview>('/gamification/review/complete', { weekStart }),
 }

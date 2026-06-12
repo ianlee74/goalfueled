@@ -12,10 +12,10 @@ export const THEME_STORAGE_KEY = 'gf.theme'
 
 /** Options surfaced in the theme picker, in display order. */
 export const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
-  { value: 'system', label: '🖥️ System' },
-  { value: 'light', label: '☀️ Light' },
-  { value: 'dark', label: '🌙 Dark' },
-  { value: 'high-contrast', label: '◐ High contrast' },
+  { value: 'system', label: 'System' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+  { value: 'high-contrast', label: 'High contrast' },
 ]
 
 export function isThemePreference(value: unknown): value is ThemePreference {

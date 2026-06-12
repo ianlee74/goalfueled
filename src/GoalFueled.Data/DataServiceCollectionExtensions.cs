@@ -40,6 +40,7 @@ public static class DataServiceCollectionExtensions
         services.AddScoped<IGoalRepository, GoalRepository>();
         services.AddScoped<IConsumptionEntryRepository, ConsumptionEntryRepository>();
         services.AddScoped<IBurnActivityRepository, BurnActivityRepository>();
+        services.AddScoped<IUserStatsRepository, UserStatsRepository>();
         services.AddScoped<DatabaseInitializer>();
 
         return services;

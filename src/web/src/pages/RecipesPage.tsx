@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { recipeApi } from '../api/services'
 import { useAuth } from '../auth/AuthContext'
 import { RECIPE_VISIBILITY_LABELS, type Recipe } from '../api/types'
+import { IconRecipe } from '../components/icons'
+import { EmptyState, SkeletonList } from '../components/Placeholders'
 
 export function RecipesPage() {
   const { profile } = useAuth()
@@ -59,20 +61,18 @@ export function RecipesPage() {
       )}
 
       {error && <div className="notice error">{error}</div>}
-      {loading && items.length === 0 && <p className="muted">Loading…</p>}
+      {loading && items.length === 0 && <SkeletonList />}
       {!loading && items.length === 0 && !error && (
-        <div className="card">
-          <p className="muted" style={{ margin: 0 }}>
-            No recipes found. Create your first one with <Link to="/recipes/new">+ New</Link>.
-          </p>
-        </div>
+        <EmptyState icon={<IconRecipe size={28} />} title="No recipes found">
+          Create your first one with <Link to="/recipes/new">+ New</Link>.
+        </EmptyState>
       )}
 
       <div className="list">
         {items.map((r) => (
           <Link key={r.id} to={`/recipes/${r.id}`} className="card ingredient-item">
             <div className="ingredient-thumb">
-              {r.imageUrl ? <img src={r.imageUrl} alt="" /> : '🍳'}
+              {r.imageUrl ? <img src={r.imageUrl} alt="" /> : <IconRecipe size={22} />}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="row spread">

@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { mealApi } from '../api/services'
 import { useAuth } from '../auth/AuthContext'
 import type { Meal } from '../api/types'
+import { IconMeal } from '../components/icons'
+import { EmptyState, SkeletonList } from '../components/Placeholders'
 
 export function MealsPage() {
   const { profile } = useAuth()
@@ -54,19 +56,17 @@ export function MealsPage() {
       )}
 
       {error && <div className="notice error">{error}</div>}
-      {loading && items.length === 0 && <p className="muted">Loading…</p>}
+      {loading && items.length === 0 && <SkeletonList />}
       {!loading && items.length === 0 && !error && (
-        <div className="card">
-          <p className="muted" style={{ margin: 0 }}>
-            No meals found. Create your first one with <strong>+ New</strong>.
-          </p>
-        </div>
+        <EmptyState icon={<IconMeal size={28} />} title="No meals found">
+          Create your first one with <strong>+ New</strong>.
+        </EmptyState>
       )}
 
       <div className="list">
         {items.map((m) => (
           <Link key={m.id} to={`/meals/${m.id}`} className="card ingredient-item">
-            <div className="ingredient-thumb">🍽️</div>
+            <div className="ingredient-thumb"><IconMeal size={22} /></div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="row spread">
                 <strong>{m.name}</strong>

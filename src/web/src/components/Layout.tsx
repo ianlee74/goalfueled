@@ -1,100 +1,143 @@
-import { NavLink, Outlet } from 'react-router-dom'
-import { useState } from 'react'
-import { useAuth } from '../auth/AuthContext'
-import { userApi } from '../api/services'
-import { ThemePicker } from '../theme/ThemePicker'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import type { ComponentType } from 'react'
+import { FuelBurnIcon } from './FuelBurnIcon'
+import { Sheet } from './Sheet'
+import {
+  IconGauge, IconLibrary, IconLogPlus, IconRocket, IconTarget, IconUser, IconWeight,
+} from './icons'
 
-const NAV = [
-  { to: '/', label: 'Dashboard', ico: '🏠' },
-  { to: '/ingredients', label: 'Ingredients', ico: '🥕' },
-  { to: '/recipes', label: 'Recipes', ico: '🍳' },
-  { to: '/meals', label: 'Meals', ico: '🍽️' },
-  { to: '/plans', label: 'Plans', ico: '📅' },
-  { to: '/log', label: 'The Log', ico: '🍪' },
-  { to: '/weight', label: 'Weight', ico: '⚖️' },
-  { to: '/goals', label: 'Goals', ico: '🎯' },
-  { to: '/profile', label: 'Profile', ico: '👤' },
+/**
+ * App chrome (DESIGN.md §2): a slim header with the brand, a bottom tab bar with a raised
+ * center LOG action on mobile, and a persistent sidebar on desktop (≥1024px). The LOG action
+ * opens a bottom sheet offering the three quick-log destinations (fuel / burn / weight).
+ */
+
+interface Destination {
+  to: string
+  label: string
+  Ico: ComponentType<{ size?: number }>
+  /** Route prefixes that light this destination up (besides `to` itself). */
+  match: string[]
+}
+
+const DESTINATIONS: Destination[] = [
+  { to: '/', label: 'Today', Ico: IconGauge, match: ['/log'] },
+  { to: '/goals', label: 'Goals', Ico: IconTarget, match: ['/weight'] },
+  { to: '/library', label: 'Library', Ico: IconLibrary, match: ['/ingredients', '/recipes', '/meals', '/plans'] },
+  { to: '/you', label: 'You', Ico: IconUser, match: ['/profile', '/users'] },
 ]
 
-// Admin-only nav entries, surfaced only while the admin view is enabled.
-const ADMIN_NAV = [
-  { to: '/users', label: 'Users', ico: '👥' },
-]
+function isDestinationActive(d: Destination, pathname: string): boolean {
+  if (d.to === '/') return pathname === '/' || d.match.some((m) => pathname === m || pathname.startsWith(m + '/'))
+  return (
+    pathname === d.to ||
+    pathname.startsWith(d.to + '/') ||
+    d.match.some((m) => pathname === m || pathname.startsWith(m + '/'))
+  )
+}
 
 export function Layout() {
-  const { profile, signOut, refresh } = useAuth()
-  const [busy, setBusy] = useState(false)
-  // Hamburger menu open/closed state. The nav lives in a drawer until the final UI is decided.
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [logOpen, setLogOpen] = useState(false)
+  const { pathname } = useLocation()
 
-  async function toggleAdminView(enabled: boolean) {
-    setBusy(true)
-    try {
-      await userApi.setAdminView(enabled)
-      await refresh()
-    } finally {
-      setBusy(false)
-    }
-  }
+  // Close the sheet whenever the route changes (a pick navigated away).
+  useEffect(() => { setLogOpen(false) }, [pathname])
 
   return (
     <div className="app-shell">
       <header className="app-header">
-        <div className="row" style={{ gap: '0.6rem' }}>
-          <button
-            className="hamburger"
-            aria-label="Toggle navigation menu"
-            aria-expanded={menuOpen ? 'true' : 'false'}
-            onClick={() => setMenuOpen((o) => !o)}
-          >
-            ☰
-          </button>
-          <NavLink to="/" end className="brand" aria-label="Go to Dashboard">
-            <span className="brand-mark" aria-hidden="true">🚀</span>
-            <span className="brand-name">GoalFueled</span>
-          </NavLink>
-        </div>
-        <div className="row" style={{ gap: '0.75rem' }}>
-          <ThemePicker />
-          {profile?.isAdmin && (
-            <label className="toggle" title="Toggle whether you see admin features">
-              <input
-                type="checkbox"
-                checked={profile.adminViewEnabled}
-                disabled={busy}
-                onChange={(e) => toggleAdminView(e.target.checked)}
-              />
-              Admin
-            </label>
-          )}
-          <button className="btn btn-sm" onClick={signOut}>Sign out</button>
-        </div>
+        <NavLink to="/" end className="brand" aria-label="Go to Today">
+          <span className="brand-mark" aria-hidden="true"><IconRocket size={22} /></span>
+          <span className="brand-name">GoalFueled</span>
+        </NavLink>
       </header>
 
-      {/* Navigation drawer toggled by the hamburger button. */}
-      {menuOpen && (
-        <nav className="nav-drawer">
-          {/* Admin nav entries appear only while the admin view is enabled. */}
-          {(profile?.isActingAsAdmin ? [...NAV, ...ADMIN_NAV] : NAV).map((n) => (
-            <NavLink
-              key={n.to}
-              to={n.to}
-              // The Dashboard link points at the index route ("/"), which otherwise matches every path; `end`
-              // keeps it highlighted only on the dashboard itself.
-              end={n.to === '/'}
-              className={({ isActive }) => (isActive ? 'active' : '')}
-              onClick={() => setMenuOpen(false)}
-            >
-              <span className="ico">{n.ico}</span>
-              {n.label}
-            </NavLink>
-          ))}
-        </nav>
-      )}
+      {/* Desktop sidebar: same destinations plus the LOG action as a regular entry. */}
+      <aside className="sidebar" aria-label="Primary">
+        {DESTINATIONS.map((d) => (
+          <NavLink
+            key={d.to}
+            to={d.to}
+            end={d.to === '/'}
+            className={isDestinationActive(d, pathname) ? 'active' : ''}
+          >
+            <span className="ico"><d.Ico size={19} /></span>
+            {d.label}
+          </NavLink>
+        ))}
+        <button type="button" className="sidebar-log" onClick={() => setLogOpen(true)}>
+          <span className="ico"><IconLogPlus size={19} /></span>
+          Log
+        </button>
+      </aside>
 
       <main className="app-main">
         <Outlet />
       </main>
+
+      {/* Mobile bottom tab bar with the raised center LOG action. */}
+      <nav className="tabbar" aria-label="Primary">
+        {DESTINATIONS.slice(0, 2).map((d) => <TabLink key={d.to} d={d} pathname={pathname} />)}
+        <div className="tab-log">
+          <button type="button" aria-label="Log fuel, burn, or weight" onClick={() => setLogOpen(true)}>
+            <IconLogPlus size={26} />
+          </button>
+          <span>Log</span>
+        </div>
+        {DESTINATIONS.slice(2).map((d) => <TabLink key={d.to} d={d} pathname={pathname} />)}
+      </nav>
+
+      {logOpen && <LogSheet onClose={() => setLogOpen(false)} />}
     </div>
+  )
+}
+
+function TabLink({ d, pathname }: { d: Destination; pathname: string }) {
+  return (
+    <NavLink to={d.to} end={d.to === '/'} className={isDestinationActive(d, pathname) ? 'active' : ''}>
+      <d.Ico size={21} />
+      <span>{d.label}</span>
+    </NavLink>
+  )
+}
+
+/** Bottom sheet listing the three quick-log destinations. */
+function LogSheet({ onClose }: { onClose: () => void }) {
+  const navigate = useNavigate()
+
+  function go(path: string) {
+    onClose()
+    navigate(path)
+  }
+
+  return (
+    <Sheet title="Log" onClose={onClose}>
+      <div className="sheet-actions">
+        <button type="button" onClick={() => go('/?add=fuel')}>
+          <FuelBurnIcon kind="fuel" />
+          <span className="sheet-action-text">
+            <strong>Fuel</strong>
+            <span className="small muted">Food you ate</span>
+          </span>
+        </button>
+        <button type="button" onClick={() => go('/?add=burn')}>
+          <FuelBurnIcon kind="burn" />
+          <span className="sheet-action-text">
+            <strong>Burn</strong>
+            <span className="small muted">Exercise that used calories</span>
+          </span>
+        </button>
+        <button type="button" onClick={() => go('/weight')}>
+          <span className="fb-icon" style={{ background: 'var(--surface-muted)', color: 'var(--text)' }}>
+            <IconWeight size={18} />
+          </span>
+          <span className="sheet-action-text">
+            <strong>Weight</strong>
+            <span className="small muted">Record a weigh-in</span>
+          </span>
+        </button>
+      </div>
+    </Sheet>
   )
 }

@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { mealPlanApi } from '../api/services'
 import { useAuth } from '../auth/AuthContext'
 import { MEAL_PLAN_CADENCE_LABELS, type MealPlan } from '../api/types'
+import { IconPlan } from '../components/icons'
+import { EmptyState, SkeletonList } from '../components/Placeholders'
 
 export function PlansPage() {
   const { profile } = useAuth()
@@ -54,19 +56,17 @@ export function PlansPage() {
       )}
 
       {error && <div className="notice error">{error}</div>}
-      {loading && items.length === 0 && <p className="muted">Loading…</p>}
+      {loading && items.length === 0 && <SkeletonList />}
       {!loading && items.length === 0 && !error && (
-        <div className="card">
-          <p className="muted" style={{ margin: 0 }}>
-            No meal plans yet. Create your first one with <strong>+ New</strong>.
-          </p>
-        </div>
+        <EmptyState icon={<IconPlan size={28} />} title="No meal plans yet">
+          Create your first one with <strong>+ New</strong>.
+        </EmptyState>
       )}
 
       <div className="list">
         {items.map((p) => (
           <Link key={p.id} to={`/plans/${p.id}`} className="card ingredient-item">
-            <div className="ingredient-thumb">📅</div>
+            <div className="ingredient-thumb"><IconPlan size={22} /></div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="row spread">
                 <strong>{p.name}</strong>

@@ -14,8 +14,13 @@ namespace GoalFueled.Api.Services;
 public sealed class WeightService
 {
     private readonly IWeightEntryRepository _repo;
+    private readonly GamificationAwardService _awards;
 
-    public WeightService(IWeightEntryRepository repo) => _repo = repo;
+    public WeightService(IWeightEntryRepository repo, GamificationAwardService awards)
+    {
+        _repo = repo;
+        _awards = awards;
+    }
 
     /// <summary>The caller's own weight history, most recent day first.</summary>
     public async Task<IReadOnlyList<WeightEntryDto>> ListAsync(AppUser user, CancellationToken ct)
@@ -40,6 +45,8 @@ public sealed class WeightService
             existing.Unit = input.Unit;
             existing.UpdatedAt = DateTimeOffset.UtcNow;
             await _repo.UpdateAsync(existing, ct);
+            // The award is once-per-due-date, so an update after the original log is a no-op.
+            await _awards.TryAwardWeightLoggedAsync(user, date, ct);
             return ToDto(existing);
         }
 
@@ -51,6 +58,7 @@ public sealed class WeightService
             Unit = input.Unit,
         };
         await _repo.AddAsync(entry, ct);
+        await _awards.TryAwardWeightLoggedAsync(user, date, ct);
         return ToDto(entry);
     }
 

@@ -57,7 +57,7 @@ export function WelcomePage() {
     <div className="center-screen">
       <div className="card auth-card stack" style={{ maxWidth: 520 }}>
         <div>
-          <h1>Welcome{profile ? `, ${profile.displayName.split(' ')[0]}` : ''} 👋</h1>
+          <h1>Welcome{profile ? `, ${profile.displayName.split(' ')[0]}` : ''}</h1>
           <p className="muted">Tell us a little about yourself to get started. You can change any of this later.</p>
         </div>
 

@@ -29,26 +29,31 @@ export function NetBalanceChart({ days }: { days: ProgressDay[] }) {
   const cumulative: number[] = []
   nets.reduce((acc, n, i) => (cumulative[i] = acc + n), 0)
 
-  const maxAbs = Math.max(1, ...nets.map(Math.abs), ...cumulative.map(Math.abs))
+  // Bars and the cumulative line get independent scales: the running total quickly dwarfs any
+  // single day, and a shared scale squashed the bars into unreadable slivers.
+  const maxBarAbs = Math.max(1, ...nets.map(Math.abs))
+  const maxLineAbs = Math.max(1, ...cumulative.map(Math.abs))
   const plotW = W - PAD_X * 2
   const plotH = H - PAD_TOP - PAD_BOTTOM
   const zeroY = PAD_TOP + plotH / 2
-  const scale = plotH / 2 / maxAbs
+  const scale = plotH / 2 / maxBarAbs
+  const lineScale = plotH / 2 / maxLineAbs
 
   const slot = plotW / days.length
   const barW = Math.min(28, slot * 0.6)
 
   const linePts = cumulative
-    .map((c, i) => `${PAD_X + slot * i + slot / 2},${zeroY - c * scale}`)
+    .map((c, i) => `${PAD_X + slot * i + slot / 2},${zeroY - c * lineScale}`)
     .join(' ')
 
   return (
     <svg
+      className="chart"
       width="100%"
       viewBox={`0 0 ${W} ${H}`}
       role="img"
       aria-label="Net calorie balance over the past 7 days"
-      style={{ display: 'block' }}
+      style={{ display: 'block', maxHeight: 220, margin: '0 auto' }}
     >
       {/* Zero baseline */}
       <line x1={PAD_X} y1={zeroY} x2={W - PAD_X} y2={zeroY} stroke="var(--border)" strokeWidth={1} />
@@ -64,14 +69,13 @@ export function NetBalanceChart({ days }: { days: ProgressDay[] }) {
               x={cx - barW / 2}
               y={y}
               width={barW}
-              height={Math.max(1, h)}
-              rx={3}
+              height={Math.max(1.5, h)}
+              rx={1}
               fill={isDeficit ? DEFICIT : SURPLUS}
-              opacity={0.85}
             >
               <title>{`${d.date}: net ${Math.round(d.net)} kcal`}</title>
             </rect>
-            <text x={cx} y={H - 6} textAnchor="middle" fontSize={10} fill="var(--muted)">
+            <text x={cx} y={H - 6} textAnchor="middle">
               {shortDay(d.date)}
             </text>
           </g>
@@ -84,7 +88,7 @@ export function NetBalanceChart({ days }: { days: ProgressDay[] }) {
         <circle
           key={i}
           cx={PAD_X + slot * i + slot / 2}
-          cy={zeroY - c * scale}
+          cy={zeroY - c * lineScale}
           r={2}
           fill={LINE}
         />

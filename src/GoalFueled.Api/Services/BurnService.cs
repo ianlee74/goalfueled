@@ -22,11 +22,13 @@ public sealed class BurnService
 {
     private readonly IBurnActivityRepository _repo;
     private readonly IWeightEntryRepository _weights;
+    private readonly GamificationAwardService _awards;
 
-    public BurnService(IBurnActivityRepository repo, IWeightEntryRepository weights)
+    public BurnService(IBurnActivityRepository repo, IWeightEntryRepository weights, GamificationAwardService awards)
     {
         _repo = repo;
         _weights = weights;
+        _awards = awards;
     }
 
     /// <summary>
@@ -78,6 +80,7 @@ public sealed class BurnService
             CaloriesBurned = input.CaloriesBurned,
         };
         await _repo.AddAsync(activity, ct);
+        await _awards.TryAwardBurnLoggedAsync(user, date, ct);
         return ToDto(activity);
     }
 

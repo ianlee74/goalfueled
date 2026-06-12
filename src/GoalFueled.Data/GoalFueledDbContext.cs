@@ -38,6 +38,7 @@ public class GoalFueledDbContext : DbContext
     public DbSet<Goal> Goals => Set<Goal>();
     public DbSet<ConsumptionEntry> ConsumptionEntries => Set<ConsumptionEntry>();
     public DbSet<BurnActivity> BurnActivities => Set<BurnActivity>();
+    public DbSet<UserStats> UserStats => Set<UserStats>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -139,6 +140,17 @@ public class GoalFueledDbContext : DbContext
             e.ToContainer("BurnActivities");
             e.HasPartitionKey(a => a.Id);
             e.HasKey(a => a.Id);
+        });
+
+        // --- User Stats (gamification) ---
+        b.Entity<UserStats>(e =>
+        {
+            e.ToContainer("UserStats");
+            e.HasPartitionKey(s => s.Id);
+            e.HasKey(s => s.Id);
+            // The rolling daily-award ledger and completed reviews serialize into the document.
+            e.OwnsMany(s => s.DailyAwards);
+            e.OwnsMany(s => s.WeeklyReviews);
         });
 
         base.OnModelCreating(b);

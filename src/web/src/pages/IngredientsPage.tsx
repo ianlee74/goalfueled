@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { ingredientApi } from '../api/services'
 import { useAuth } from '../auth/AuthContext'
 import { UNIT_LABELS, type Ingredient } from '../api/types'
+import { IconIngredient } from '../components/icons'
+import { EmptyState, SkeletonList } from '../components/Placeholders'
 
 export function IngredientsPage() {
   const { profile } = useAuth()
@@ -54,20 +56,18 @@ export function IngredientsPage() {
       )}
 
       {error && <div className="notice error">{error}</div>}
-      {loading && items.length === 0 && <p className="muted">Loading…</p>}
+      {loading && items.length === 0 && <SkeletonList />}
       {!loading && items.length === 0 && !error && (
-        <div className="card">
-          <p className="muted" style={{ margin: 0 }}>
-            No ingredients found. Create your first one with <strong>+ New</strong>.
-          </p>
-        </div>
+        <EmptyState icon={<IconIngredient size={28} />} title="No ingredients found">
+          Create your first one with <strong>+ New</strong>.
+        </EmptyState>
       )}
 
       <div className="list">
         {items.map((i) => (
           <Link key={i.id} to={`/ingredients/${i.id}`} className="card ingredient-item">
             <div className="ingredient-thumb">
-              {i.imageUrl ? <img src={i.imageUrl} alt="" /> : '🥗'}
+              {i.imageUrl ? <img src={i.imageUrl} alt="" /> : <IconIngredient size={22} />}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="row spread">

@@ -35,11 +35,11 @@ public class ConsumptionServiceTests
             new MealPlanRepository(db), new MealRepository(db),
             new RecipeRepository(db), new IngredientRepository(db));
         var profile = new UserProfileService(
-            new UserRepository(db), new WeightService(new WeightEntryRepository(db)), plans);
+            new UserRepository(db), new WeightService(new WeightEntryRepository(db), TestHelpers.NewAwards(db)), plans);
         var consumption = new ConsumptionService(
             new ConsumptionEntryRepository(db), new MealRepository(db),
             new RecipeRepository(db), new IngredientRepository(db),
-            new WeightEntryRepository(db), plans);
+            new WeightEntryRepository(db), plans, TestHelpers.NewAwards(db));
 
         return (admin!, user!, other!, ingredients, recipes, meals, plans, profile, consumption);
     }

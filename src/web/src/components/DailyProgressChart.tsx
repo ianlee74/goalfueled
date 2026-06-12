@@ -166,6 +166,7 @@ export function DailyProgressChart(
 
   return (
     <svg
+      className="chart"
       width="100%"
       viewBox={`0 0 ${W} ${H}`}
       role="img"

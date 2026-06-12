@@ -22,7 +22,7 @@ public class BurnActivityServiceTests
             new AuthenticatedIdentity("dev", "other", "other@dev.local", "Other"))
             .GetCurrentUserAsync(TestHelpers.BlankRequest());
 
-        var burn = new BurnService(new BurnActivityRepository(db), new WeightEntryRepository(db));
+        var burn = new BurnService(new BurnActivityRepository(db), new WeightEntryRepository(db), TestHelpers.NewAwards(db));
         return (user!, other!, burn);
     }
 
@@ -227,7 +227,7 @@ public class BurnActivityServiceTests
         user.HeightCm = 180;
         user.DateOfBirth = DateOnly.FromDateTime(DateTime.UtcNow).AddYears(-30);
         await new UserRepository(db).UpdateAsync(user, default);
-        await new WeightService(new WeightEntryRepository(db))
+        await new WeightService(new WeightEntryRepository(db), TestHelpers.NewAwards(db))
             .RecordAsync(user, new WeightEntryInput(80, WeightUnit.Kilogram), default);
 
         var day = await burn.GetDayAsync(user, Today, default);
@@ -261,7 +261,7 @@ public class BurnActivityServiceTests
         var (user, _, burn) = await SetupAsync(db);
 
         // A weight exists but the profile has no sex/height/DOB → Kindle unavailable.
-        await new WeightService(new WeightEntryRepository(db))
+        await new WeightService(new WeightEntryRepository(db), TestHelpers.NewAwards(db))
             .RecordAsync(user, new WeightEntryInput(80, WeightUnit.Kilogram), default);
 
         var day = await burn.GetDayAsync(user, Today, default);

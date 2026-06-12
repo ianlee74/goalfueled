@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import type { ComponentType, ReactNode } from 'react'
+import { IconBurn, IconGauge } from './icons'
 
 /**
  * The app's two core calorie concepts:
@@ -6,29 +7,24 @@ import type { ReactNode } from 'react'
  *  - `burn` — an activity that USES calories (exercise).
  *
  * These are surfaced consistently across the UI (currently The Log) so the vocabulary reads
- * coherently. Iconography follows the app's emoji convention; each kind also has an accent color
- * drawn from the theme tokens (emerald = fuel, flame-orange = burn — mirroring the brand's
- * green check-rocket with a flame-orange exhaust).
+ * coherently. Each kind pairs a monoline icon with an accent color drawn from the theme
+ * tokens (emerald = fuel, ember = burn — mirroring the brand's rocket + exhaust).
  */
 export type FuelBurnKind = 'fuel' | 'burn'
 
 interface KindMeta {
-  /** The emoji icon for the kind. */
-  icon: string
+  /** The monoline icon for the kind. */
+  Icon: ComponentType<{ size?: number }>
   /** Capitalized noun used in headings/labels ("Fuel" / "Burn"). */
   label: string
-  /** Accent color CSS variable for the kind. */
-  accent: string
-  /** Soft background CSS variable for the kind's icon chip. */
-  soft: string
 }
 
 const FUEL_BURN_META: Record<FuelBurnKind, KindMeta> = {
-  fuel: { icon: '🍽️', label: 'Fuel', accent: 'var(--primary)', soft: 'var(--primary-soft)' },
-  burn: { icon: '🔥', label: 'Burn', accent: 'var(--accent)', soft: 'var(--accent-soft)' },
+  fuel: { Icon: IconGauge, label: 'Fuel' },
+  burn: { Icon: IconBurn, label: 'Burn' },
 }
 
-/** A small square chip showing the fuel/burn emoji, themed to the kind's accent. */
+/** A small square chip showing the fuel/burn icon, themed to the kind's accent. */
 export function FuelBurnIcon({ kind, title }: { kind: FuelBurnKind; title?: string }) {
   const meta = FUEL_BURN_META[kind]
   return (
@@ -38,7 +34,7 @@ export function FuelBurnIcon({ kind, title }: { kind: FuelBurnKind; title?: stri
       aria-label={title ?? meta.label}
       title={title ?? meta.label}
     >
-      {meta.icon}
+      <meta.Icon size={18} />
     </span>
   )
 }

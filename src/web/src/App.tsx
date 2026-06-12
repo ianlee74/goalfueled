@@ -1,7 +1,7 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuth } from './auth/AuthContext'
 import { Layout } from './components/Layout'
-import { DashboardPage } from './pages/DashboardPage'
+import { TodayPage } from './pages/TodayPage'
 import { LoginPage } from './pages/LoginPage'
 import { WelcomePage } from './pages/WelcomePage'
 import { IngredientsPage } from './pages/IngredientsPage'
@@ -15,9 +15,10 @@ import { PlansPage } from './pages/PlansPage'
 import { PlanFormPage } from './pages/PlanFormPage'
 import { WeightPage } from './pages/WeightPage'
 import { GoalsPage } from './pages/GoalsPage'
-import { LogPage } from './pages/LogPage'
+import { ReviewPage } from './pages/ReviewPage'
 import { UsersPage } from './pages/UsersPage'
-import { ProfilePage } from './pages/ProfilePage'
+import { LibraryPage } from './pages/LibraryPage'
+import { YouPage } from './pages/YouPage'
 
 export default function App() {
   const { devUser, profile, loading } = useAuth()
@@ -51,7 +52,7 @@ export default function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route index element={<DashboardPage />} />
+        <Route index element={<TodayPage />} />
         <Route path="/ingredients" element={<IngredientsPage />} />
         <Route path="/ingredients/:id" element={<IngredientFormPage />} />
         <Route path="/recipes" element={<RecipesPage />} />
@@ -61,13 +62,24 @@ export default function App() {
         <Route path="/meals/:id" element={<MealFormPage />} />
         <Route path="/plans" element={<PlansPage />} />
         <Route path="/plans/:id" element={<PlanFormPage />} />
-        <Route path="/log" element={<LogPage />} />
+        {/* The Log merged into Today; keep old links working (incl. the ?add deep link). */}
+        <Route path="/log" element={<RedirectHome />} />
         <Route path="/weight" element={<WeightPage />} />
         <Route path="/goals" element={<GoalsPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/review" element={<ReviewPage />} />
+        <Route path="/library" element={<LibraryPage />} />
+        <Route path="/you" element={<YouPage />} />
+        {/* The old profile route lives inside the You tab now. */}
+        <Route path="/profile" element={<Navigate to="/you" replace />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   )
+}
+
+/** Redirect to Today, preserving the query string (the LOG sheet's ?add=… deep link). */
+function RedirectHome() {
+  const { search } = useLocation()
+  return <Navigate to={{ pathname: '/', search }} replace />
 }

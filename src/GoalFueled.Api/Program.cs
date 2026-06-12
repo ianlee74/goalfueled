@@ -41,6 +41,8 @@ builder.Services.AddScoped<GoalService>();
 builder.Services.AddScoped<ConsumptionService>();
 builder.Services.AddScoped<BurnService>();
 builder.Services.AddScoped<DashboardService>();
+builder.Services.AddScoped<GamificationAwardService>();
+builder.Services.AddScoped<GamificationService>();
 builder.Services.AddScoped<UserAdminService>();
 builder.Services.AddScoped<UserProfileService>();
 

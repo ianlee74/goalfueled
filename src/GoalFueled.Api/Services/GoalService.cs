@@ -389,18 +389,19 @@ public sealed class GoalService
     private static bool Reached(double current, double target, bool increasing) =>
         increasing ? current >= target : current <= target;
 
+    // Trainer voice (DESIGN.md §5): short, specific, factual-positive. No emoji, no exclamation stacking.
     private static string BuildMessage(Goal goal, GoalStatus status, bool exceeded) => status switch
     {
         GoalStatus.Achieved when exceeded && goal.ExceedingIsPositive =>
-            "Smashed it! You blew past your target. 🎉",
+            "Target cleared with room to spare.",
         GoalStatus.Achieved when exceeded && !goal.ExceedingIsPositive =>
-            "Target met, but you went over — ease off to stay on track. ⚠️",
+            "Target met, but over the line — ease off to stay on track.",
         GoalStatus.Achieved =>
-            "Goal achieved — right on target! 🎉",
+            "Goal achieved — right on target.",
         GoalStatus.Missed =>
-            "Deadline passed without hitting the target. Keep going! 💪",
+            "Deadline passed short of the target. Reset and go again.",
         GoalStatus.InProgress =>
-            "On your way — keep it up! 🚀",
+            "On pace — keep logging.",
         _ => "Not enough data yet to show progress.",
     };
 }

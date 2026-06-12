@@ -19,7 +19,7 @@ public class WeightServiceTests
         var other = await TestHelpers.NewAuthenticator(db,
             new AuthenticatedIdentity("dev", "other", "other@dev.local", "Other"))
             .GetCurrentUserAsync(TestHelpers.BlankRequest());
-        var weights = new WeightService(new WeightEntryRepository(db));
+        var weights = new WeightService(new WeightEntryRepository(db), TestHelpers.NewAwards(db));
         return (user!, other!, weights);
     }
 

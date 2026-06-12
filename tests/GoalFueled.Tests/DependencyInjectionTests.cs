@@ -47,6 +47,8 @@ public class DependencyInjectionTests
         services.AddScoped<ConsumptionService>();
         services.AddScoped<BurnService>();
         services.AddScoped<DashboardService>();
+        services.AddScoped<GamificationAwardService>();
+        services.AddScoped<GamificationService>();
         services.AddScoped<UserAdminService>();
         services.AddScoped<UserProfileService>();
         services.AddHttpClient<IFdcNutritionClient, FdcNutritionClient>();
@@ -77,6 +79,8 @@ public class DependencyInjectionTests
         Assert.NotNull(sp.GetRequiredService<ConsumptionService>());
         Assert.NotNull(sp.GetRequiredService<BurnService>());
         Assert.NotNull(sp.GetRequiredService<DashboardService>());
+        Assert.NotNull(sp.GetRequiredService<GamificationAwardService>());
+        Assert.NotNull(sp.GetRequiredService<GamificationService>());
         Assert.NotNull(sp.GetRequiredService<UserAdminService>());
         Assert.NotNull(sp.GetRequiredService<UserProfileService>());
         Assert.NotNull(sp.GetRequiredService<NutritionLookupService>());
@@ -90,6 +94,7 @@ public class DependencyInjectionTests
         Assert.NotNull(sp.GetRequiredService<IGoalRepository>());
         Assert.NotNull(sp.GetRequiredService<IConsumptionEntryRepository>());
         Assert.NotNull(sp.GetRequiredService<IBurnActivityRepository>());
+        Assert.NotNull(sp.GetRequiredService<IUserStatsRepository>());
         Assert.NotNull(sp.GetRequiredService<DatabaseInitializer>());
         Assert.NotEmpty(sp.GetServices<IIdentityProvider>());
     }

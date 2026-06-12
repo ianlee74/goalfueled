@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { imageApi } from '../api/services'
+import { IconMeal } from './icons'
 
 // Mirror of the server-side validation so we fail fast before uploading.
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
@@ -57,7 +58,7 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
       <span>Image</span>
       <div className="image-upload">
         <div className="ingredient-thumb image-upload-preview">
-          {value ? <img src={value} alt="" /> : <span aria-hidden>🍽️</span>}
+          {value ? <img src={value} alt="" /> : <IconMeal size={26} />}
         </div>
 
         <div className="stack" style={{ gap: '0.4rem' }}>

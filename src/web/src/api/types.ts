@@ -636,3 +636,76 @@ export const WEIGHT_SCHEDULE_CADENCE_LABELS: Record<WeightScheduleCadence, strin
 export const DAYS_OF_WEEK: DayOfWeek[] = [
   'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
 ]
+
+// ---- Gamification (Fuel Points, levels, weekly review) ----
+
+/** A level on the fuel-rank ladder (Ignition → Liftoff → …). */
+export interface Level {
+  // 1-based level number.
+  number: number
+  // Rank name, e.g. "Cruise".
+  rank: string
+  // Cumulative Fuel Points at which this level starts.
+  floorPoints: number
+  // Cumulative Fuel Points needed for the next level.
+  nextLevelPoints: number
+}
+
+/** A completed weekly review in summary form. */
+export interface CompletedReview {
+  weekStart: string
+  score: number
+  pointsAwarded: number
+  completedAt: string
+}
+
+export interface GamificationSummary {
+  fuelPoints: number
+  level: Level
+  // Monday of the current (in-progress) week, "yyyy-MM-dd".
+  currentWeekStart: string
+  // Running 0–100 score for the current week so far.
+  currentWeekScore: number
+  // Monday of the most recent finished week when it hasn't been reviewed yet.
+  pendingReviewWeekStart?: string
+  lastReview?: CompletedReview
+}
+
+/** One day inside a weekly review. */
+export interface ReviewDay {
+  date: string
+  fuel: number
+  burn: number
+  net: number
+  fuelEntries: number
+  fullyLogged: boolean
+  adherent: boolean
+  weighInDue: boolean
+  weighInLogged: boolean
+}
+
+/** The full "your week in fuel" review. Scores reflect engagement, never deficit size. */
+export interface WeeklyReview {
+  weekStart: string
+  weekEnd: string
+  completed: boolean
+  completedAt?: string
+  score: number
+  loggingScore: number
+  adherenceScore: number
+  weightScore: number
+  daysFullyLogged: number
+  daysAdherent: number
+  weighInsDue: number
+  weighInsLogged: number
+  totalFuel: number
+  totalBurn: number
+  netCalories: number
+  kindleAvailable: boolean
+  days: ReviewDay[]
+  bestDay?: string
+  weightDelta?: number
+  weightDeltaUnit?: WeightUnit
+  pointsEarned: number
+  completionBonus?: number
+}
