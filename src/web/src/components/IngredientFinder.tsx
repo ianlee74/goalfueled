@@ -1,34 +1,15 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { UNIT_LABELS, type Ingredient } from '../api/types'
 import { fold } from '../lib/fold'
+import { caloriesOf, findHit, type FinderHit } from '../lib/ingredientMatch'
 
 // The ingredient finder: a searchable, filterable combobox that replaces the old plain
 // <select>. Type-ahead search matches an ingredient's name, aliases, tags and non-English
 // names — case- and accent-insensitively — and the tag chips narrow the list by category.
 // Filtering happens client-side over the already-loaded catalog (the same list the old
-// dropdown rendered), mirroring the server's SearchText folding rules.
-
-interface FinderHit {
-  ingredient: Ingredient
-  /** Why a non-name match surfaced (e.g. "aka garbanzo beans", "es: garbanzos", "#legume"); null when the name itself matched. */
-  hint: string | null
-}
-
-function findHit(i: Ingredient, foldedTerm: string): FinderHit | null {
-  if (fold(i.name).includes(foldedTerm)) return { ingredient: i, hint: null }
-  const alias = i.aliases.find((a) => fold(a).includes(foldedTerm))
-  if (alias) return { ingredient: i, hint: `aka ${alias}` }
-  const localized = i.localizedNames.find((l) => fold(l.name).includes(foldedTerm))
-  if (localized) return { ingredient: i, hint: `${localized.language}: ${localized.name}` }
-  const tag = i.tags.find((t) => fold(t).includes(foldedTerm))
-  if (tag) return { ingredient: i, hint: `#${tag}` }
-  return null
-}
-
-function caloriesOf(i: Ingredient): number | null {
-  const c = i.nutritionPerServing.find((n) => n.nutrientId === 'calories')
-  return c ? Math.round(c.value) : null
-}
+// dropdown rendered), mirroring the server's SearchText folding rules. The matching/labeling
+// helpers (findHit, caloriesOf) live in lib/ingredientMatch so the new-ingredient form's
+// "similar ingredients" lookup can reuse them.
 
 // Cap the rendered options so a large catalog never bloats the DOM; the footer nudges
 // the user to keep typing instead.

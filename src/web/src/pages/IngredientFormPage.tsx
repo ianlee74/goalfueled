@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ingredientApi } from '../api/services'
 import { ImageUpload } from '../components/ImageUpload'
 import { SanitizedHtml } from '../components/SanitizedHtml'
+import { fold } from '../lib/fold'
+import { caloriesOf, findHit, type FinderHit } from '../lib/ingredientMatch'
 import { useNutrients } from '../hooks/useNutrients'
 import { useAuth } from '../auth/AuthContext'
 import {
   NUTRIENT_UNIT_ABBR, UNIT_LABELS,
-  type IngredientInput, type LocalizedName, type NutrientAmount, type UnitOfMeasure,
+  type Ingredient, type IngredientInput, type LocalizedName, type NutrientAmount, type UnitOfMeasure,
 } from '../api/types'
 
 const UNIT_OPTIONS = Object.keys(UNIT_LABELS) as UnitOfMeasure[]
@@ -50,6 +52,17 @@ export function IngredientFormPage() {
   const [lookupError, setLookupError] = useState<string | null>(null)
   const [lookupInfo, setLookupInfo] = useState<string | null>(null)
 
+  // "Does this already exist?" — a debounced, server-side search of existing ingredients shown
+  // inline under the Name field on the create form only. Selecting a match seeds the whole form
+  // from that item so the user can adapt it instead of creating a near-duplicate.
+  const [matches, setMatches] = useState<FinderHit[]>([])
+  const [matchesOpen, setMatchesOpen] = useState(false)
+  const [seededInfo, setSeededInfo] = useState<string | null>(null)
+  // The name we last seeded the form from / chose to dismiss; we don't re-search while the name
+  // still equals it, so picking a match (or seeding) doesn't immediately re-open the popover.
+  const skipMatchName = useRef<string | null>(null)
+  const matchesId = useId()
+
   useEffect(() => {
     if (isNew) return
     // `loading` is already true for edit mode (initialized from !isNew), so the fetch starts
@@ -74,6 +87,57 @@ export function IngredientFormPage() {
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [id, isNew])
+
+  // Debounced "similar ingredients" lookup — create form only, min 2 chars, ~280ms. Skipped while
+  // the name still equals a just-seeded/dismissed value so we don't re-search our own selection.
+  useEffect(() => {
+    if (!isNew) return
+    const query = name.trim()
+    if (query.length < 2 || query === skipMatchName.current) {
+      setMatches([])
+      setMatchesOpen(false)
+      return
+    }
+    let cancelled = false
+    const handle = setTimeout(async () => {
+      try {
+        const results = await ingredientApi.list(query)
+        if (cancelled) return
+        // Re-run the finder's own classification client-side so each row can explain *why* it
+        // matched (name / alias / localized / tag), matching the IngredientFinder UX.
+        const folded = fold(query)
+        const hits = results.map((i) => findHit(i, folded) ?? { ingredient: i, hint: null })
+        setMatches(hits)
+        setMatchesOpen(hits.length > 0)
+      } catch {
+        // A failed "did you mean" lookup is non-blocking — the user can still create the ingredient.
+        if (!cancelled) { setMatches([]); setMatchesOpen(false) }
+      }
+    }, 280)
+    return () => { cancelled = true; clearTimeout(handle) }
+  }, [name, isNew])
+
+  // Seed the whole (still editable) form from an existing ingredient the user picked from the
+  // matches list, so they can adapt it rather than re-create a near-duplicate. Keeps the typed
+  // name (the user is naming a *new* ingredient) but pulls in everything else.
+  function seedFrom(i: Ingredient) {
+    setDescription(i.description ?? '')
+    setImageUrl(i.imageUrl ?? '')
+    setUnit(i.unit)
+    setServingSize(String(i.servingSize))
+    setAmounts(i.nutritionPerServing.map((a) => ({ ...a })))
+    setTags([...i.tags])
+    setAliases([...i.aliases])
+    setLocalizedNames(i.localizedNames.map((l) => ({ key: nextLocalizedKey++, ...l })))
+    // Don't re-open the matches popover for the name we just seeded from.
+    skipMatchName.current = name.trim()
+    setMatches([])
+    setMatchesOpen(false)
+    setLookupError(null)
+    setLookupInfo(null)
+    setSeededInfo(`Filled this form from "${i.name}" (per ${i.servingSize} ${UNIT_LABELS[i.unit]}). ` +
+      `Adjust the name and values, then save — or open "${i.name}" itself if you don't need a new one.`)
+  }
 
   // Nutrients available to add (not already in the list).
   const present = useMemo(() => new Set(amounts.map((a) => a.nutrientId)), [amounts])
@@ -218,19 +282,59 @@ export function IngredientFormPage() {
       <div className="card stack">
         <label className="field">
           Name
-          <div className="lookup-row">
-            <input className="input" value={name} disabled={readOnly}
-              onChange={(e) => setName(e.target.value)} placeholder="e.g. Greek Yogurt" />
-            {!readOnly && (
-              <button type="button" className="btn btn-sm" disabled={lookingUp || !name.trim()}
-                title="Auto-fill nutrition for this name from USDA FoodData Central"
-                onClick={lookupNutrition}>
-                {lookingUp ? 'Looking up…' : 'Look up nutrition'}
-              </button>
+          <div className="finder" style={{ width: '100%' }}>
+            <div className="lookup-row">
+              <input className="input" value={name} disabled={readOnly}
+                role="combobox" aria-expanded={matchesOpen} aria-controls={matchesId}
+                aria-autocomplete="list" aria-label="Name"
+                onChange={(e) => { setName(e.target.value); skipMatchName.current = null }}
+                onFocus={() => { if (isNew && matches.length > 0) setMatchesOpen(true) }}
+                placeholder="e.g. Greek Yogurt" />
+              {!readOnly && (
+                <button type="button" className="btn btn-sm" disabled={lookingUp || !name.trim()}
+                  title="Auto-fill nutrition for this name from USDA FoodData Central"
+                  onClick={lookupNutrition}>
+                  {lookingUp ? 'Looking up…' : 'Look up nutrition'}
+                </button>
+              )}
+            </div>
+            {isNew && matchesOpen && (
+              <div className="finder-pop">
+                <div className="row spread finder-empty" style={{ gap: '0.5rem', alignItems: 'flex-start' }}>
+                  <p className="muted small" style={{ margin: 0 }}>
+                    {matches.length === 1 ? 'A similar ingredient already exists' : 'Similar ingredients already exist'}
+                    {' '}— pick one to fill this form from it, or keep typing to create a new one.
+                  </p>
+                  <button type="button" className="btn btn-sm"
+                    onClick={() => { skipMatchName.current = name.trim(); setMatchesOpen(false) }}>
+                    Dismiss
+                  </button>
+                </div>
+                <div className="finder-list" id={matchesId} role="listbox" aria-label="Similar existing ingredients">
+                  {matches.map((h) => {
+                    const kcal = caloriesOf(h.ingredient)
+                    return (
+                      <button key={h.ingredient.id} type="button" role="option" aria-selected={false}
+                        className="finder-option" onClick={() => seedFrom(h.ingredient)}>
+                        <span className="finder-option-top">
+                          <span className="finder-option-name">{h.ingredient.name}</span>
+                          {h.ingredient.scope === 'User' && <span className="badge mine">Mine</span>}
+                        </span>
+                        <span className="small muted">
+                          Per {h.ingredient.servingSize} {UNIT_LABELS[h.ingredient.unit]}
+                          {kcal != null && ` · ${kcal} kcal`}
+                          {h.hint && <span className="finder-aka"> · {h.hint}</span>}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
             )}
           </div>
         </label>
 
+        {seededInfo && <div className="notice info">{seededInfo}</div>}
         {lookupError && <div className="notice error">{lookupError}</div>}
         {lookupInfo && <div className="notice info">{lookupInfo}</div>}
 

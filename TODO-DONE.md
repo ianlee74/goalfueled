@@ -6,6 +6,18 @@
 
 ## Completed Items
 
+### Search for existing ingredients when adding a new one — 2026-06-13 CDT
+
+- [x] **Searched for existing ingredients while naming a new one** to prevent duplicates; selecting a match seeds the form from it.
+
+**NOTES:**
+
+- On the new-ingredient form only (gated on `isNew`), typing the Name runs a debounced (280ms, min 2 chars) `ingredientApi.list(query)` and shows matches in a `.finder-pop` popover under the Name field, reusing the ingredient finder's option/hint styling (serving basis, kcal, "why it matched" hint). Mirrors the `IngredientsPage` debounce pattern (`setTimeout` + cancelled flag).
+- Selecting a match calls `seedFrom`, which populates description, image, unit, serving size, full nutrition, tags, aliases, and localized names from that item — but keeps the user's typed name (they're naming a new ingredient). An info notice explains what happened and offers to open the existing item instead. This is distinct from the Customize/clone flow.
+- Create-only gating: the effect early-returns when `!isNew`, so editing never shows the lookup (avoids the self-match problem). Combobox ARIA consistent with `IngredientFinder`. A `skipMatchName` ref suppresses re-searching while the name still equals a just-seeded/dismissed value.
+- Refactor to avoid duplication and a `react-refresh/only-export-components` lint issue: extracted `findHit`/`caloriesOf`/`FinderHit` into a new shared `src/web/src/lib/ingredientMatch.ts`, now imported by both `IngredientFinder.tsx` and the form. No backend changes (the `?search=` endpoint already existed).
+- Verified: `npm run build` succeeds; `npm run lint` 0 errors (3 pre-existing warnings).
+
 ### Look up nutrition button — already implemented (verified) — 2026-06-13 CDT
 
 - [x] **`Look up nutrition` works**: verified the full end-to-end implementation; no code changes were needed.
