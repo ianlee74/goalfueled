@@ -1,6 +1,9 @@
 using System.Text.Json;
 using GoalFueled.Api.Common;
 using GoalFueled.Api.Services.Nutrition;
+using GoalFueled.Data.Repositories;
+using GoalFueled.Domain;
+using GoalFueled.Domain.Entities;
 using GoalFueled.Domain.Nutrition;
 
 namespace GoalFueled.Tests;
@@ -24,6 +27,43 @@ public class NutritionLookupServiceTests
             return Task.FromResult(_response);
         }
     }
+
+    /// <summary>
+    /// A faked ingredient repository for exercising the offline catalog fallback. Only the search-by-name
+    /// path (<see cref="ListVisibleAsync"/>) is implemented; everything else throws.
+    /// </summary>
+    private sealed class FakeRepo : IIngredientRepository
+    {
+        private readonly IReadOnlyList<Ingredient> _items;
+        public FakeRepo(params Ingredient[] items) => _items = items;
+        public Task<IReadOnlyList<Ingredient>> ListVisibleAsync(string userId, string? search = null, CancellationToken ct = default)
+        {
+            var folded = string.IsNullOrWhiteSpace(search) ? null : SearchText.Fold(search);
+            IReadOnlyList<Ingredient> hits = folded is null
+                ? _items
+                : _items.Where(i =>
+                    SearchText.Fold(i.Name).Contains(folded) ||
+                    (i.Aliases?.Any(a => SearchText.Fold(a).Contains(folded)) ?? false)).ToList();
+            return Task.FromResult(hits);
+        }
+        public Task<IReadOnlyList<Ingredient>> ListAllAsync(string? search = null, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<IReadOnlyList<Ingredient>> ListPendingReviewAsync(CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<int> CountPendingReviewByOwnerAsync(string ownerUserId, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<Ingredient?> GetByIdAsync(string id, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<Ingredient> AddAsync(Ingredient ingredient, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task UpdateAsync(Ingredient ingredient, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task DeleteAsync(Ingredient ingredient, CancellationToken ct = default) => throw new NotImplementedException();
+    }
+
+    private static Ingredient CatalogItem(string name, UnitOfMeasure unit, double serving,
+        params (string Id, double Value)[] nutrients) => new()
+    {
+        Name = name,
+        Unit = unit,
+        ServingSize = serving,
+        Scope = OwnershipScope.App,
+        NutritionPerServing = nutrients.Select(n => new NutrientAmount(n.Id, n.Value)).ToList(),
+    };
 
     // A trimmed but realistic /foods/search payload: banana, with mixed units and an untracked nutrient.
     private const string BananaJson = """
@@ -61,7 +101,7 @@ public class NutritionLookupServiceTests
     {
         var svc = new NutritionLookupService(new FakeClient(Parse(BananaJson)));
 
-        var result = await svc.LookupAsync("banana");
+        var result = await svc.LookupAsync(null, "banana");
 
         Assert.Equal("Bananas, raw", result.MatchedName);
         Assert.Equal(NutritionLookupService.SourceName, result.Source);
@@ -84,7 +124,7 @@ public class NutritionLookupServiceTests
         // Sodium catalog unit is mg; USDA reports mg → 1:1 (1 mg).
         var svc = new NutritionLookupService(new FakeClient(Parse(BananaJson)));
 
-        var result = await svc.LookupAsync("banana");
+        var result = await svc.LookupAsync(null, "banana");
 
         Assert.Equal(3, ValueOf(result.NutritionPer100g, "vitamin_a"));
         Assert.Equal(1, ValueOf(result.NutritionPer100g, "sodium"));
@@ -170,8 +210,8 @@ public class NutritionLookupServiceTests
     {
         var svc = new NutritionLookupService(new FakeClient(Parse(BananaJson)));
 
-        await Assert.ThrowsAsync<ValidationException>(() => svc.LookupAsync("   "));
-        await Assert.ThrowsAsync<ValidationException>(() => svc.LookupAsync(null));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.LookupAsync(null, "   "));
+        await Assert.ThrowsAsync<ValidationException>(() => svc.LookupAsync(null, null));
     }
 
     [Fact]
@@ -180,7 +220,7 @@ public class NutritionLookupServiceTests
         // Null response simulates a network error / rate-limit (the client swallows it to null).
         var svc = new NutritionLookupService(new FakeClient(null));
 
-        var ex = await Assert.ThrowsAsync<NotFoundException>(() => svc.LookupAsync("banana"));
+        var ex = await Assert.ThrowsAsync<NotFoundException>(() => svc.LookupAsync(null, "banana"));
         Assert.Contains("manually", ex.Message);
     }
 
@@ -190,7 +230,7 @@ public class NutritionLookupServiceTests
         var empty = new FdcSearchResponse { Foods = new() };
         var svc = new NutritionLookupService(new FakeClient(empty));
 
-        await Assert.ThrowsAsync<NotFoundException>(() => svc.LookupAsync("xyzzy-not-a-food"));
+        await Assert.ThrowsAsync<NotFoundException>(() => svc.LookupAsync(null, "xyzzy-not-a-food"));
     }
 
     [Fact]
@@ -206,7 +246,7 @@ public class NutritionLookupServiceTests
         };
         var svc = new NutritionLookupService(new FakeClient(response));
 
-        var result = await svc.LookupAsync("banana");
+        var result = await svc.LookupAsync(null, "banana");
 
         Assert.Equal("Bananas, raw", result.MatchedName);
     }
@@ -217,8 +257,57 @@ public class NutritionLookupServiceTests
         var fake = new FakeClient(Parse(BananaJson));
         var svc = new NutritionLookupService(fake);
 
-        await svc.LookupAsync("  banana  ");
+        await svc.LookupAsync(null, "  banana  ");
 
         Assert.Equal("banana", fake.LastQuery);
+    }
+
+    [Fact]
+    public async Task Lookup_falls_back_to_catalog_when_usda_unavailable()
+    {
+        // USDA outage (null response). A matching catalog ingredient, per 50 g, should be rescaled to 100 g.
+        var repo = new FakeRepo(CatalogItem("Banana", UnitOfMeasure.Gram, 50, ("calories", 45), ("protein", 0.5)));
+        var svc = new NutritionLookupService(new FakeClient(null), repo);
+
+        var result = await svc.LookupAsync("user-1", "banana");
+
+        Assert.Equal(NutritionLookupService.CatalogSourceName, result.Source);
+        Assert.Equal("Banana", result.MatchedName);
+        Assert.Equal(100, result.BasisGrams);
+        // 50 g serving → ×2 to reach 100 g.
+        Assert.Equal(90, ValueOf(result.NutritionPer100g, "calories"));
+        Assert.Equal(1.0, ValueOf(result.NutritionPer100g, "protein"), 3);
+    }
+
+    [Fact]
+    public async Task Lookup_prefers_usda_over_catalog_when_both_available()
+    {
+        var repo = new FakeRepo(CatalogItem("Banana", UnitOfMeasure.Gram, 100, ("calories", 1)));
+        var svc = new NutritionLookupService(new FakeClient(Parse(BananaJson)), repo);
+
+        var result = await svc.LookupAsync("user-1", "banana");
+
+        Assert.Equal(NutritionLookupService.SourceName, result.Source);
+        Assert.Equal(89, ValueOf(result.NutritionPer100g, "calories")); // USDA value, not the catalog's 1.
+    }
+
+    [Fact]
+    public async Task Lookup_catalog_fallback_skips_non_mass_servings()
+    {
+        // A cup (volume) serving can't be put on a per-100-g basis → fall through to NotFound.
+        var repo = new FakeRepo(CatalogItem("Milk", UnitOfMeasure.Cup, 1, ("calories", 150)));
+        var svc = new NutritionLookupService(new FakeClient(null), repo);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => svc.LookupAsync("user-1", "milk"));
+    }
+
+    [Fact]
+    public async Task Lookup_catalog_fallback_message_mentions_manual_entry_when_nothing_matches()
+    {
+        var repo = new FakeRepo(); // empty catalog
+        var svc = new NutritionLookupService(new FakeClient(null), repo);
+
+        var ex = await Assert.ThrowsAsync<NotFoundException>(() => svc.LookupAsync("user-1", "banana"));
+        Assert.Contains("manually", ex.Message);
     }
 }

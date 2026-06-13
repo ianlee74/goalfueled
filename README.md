@@ -123,18 +123,36 @@ Unlike the in-memory store, the emulator persists your recipes, meals, and plans
 
 ### Automatic ingredient nutrition lookup
 
-The ingredient form has a **Look up nutrition** button that auto-fills nutrient values from the free,
-public [USDA FoodData Central](https://fdc.nal.usda.gov/api-guide.html) API. The external HTTP call is
-made server-side (via `IHttpClientFactory`) so the API key stays off the browser and there's no CORS.
+The ingredient form has a **Look up nutrition** button that auto-fills nutrient values. It calls the
+backend route `GET /api/ingredient-nutrition-lookup?query=…` (a deliberately distinct top-level path,
+**not** `/api/ingredients/...`, so it can't be shadowed by the `ingredients/{id}` route), which tries
+two sources in order:
 
-- `GoalFueled:Nutrition:FdcApiKey` — defaults to USDA's public, rate-limited `DEMO_KEY`. Set a personal
-  key (free, from the USDA site) for higher limits. No key is required to use the feature.
-- `GoalFueled:Nutrition:FdcBaseUrl` — defaults to `https://api.nal.usda.gov/fdc/v1/`.
+1. **[USDA FoodData Central](https://fdc.nal.usda.gov/api-guide.html)** (live HTTP, made server-side
+   via `IHttpClientFactory` so the API key stays off the browser and there's no CORS).
+2. **Your own ingredient catalog** (offline fallback) — if USDA is unreachable or rate-limited, a
+   matching ingredient already in the app (by name or alias) is rescaled to 100 g and used instead.
+
+> [!IMPORTANT]
+> **To get live USDA results, set your own API key.** The default `DEMO_KEY` is shared and capped at
+> **~10 requests per hour per IP** — it is almost always exhausted, in which case USDA returns HTTP 429
+> and the live lookup yields nothing. This is the usual reason the button "doesn't work": it's not a
+> code bug, it's the demo key's rate limit. Get a free key in seconds at
+> <https://fdc.nal.usda.gov/api-key-signup.html> and set:
+>
+> - `GoalFueled:Nutrition:FdcApiKey` — your personal key (raises the limit to 1,000/hour). With a real
+>   key, "banana", "almonds", etc. fill from USDA directly.
+> - `GoalFueled:Nutrition:FdcBaseUrl` — defaults to `https://api.nal.usda.gov/fdc/v1/` (rarely changed).
+>
+> Set it in `src/GoalFueled.Api/local.settings.json` under `Values` (e.g.
+> `"GoalFueled:Nutrition:FdcApiKey": "<your-key>"`) for local dev, or as an app setting in Azure.
 
 USDA reports nutrients per 100 g; the app stores per-serving values, so applying a lookup sets the
 serving basis to 100 g and fills the matching catalog nutrients (1:1, with unit conversion). Only
-nutrients the app tracks are populated; the lookup pre-fills editable fields and never auto-saves, and
-it fails gracefully (network/no-key/rate-limit/no-result) so manual entry is always available.
+nutrients the app tracks are populated. The catalog fallback only applies to mass-based ingredients
+(grams/oz/etc.) where a per-100-g basis is meaningful — count/volume items (e.g. "1 piece", "1 cup")
+are skipped. The lookup pre-fills editable fields, never auto-saves, and always surfaces a clear
+message (rate-limited / no match / no key) so manual entry is never blocked.
 
 ## Authentication & authorization
 

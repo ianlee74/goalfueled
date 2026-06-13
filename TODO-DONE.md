@@ -6,6 +6,18 @@
 
 ## Completed Items
 
+### Fix "Look up nutrition" — route shadowing was the real cause — 2026-06-13 CDT
+
+- [x] **Fixed the `Look up nutrition` button**: the documented endpoint was being shadowed by the `ingredients/{id}` route; gave it a distinct route and added an offline catalog fallback.
+
+**NOTES:**
+
+- **Proven root cause (runtime, not theory)**: `GET /api/ingredients/nutrition-lookup?query=banana` returned **HTTP 404 "Ingredient not found."** — that message is from `IngredientService.GetAsync` (`ingredients/{id}`), so the `ingredients/{id}` route was capturing the request with `id="nutrition-lookup"` and `LookupIngredientNutrition` never ran. The prior "just needs network" conclusion was wrong. Secondary issue: USDA's shared `DEMO_KEY` is rate-limited (observed HTTP 429, ~10 req/hr/IP); network egress itself works (direct curl returned 200).
+- **Fix**: moved the lookup to a distinct top-level route `ingredient-nutrition-lookup` (can't be shadowed by `ingredients/{id}`); updated the frontend service call. Added an **offline catalog fallback**: when USDA is unreachable/rate-limited/empty, `NutritionLookupService` searches the user's visible ingredient catalog by name/alias, rescales a mass-based match to per-100 g, and returns it (source "your ingredient catalog"). Distinct, honest error messages (rate-limited vs no-match), always surfaced in the form's visible notice — never a silent no-op.
+- Proven after fix: `GET /api/ingredient-nutrition-lookup?query=almonds` → HTTP 200, 10 nutrients per 100 g from the catalog fallback (button populates offline); a no-rescalable-match query → 404 with the honest message. Live USDA path is correct/wired and works when quota is available; documented the free personal key + `GoalFueled:Nutrition:FdcApiKey` setting in README.
+- 4 new fallback tests (12 lookup tests total). Verified: `dotnet build` 0 errors; `dotnet test` 306/306 passed; `npm run build` succeeds; `npm run lint` 0 errors (3 pre-existing warnings).
+- **Discovered a related bug** (fixed separately): `ingredients/review-queue` and `recipes/review-queue` were shadowed by `{id}` the same way.
+
 ### Submit ingredient to public (review workflow) — 2026-06-13 CDT
 
 - [x] **Added a `Submit to public` workflow for ingredients** mirroring recipes: owner submits, admin approves/rejects from a review queue.

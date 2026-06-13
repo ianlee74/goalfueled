@@ -358,7 +358,7 @@ export function IngredientFormPage() {
                 placeholder="e.g. Greek Yogurt" />
               {!readOnly && (
                 <button type="button" className="btn btn-sm" disabled={lookingUp || !name.trim()}
-                  title="Auto-fill nutrition for this name from USDA FoodData Central"
+                  title="Auto-fill nutrition for this name from USDA FoodData Central (falls back to your ingredient catalog if the live service is unavailable)"
                   onClick={lookupNutrition}>
                   {lookingUp ? 'Looking up…' : 'Look up nutrition'}
                 </button>

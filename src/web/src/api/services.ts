@@ -45,8 +45,9 @@ export const ingredientApi = {
     api.get<Ingredient[]>(`/ingredients${listQuery(search, all)}`),
   get: (id: string) => api.get<Ingredient>(`/ingredients/${id}`),
   // Auto-fill nutrition from an external source (USDA), per 100 g, mapped to the app's catalog.
+  // Uses a distinct top-level path (not /ingredients/...) so it can't be shadowed by /ingredients/{id}.
   nutritionLookup: (query: string) =>
-    api.get<NutritionLookupResult>(`/ingredients/nutrition-lookup?query=${encodeURIComponent(query)}`),
+    api.get<NutritionLookupResult>(`/ingredient-nutrition-lookup?query=${encodeURIComponent(query)}`),
   create: (input: IngredientInput) => api.post<Ingredient>('/ingredients', input),
   // Clones an app-level ingredient into a private copy owned by the caller, ready to edit.
   customize: (id: string) => api.post<Ingredient>(`/ingredients/${id}/customize`),

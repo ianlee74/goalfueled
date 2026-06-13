@@ -38,7 +38,9 @@
       "Bash(dotnet sln *)",
       "Bash(dotnet add *)",
       "Bash(powershell.exe -NoProfile -Command \"winget --version\")",
-      "Bash(grep -iA6 \"All_core_services_resolve\\\\|Error Message\\\\|Stack Trace\")"
+      "Bash(grep -iA6 \"All_core_services_resolve\\\\|Error Message\\\\|Stack Trace\")",
+      "PowerShell(Get-Process -Id 49892 -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-NetTCPConnection -LocalPort 7071,7072 -State Listen -ErrorAction SilentlyContinue)"
     ]
   }
 }

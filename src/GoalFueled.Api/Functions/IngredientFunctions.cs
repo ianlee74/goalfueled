@@ -36,13 +36,18 @@ public sealed class IngredientFunctions
             return HttpResults.Ok(result);
         });
 
+    // NOTE: this is a distinct top-level route, NOT "ingredients/nutrition-lookup". In the Functions
+    // isolated host the literal segment does not reliably win over the "ingredients/{id}" route, so a
+    // GET to "ingredients/nutrition-lookup" was being captured by GetIngredient (id="nutrition-lookup")
+    // and answered with 404 "Ingredient not found." — the lookup handler never ran. A non-colliding
+    // path makes the route unambiguous so it can never be shadowed.
     [Function("LookupIngredientNutrition")]
     public Task<IActionResult> NutritionLookup(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "ingredients/nutrition-lookup")] HttpRequest req) =>
-        ApiEndpoint.RunAuthenticated(req, _auth, async _ =>
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "ingredient-nutrition-lookup")] HttpRequest req) =>
+        ApiEndpoint.RunAuthenticated(req, _auth, async user =>
         {
             var query = req.Query["query"].FirstOrDefault();
-            var result = await _nutritionLookup.LookupAsync(query, req.HttpContext.RequestAborted);
+            var result = await _nutritionLookup.LookupAsync(user.Id, query, req.HttpContext.RequestAborted);
             return HttpResults.Ok(result);
         });
 
