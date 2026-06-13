@@ -6,6 +6,17 @@
 
 ## Completed Items
 
+### Look up nutrition button — already implemented (verified) — 2026-06-13 CDT
+
+- [x] **`Look up nutrition` works**: verified the full end-to-end implementation; no code changes were needed.
+
+**NOTES:**
+
+- This TODO was stale. The feature was already built in commit `32b0ee1` ("Add automatic ingredient nutrition lookup (USDA FoodData Central)"), which is reachable from HEAD. The whole path is present and passing: `IngredientFormPage.lookupNutrition()` (loading state + populate-on-success + friendly error/empty notice) → `ingredientApi.nutritionLookup` → `GET /ingredients/nutrition-lookup` → `NutritionLookupService` → `IFdcNutritionClient`/`FdcNutritionClient` (real USDA FDC HTTP) with a test `FakeClient`.
+- Config: `GoalFueled:Nutrition:FdcApiKey` defaults to USDA's public `DEMO_KEY`; `FdcBaseUrl` defaults to the public endpoint. The lookup runs server-side (key off the client, no CORS), 15s timeout. Every failure mode degrades gracefully to a "enter the values manually" message — never a crash or silent no-op.
+- What requires network: the real USDA call hitting `api.nal.usda.gov`. Offline, the client returns null and the user sees the friendly message. All unit tests use the fake client (no network).
+- Verified at the current HEAD: `dotnet build` 0 errors; `dotnet test` 289/289 passed; `npm run build` succeeds; `npm run lint` 0 errors (3 pre-existing warnings). No new commit (no code change).
+
 ### Add a Customize (clone to private) option for app-level ingredients and recipes — 2026-06-13 CDT
 
 - [x] **Added a `Customize` option** for app-level ingredients and recipes: creates a private clone owned by the user and navigates them straight into editing it.

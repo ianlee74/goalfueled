@@ -6,8 +6,6 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-- [] **`Look up nutrition` doesn't work**: when adding an `ingredient` the `Look up nutrition` button is intended to find information about the ingredient in a web search and automatically populate the nutritional information it found into the form. This currently doesn't seem to do anything. Is it possible to make this work as intended?
-
 - [] **Search for existing ingredients when adding a new one**: to help prevent duplicate ingredients from being added, when a user is entering a name for a new ingredient, do a lookup of existing ingredients so they can see that it already exists. If they select an existing item from the lookup list, add the nutritional info for that item into the form they are on.
 
 - [] **When adding a `free-form` `fuel` item to the `Log` do an ingredient lookup**: when a user is adding a `free-form` type `fuel` item to the `Log`, do an ingredient lookup as they enter the `item` description. If they pick a match, then insert its name and per-serving calories.
