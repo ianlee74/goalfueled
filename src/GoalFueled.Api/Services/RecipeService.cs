@@ -86,6 +86,38 @@ public sealed class RecipeService
         return await ToDtoAsync(recipe, user, ct);
     }
 
+    /// <summary>
+    /// Creates a private clone of an existing recipe owned by the caller, so a user can take an
+    /// app-level/public (read-only) recipe and tweak it. Deep-copies the ingredient line items,
+    /// servings, and the rest, except identity/ownership: the clone gets a fresh id, user scope, the
+    /// caller as both owner and original creator, Private visibility, and fresh timestamps. Favorite
+    /// state is per-user and so is naturally not copied.
+    /// </summary>
+    public async Task<RecipeDto> CustomizeAsync(AppUser user, string id, CancellationToken ct)
+    {
+        var source = await _repo.GetByIdAsync(id, ct) ?? throw new NotFoundException("Recipe not found.");
+        EnsureCanView(source, user);
+
+        var clone = new Recipe
+        {
+            // New Id is assigned by the entity initializer.
+            Name = InputLimits.CustomizedName(source.Name),
+            Description = source.Description,
+            ImageUrl = source.ImageUrl,
+            Items = source.Items
+                .Select(i => new RecipeItem { IngredientId = i.IngredientId, Quantity = i.Quantity, Unit = i.Unit })
+                .ToList(),
+            Servings = source.Servings,
+            Scope = OwnershipScope.User,
+            OwnerUserId = user.Id,
+            OriginalCreatorUserId = user.Id,
+            Visibility = RecipeVisibility.Private,
+        };
+
+        await _repo.AddAsync(clone, ct);
+        return await ToDtoAsync(clone, user, ct);
+    }
+
     public async Task<RecipeDto> UpdateAsync(AppUser user, string id, RecipeInput input, CancellationToken ct)
     {
         await ValidateAsync(input, user, ct);

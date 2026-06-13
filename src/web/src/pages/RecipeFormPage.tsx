@@ -150,6 +150,20 @@ export function RecipeFormPage() {
     }
   }
 
+  // Clone a read-only (app-level/public) recipe into a private copy, then open it for editing.
+  async function customize() {
+    if (!id || isNew) return
+    setError(null)
+    setSaving(true)
+    try {
+      const clone = await recipeApi.customize(id)
+      navigate(`/recipes/${clone.id}`, { replace: true })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Customize failed.')
+      setSaving(false)
+    }
+  }
+
   async function remove() {
     if (!id || isNew) return
     if (!confirm('Delete this recipe? This cannot be undone.')) return
@@ -175,7 +189,17 @@ export function RecipeFormPage() {
       </div>
 
       {error && <div className="notice error">{error}</div>}
-      {readOnly && <div className="notice info">This recipe is read-only. You can view it but not edit it.</div>}
+      {readOnly && (
+        <div className="notice info">
+          <div className="row spread" style={{ gap: '0.5rem' }}>
+            <span>This recipe is read-only. You can view it but not edit it.</span>
+            <button type="button" className="btn btn-sm" disabled={saving} onClick={customize}
+              title="Make a private copy you can edit">
+              {saving ? 'Customizing…' : 'Customize'}
+            </button>
+          </div>
+        </div>
+      )}
       {!isNew && (
         <div className="notice info">Status: <strong>{RECIPE_VISIBILITY_LABELS[visibility]}</strong></div>
       )}

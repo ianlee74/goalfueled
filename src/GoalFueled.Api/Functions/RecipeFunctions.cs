@@ -58,6 +58,13 @@ public sealed class RecipeFunctions
             return HttpResults.Created(created);
         });
 
+    [Function("CustomizeRecipe")]
+    public Task<IActionResult> Customize(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "recipes/{id}/customize")] HttpRequest req,
+        string id) =>
+        ApiEndpoint.RunAuthenticated(req, _auth, async user =>
+            HttpResults.Created(await _recipes.CustomizeAsync(user, id, req.HttpContext.RequestAborted)));
+
     [Function("UpdateRecipe")]
     public Task<IActionResult> Update(
         [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "recipes/{id}")] HttpRequest req,

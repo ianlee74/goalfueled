@@ -48,6 +48,8 @@ export const ingredientApi = {
   nutritionLookup: (query: string) =>
     api.get<NutritionLookupResult>(`/ingredients/nutrition-lookup?query=${encodeURIComponent(query)}`),
   create: (input: IngredientInput) => api.post<Ingredient>('/ingredients', input),
+  // Clones an app-level ingredient into a private copy owned by the caller, ready to edit.
+  customize: (id: string) => api.post<Ingredient>(`/ingredients/${id}/customize`),
   update: (id: string, input: IngredientInput) => api.put<Ingredient>(`/ingredients/${id}`, input),
   remove: (id: string) => api.del(`/ingredients/${id}`),
   // Marks/unmarks the ingredient as one of the signed-in user's favorites.
@@ -60,6 +62,8 @@ export const recipeApi = {
     api.get<Recipe[]>(`/recipes${listQuery(search, all)}`),
   get: (id: string) => api.get<Recipe>(`/recipes/${id}`),
   create: (input: RecipeInput) => api.post<Recipe>('/recipes', input),
+  // Clones an app-level/public recipe into a private copy owned by the caller, ready to edit.
+  customize: (id: string) => api.post<Recipe>(`/recipes/${id}/customize`),
   update: (id: string, input: RecipeInput) => api.put<Recipe>(`/recipes/${id}`, input),
   remove: (id: string) => api.del(`/recipes/${id}`),
   submitForReview: (id: string) => api.post<Recipe>(`/recipes/${id}/submit-for-review`),

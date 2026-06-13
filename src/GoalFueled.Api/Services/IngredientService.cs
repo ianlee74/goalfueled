@@ -66,6 +66,39 @@ public sealed class IngredientService
         return ToDto(ingredient, user);
     }
 
+    /// <summary>
+    /// Creates a private clone of an existing ingredient owned by the caller, so a user can take an
+    /// app-level (read-only) ingredient and tweak it. Deep-copies every field except identity/ownership:
+    /// the clone gets a fresh id, user scope, the caller as owner, and fresh timestamps. Favorite state
+    /// is per-user (kept on the user document) and so is naturally not copied.
+    /// </summary>
+    public async Task<IngredientDto> CustomizeAsync(AppUser user, string id, CancellationToken ct)
+    {
+        var source = await _repo.GetByIdAsync(id, ct) ?? throw new NotFoundException("Ingredient not found.");
+        EnsureCanView(source, user);
+
+        var clone = new Ingredient
+        {
+            // New Id is assigned by the entity initializer.
+            Name = InputLimits.CustomizedName(source.Name),
+            Description = source.Description,
+            ImageUrl = source.ImageUrl,
+            Unit = source.Unit,
+            ServingSize = source.ServingSize,
+            NutritionPerServing = source.NutritionPerServing
+                .Select(n => new NutrientAmount(n.NutrientId, n.Value)).ToList(),
+            Tags = source.Tags is null ? null : new List<string>(source.Tags),
+            Aliases = source.Aliases is null ? null : new List<string>(source.Aliases),
+            LocalizedNames = source.LocalizedNames?
+                .Select(l => new LocalizedName(l.Language, l.Name)).ToList(),
+            Scope = OwnershipScope.User,
+            OwnerUserId = user.Id,
+        };
+
+        await _repo.AddAsync(clone, ct);
+        return ToDto(clone, user);
+    }
+
     public async Task<IngredientDto> UpdateAsync(AppUser user, string id, IngredientInput input, CancellationToken ct)
     {
         Validate(input);

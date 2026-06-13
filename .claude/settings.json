@@ -1,13 +1,35 @@
 {
   "permissions": {
     "allow": [
-      "PowerShell(git -C C:\\\\Code\\\\goalfueled diff --stat -- src/GoalFueled.Data/Seeding/DatabaseInitializer.cs)",
-      "PowerShell(git -C C:\\\\Code\\\\goalfueled diff -- src/GoalFueled.Data/Seeding/DatabaseInitializer.cs)",
-      "PowerShell(dotnet test C:\\\\Code\\\\goalfueled --nologo -v q 2>&1)",
-      "PowerShell(dotnet build C:\\\\Code\\\\goalfueled -v q --nologo 2>&1)",
-      "PowerShell(dotnet test C:\\\\Code\\\\goalfueled --no-build 2>&1)",
-      "PowerShell(git -C c:\\\\Code\\\\goalfueled diff -- src/web/src/components/IngredientFinder.tsx src/web/src/index.css src/web/src/pages/TodayPage.tsx)",
-      "PowerShell(npm run lint 2>&1)"
+      "PowerShell(cd C:\\Code\\goalfueled\\*)",
+      "PowerShell(git -C *)",
+      "PowerShell(git status *)",
+      "PowerShell(git diff *)",
+      "PowerShell(dotnet test *)",
+      "PowerShell(dotnet build *)",
+      "PowerShell(npm run lint *)",
+      "PowerShell(npm run build *)",
+      "PowerShell(npx eslint *)",
+      "Bash(cd /c/Code/goalfueled/*)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(dotnet --version)",
+      "Bash(func --version)",
+      "Bash(npm --version)",
+      "Bash(az version *)",
+      "Bash(git --version)",
+      "Bash(dotnet --list-sdks)",
+      "Bash(powershell.exe -NoProfile -Command \"Get-Process -Name *\")",
+      "Bash(dotnet new *)",
+      "Bash(dotnet build *)",
+      "Bash(npm create *)",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(az bicep *)",
+      "Bash(dotnet sln *)",
+      "Bash(dotnet add *)",
+      "Bash(powershell.exe -NoProfile -Command \"winget --version\")",
+      "Bash(grep -iA6 \"All_core_services_resolve\\\\|Error Message\\\\|Stack Trace\")"
     ]
   }
 }

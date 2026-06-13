@@ -59,6 +59,20 @@ public static class InputLimits
     /// <summary>Upper bound for the calories burned on a single logged activity (a generous ceiling).</summary>
     public const int BurnCaloriesMax = 100_000;
 
+    /// <summary>
+    /// Builds the name for a customized clone: the original with a " (custom)" suffix so it's
+    /// distinguishable from the app-level source in lists. Truncates the original first if needed so
+    /// the result still fits within <see cref="NameMaxLength"/>.
+    /// </summary>
+    public static string CustomizedName(string original)
+    {
+        const string suffix = " (custom)";
+        var name = (original ?? string.Empty).Trim();
+        var room = NameMaxLength - suffix.Length;
+        if (name.Length > room) name = name[..room].TrimEnd();
+        return name + suffix;
+    }
+
     /// <summary>Validates a required string is non-empty and within <paramref name="maxLength"/>.</summary>
     public static void RequireText(string? value, int maxLength, string label)
     {

@@ -6,6 +6,20 @@
 
 ## Completed Items
 
+### Add a Customize (clone to private) option for app-level ingredients and recipes — 2026-06-13 CDT
+
+- [x] **Added a `Customize` option** for app-level ingredients and recipes: creates a private clone owned by the user and navigates them straight into editing it.
+
+**NOTES:**
+
+- Ownership model: `OwnershipScope` is `App` (admin-owned, shared, read-only to normal users) or `User` (private). `CanEdit = IsActingAsAdmin || (Scope == User && OwnerUserId == user.Id)`. Favorites live per-user on the `AppUser` doc, so a clone with a fresh id is naturally un-favorited.
+- New endpoints `POST /api/ingredients/{id}/customize` and `POST /api/recipes/{id}/customize` → `IngredientService.CustomizeAsync` / `RecipeService.CustomizeAsync`, returning 201 with the clone DTO.
+- Clone naming: `"<name> (custom)"` via a new `InputLimits.CustomizedName` helper that truncates the original so the suffixed name stays within the 200-char limit.
+- Deep-copies all fields — ingredient: nutrition (new `NutrientAmount` instances), unit, serving size, Tags/Aliases/LocalizedNames; recipe: description, image, servings, and Items (new `RecipeItem` instances). Resets to a fresh id, `Scope = User`, `OwnerUserId = caller`; recipes also get `OriginalCreatorUserId = caller` and `Visibility = Private`. Favorite state is not copied. Source must be visible to the caller (`EnsureCanView`, else NotFound).
+- Frontend: the read-only detail/form page shows a "Customize" button in the read-only notice; clicking POSTs the clone and `navigate('/ingredients|recipes/{newId}', { replace: true })` into the editable copy. Action surfaced on the form page only (not the `<Link>`-wrapped list cards).
+- 6 new service tests (clone is private + owned by caller, deep-copies fields, fresh id, source unchanged).
+- Verified: `dotnet build` 0 errors; `dotnet test` 289/289 passed; `npm run build` succeeds; `npm run lint` 0 errors (3 pre-existing warnings).
+
 ### Show per-serving nutritional info for meals — 2026-06-13 CDT
 
 - [x] **Showed per-serving nutritional info for `meals`** the same way recipes do, via a two-column NutritionLabel (Whole meal / Per serving).

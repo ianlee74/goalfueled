@@ -246,6 +246,74 @@ public class IngredientServiceTests
         Assert.Single(await svc.ListAsync(user, "jalapeño", default)); // accented query still matches
     }
 
+    // ---- customize (clone) ----
+
+    [Fact]
+    public async Task Customize_creates_a_private_copy_owned_by_the_caller()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, svc) = await SetupAsync(db);
+
+        var appItem = await svc.CreateAsync(admin, Input("Olive Oil", appLevel: true, ("calories", 884)), default);
+
+        var clone = await svc.CustomizeAsync(user, appItem.Id, default);
+
+        Assert.NotEqual(appItem.Id, clone.Id);          // fresh id
+        Assert.Equal(OwnershipScope.User, clone.Scope); // private
+        Assert.Equal(user.Id, clone.OwnerUserId);       // owned by the caller
+        Assert.True(clone.CanEdit);                     // the caller may now edit it
+        Assert.False(clone.IsFavorite);                 // favorite state is not copied
+        Assert.Equal("Olive Oil (custom)", clone.Name);
+    }
+
+    [Fact]
+    public async Task Customize_deep_copies_all_fields_and_leaves_the_source_unchanged()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, svc) = await SetupAsync(db);
+
+        var source = await svc.CreateAsync(admin, new IngredientInput(
+            "Chickpeas", "<p>Tasty</p>", "https://img/chickpeas.png", UnitOfMeasure.Gram, 100,
+            new[] { new NutrientAmount("calories", 364), new NutrientAmount("protein", 19) },
+            AppLevel: true,
+            Tags: new[] { "legume", "protein" },
+            Aliases: new[] { "Garbanzo Beans" },
+            LocalizedNames: new[] { new LocalizedName("es", "garbanzos") }), default);
+
+        var clone = await svc.CustomizeAsync(user, source.Id, default);
+
+        Assert.Equal(source.Description, clone.Description);
+        Assert.Equal(source.ImageUrl, clone.ImageUrl);
+        Assert.Equal(source.Unit, clone.Unit);
+        Assert.Equal(source.ServingSize, clone.ServingSize);
+        Assert.Equal(364, clone.NutritionPerServing.Single(n => n.NutrientId == "calories").Value);
+        Assert.Equal(19, clone.NutritionPerServing.Single(n => n.NutrientId == "protein").Value);
+        Assert.Equal(new[] { "legume", "protein" }, clone.Tags);
+        Assert.Equal(new[] { "Garbanzo Beans" }, clone.Aliases);
+        var localized = Assert.Single(clone.LocalizedNames);
+        Assert.Equal("es", localized.Language);
+        Assert.Equal("garbanzos", localized.Name);
+
+        // The source app-level ingredient is untouched.
+        var reloaded = await svc.GetAsync(admin, source.Id, default);
+        Assert.Equal(OwnershipScope.App, reloaded.Scope);
+        Assert.Equal("Chickpeas", reloaded.Name);
+    }
+
+    [Fact]
+    public async Task Customize_rejects_an_ingredient_the_user_cannot_see()
+    {
+        using var db = TestHelpers.NewContext();
+        var (_, user, svc) = await SetupAsync(db);
+        var other = await TestHelpers.NewAuthenticator(db,
+            new AuthenticatedIdentity("dev", "other", "other@dev.local", "Other"))
+            .GetCurrentUserAsync(TestHelpers.BlankRequest());
+
+        var theirs = await svc.CreateAsync(other!, Input("Their Secret"), default);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => svc.CustomizeAsync(user, theirs.Id, default));
+    }
+
     [Fact]
     public async Task Search_metadata_is_normalized_on_save()
     {

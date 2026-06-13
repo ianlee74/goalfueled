@@ -227,6 +227,74 @@ public class RecipeServiceTests
             recipes.SubmitForReviewAsync(user, extra.Id, default));
     }
 
+    // ---- customize (clone) ----
+
+    [Fact]
+    public async Task Customize_creates_a_private_copy_owned_and_credited_to_the_caller()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, ingredients, recipes) = await SetupAsync(db);
+        var flour = await ingredients.CreateAsync(admin, Ingredient("Flour", UnitOfMeasure.Gram, 100, true), default);
+
+        var appRecipe = await recipes.CreateAsync(admin, Recipe("House Bread", 2, appLevel: true,
+            new RecipeItemInput(flour.Id, 250, UnitOfMeasure.Gram)), default);
+
+        var clone = await recipes.CustomizeAsync(user, appRecipe.Id, default);
+
+        Assert.NotEqual(appRecipe.Id, clone.Id);             // fresh id
+        Assert.Equal(OwnershipScope.User, clone.Scope);      // private
+        Assert.Equal(user.Id, clone.OwnerUserId);            // owned by the caller
+        Assert.Equal(user.Id, clone.OriginalCreatorUserId);  // credited to the caller
+        Assert.Equal(RecipeVisibility.Private, clone.Visibility);
+        Assert.True(clone.CanEdit);
+        Assert.False(clone.IsFavorite);                      // favorite state is not copied
+        Assert.Equal("House Bread (custom)", clone.Name);
+    }
+
+    [Fact]
+    public async Task Customize_deep_copies_items_and_servings_and_leaves_source_unchanged()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, ingredients, recipes) = await SetupAsync(db);
+        var chicken = await ingredients.CreateAsync(admin,
+            Ingredient("Chicken", UnitOfMeasure.Gram, 100, true, ("calories", 165), ("protein", 31)), default);
+        var oil = await ingredients.CreateAsync(admin,
+            Ingredient("Olive Oil", UnitOfMeasure.Tablespoon, 1, true, ("calories", 119)), default);
+
+        var source = await recipes.CreateAsync(admin, Recipe("Dish", 3, appLevel: true,
+            new RecipeItemInput(chicken.Id, 200, UnitOfMeasure.Gram),
+            new RecipeItemInput(oil.Id, 0.5, UnitOfMeasure.Tablespoon)), default);
+
+        var clone = await recipes.CustomizeAsync(user, source.Id, default);
+
+        Assert.Equal(3, clone.Servings);
+        Assert.Equal(2, clone.Items.Count);
+        Assert.Contains(clone.Items, i => i.IngredientId == chicken.Id && i.Quantity == 200 && i.Unit == UnitOfMeasure.Gram);
+        Assert.Contains(clone.Items, i => i.IngredientId == oil.Id && i.Quantity == 0.5 && i.Unit == UnitOfMeasure.Tablespoon);
+        // Nutrition rolls up identically to the source (same items/servings).
+        Assert.Equal(Nutrient(source.TotalNutrition, "calories"), Nutrient(clone.TotalNutrition, "calories"), 3);
+
+        // The source app-level recipe is untouched.
+        var reloaded = await recipes.GetAsync(admin, source.Id, default);
+        Assert.Equal(OwnershipScope.App, reloaded.Scope);
+        Assert.Equal(RecipeVisibility.Public, reloaded.Visibility);
+        Assert.Equal("Dish", reloaded.Name);
+    }
+
+    [Fact]
+    public async Task Customize_rejects_a_recipe_the_user_cannot_see()
+    {
+        using var db = TestHelpers.NewContext();
+        var (_, user, _, recipes) = await SetupAsync(db);
+        var other = await TestHelpers.NewAuthenticator(db,
+            new AuthenticatedIdentity("dev", "other", "other@dev.local", "Other"))
+            .GetCurrentUserAsync(TestHelpers.BlankRequest());
+
+        var theirs = await recipes.CreateAsync(other!, Recipe("Their Secret", 1, false), default);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => recipes.CustomizeAsync(user, theirs.Id, default));
+    }
+
     // ---- nutrition roll-up math ----
 
     [Fact]

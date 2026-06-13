@@ -164,6 +164,20 @@ export function IngredientFormPage() {
     }
   }
 
+  // Clone an app-level (read-only) ingredient into a private copy, then open it for editing.
+  async function customize() {
+    if (!id || isNew) return
+    setError(null)
+    setSaving(true)
+    try {
+      const clone = await ingredientApi.customize(id)
+      navigate(`/ingredients/${clone.id}`, { replace: true })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Customize failed.')
+      setSaving(false)
+    }
+  }
+
   async function remove() {
     if (!id || isNew) return
     if (!confirm('Delete this ingredient? This cannot be undone.')) return
@@ -189,7 +203,17 @@ export function IngredientFormPage() {
       </div>
 
       {error && <div className="notice error">{error}</div>}
-      {readOnly && <div className="notice info">This is an app-level ingredient. You can view it but not edit it.</div>}
+      {readOnly && (
+        <div className="notice info">
+          <div className="row spread" style={{ gap: '0.5rem' }}>
+            <span>This is an app-level ingredient. You can view it but not edit it.</span>
+            <button type="button" className="btn btn-sm" disabled={saving} onClick={customize}
+              title="Make a private copy you can edit">
+              {saving ? 'Customizing…' : 'Customize'}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="card stack">
         <label className="field">
