@@ -675,15 +675,14 @@ export function PlanFormPage() {
 
       {cadence === 'Weekly' && summary.days.length > 0 && (
         <div className="card stack">
-          <h2>Per-day breakdown</h2>
-          {summary.days.map((d) => (
-            <div key={d.dayOfWeek ?? 'all'} className="stack" style={{ gap: '0.25rem' }}>
-              <strong className="small">{d.dayOfWeek ?? 'Every day'}</strong>
-              <NutritionLabel amounts={d.nutrition} />
-            </div>
-          ))}
-          <h2>Weekly total</h2>
-          <NutritionLabel amounts={summary.weeklyTotal} />
+          <h2>Per-day breakdown
+            <span className="muted small"> calories &amp; macros</span>
+          </h2>
+          <MacroMatrix
+            days={summary.days}
+            dailyAverage={summary.dailyAverage}
+            weeklyTotal={summary.weeklyTotal}
+          />
         </div>
       )}
 
@@ -749,6 +748,69 @@ function ScheduledMealFields({ row, meals, readOnly, showDay, onUpdate }: {
       <TimePicker value={row.time} disabled={readOnly} title="Time of day"
         onChange={(time) => onUpdate({ time })} />
     </>
+  )
+}
+
+// The calories + macro columns shown in the compact per-day matrix, in label order.
+// Grams are implied by the column header so cells stay terse.
+const MACRO_COLUMNS: { id: string; label: string }[] = [
+  { id: 'calories', label: 'kcal' },
+  { id: 'protein', label: 'Protein' },
+  { id: 'total_carbohydrate', label: 'Carbs' },
+  { id: 'total_fat', label: 'Fat' },
+]
+
+function macroValue(amounts: NutrientAmount[], nutrientId: string): number {
+  return amounts.find((n) => n.nutrientId === nutrientId)?.value ?? 0
+}
+
+function roundCell(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(1)
+}
+
+// A single scannable table for a weekly plan: one row per active day, then emphasized Average and
+// Total summary rows. Columns are calories + the three core macros — the full micronutrient detail
+// stays in the "Daily nutrition" label above, so this stays compact and comparison-friendly.
+function MacroMatrix({ days, dailyAverage, weeklyTotal }: {
+  days: { dayOfWeek: DayOfWeek | null; nutrition: NutrientAmount[] }[]
+  dailyAverage: NutrientAmount[]
+  weeklyTotal: NutrientAmount[]
+}) {
+  const summaryRows: { label: string; amounts: NutrientAmount[] }[] = [
+    { label: 'Average / day', amounts: dailyAverage },
+    { label: 'Weekly total', amounts: weeklyTotal },
+  ]
+  return (
+    <table className="macro-matrix">
+      <thead>
+        <tr>
+          <th className="day">Day</th>
+          {MACRO_COLUMNS.map((c) => <th key={c.id} className="num">{c.label}</th>)}
+        </tr>
+      </thead>
+      <tbody>
+        {days.map((d) => (
+          <tr key={d.dayOfWeek ?? 'all'}>
+            <td className="day">{d.dayOfWeek ?? 'Every day'}</td>
+            {MACRO_COLUMNS.map((c) => (
+              <td key={c.id} className={`num ${c.id === 'calories' ? 'kcal' : ''}`}>
+                {roundCell(macroValue(d.nutrition, c.id))}
+              </td>
+            ))}
+          </tr>
+        ))}
+        {summaryRows.map((r, i) => (
+          <tr key={r.label} className={`summary ${i === 0 ? 'first' : ''}`}>
+            <td className="day">{r.label}</td>
+            {MACRO_COLUMNS.map((c) => (
+              <td key={c.id} className={`num ${c.id === 'calories' ? 'kcal' : ''}`}>
+                {roundCell(macroValue(r.amounts, c.id))}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
   )
 }
 

@@ -6,8 +6,6 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-- [] **Simplify the nutrition breakdown on `meal plans`**: the current view of avg, daily breakdowns, and total nutrional info is too length. Simplify it. Perhaps a table format?
-
 - [] **Show per serving nutritional info for `meals`** the same way we do for `recipes`.
 
 - [] **Add an option to customize**: for app-level `ingredients` and `recipes` add an option to `customize` it. This should create a clone of the current item as a private item that the user can then customize as they wish.

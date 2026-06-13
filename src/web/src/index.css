@@ -636,6 +636,25 @@ label.field .hint, div.field .hint { font-weight: 400; color: var(--muted); font
 .nutri-table th { padding: 0.3rem 0; border-bottom: 2px solid var(--border); color: var(--muted); font-weight: 600; }
 .nutri-table th.val { text-align: right; }
 
+/* Compact macro matrix: days as rows, calories + macros as columns, with summary rows. */
+.macro-matrix { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.macro-matrix th, .macro-matrix td {
+  padding: 0.35rem 0.4rem; border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+.macro-matrix th {
+  font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--muted); border-bottom: 2px solid var(--border);
+}
+.macro-matrix th.day, .macro-matrix td.day { text-align: left; white-space: normal; }
+.macro-matrix th.num, .macro-matrix td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.macro-matrix td.kcal { font-weight: 600; }
+/* Average / Total summary rows sit below a heavier rule and read as the takeaways. */
+.macro-matrix tr.summary td { font-weight: 600; }
+.macro-matrix tr.summary.first td { border-top: 2px solid var(--border); }
+.macro-matrix tr.summary td.day {
+  font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted);
+}
+
 .goal-grid { display: grid; gap: 0.75rem; }
 .goal-card {
   text-align: left; padding: 1rem; border: 2px solid var(--border); border-radius: var(--radius);

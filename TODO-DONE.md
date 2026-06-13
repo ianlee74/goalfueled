@@ -6,6 +6,18 @@
 
 ## Completed Items
 
+### Simplify the nutrition breakdown on meal plans — 2026-06-13 CDT
+
+- [x] **Simplified the meal-plan nutrition breakdown**: replaced the stack of per-day full nutrition labels with a single compact macro matrix table.
+
+**NOTES:**
+
+- Before, on `PlanFormPage`, a weekly plan rendered a separate full `NutritionLabel` (every micronutrient row) for each active day, plus another for the weekly total — 8+ stacked tables of vertical scroll and repetition.
+- Kept the **Daily nutrition** card (full micronutrient detail + goal comparison) unchanged so no information is lost.
+- Replaced the per-day breakdown with a new `MacroMatrix` component: rows = each active day plus emphasized **Average / day** and **Weekly total** summary rows below a heavier rule; columns = kcal, Protein, Carbs, Fat. Calories bold (focal number), labels uppercase condensed muted, numbers `tabular-nums` right-aligned. Reuses existing `.nutri-table` conventions and tokens.
+- No calculation changes — reads from the existing `summary.days` / `dailyAverage` / `weeklyTotal` from `previewSummary`. New `.macro-matrix` CSS added after the `.nutri-table` block.
+- Verified: `npm run build` succeeds; `npm run lint` 0 errors (3 pre-existing warnings). No backend changes.
+
 ### Improve the Activity dropdown on the Add-Burn form — 2026-06-13 CDT
 
 - [x] **Improved the `Activity` dropdown**: replaced the cramped native `<datalist>` autocomplete on the Add-Burn form with a themed type-ahead combobox consistent with the ingredient finder.

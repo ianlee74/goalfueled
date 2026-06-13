@@ -6,7 +6,8 @@
       "PowerShell(dotnet test C:\\\\Code\\\\goalfueled --nologo -v q 2>&1)",
       "PowerShell(dotnet build C:\\\\Code\\\\goalfueled -v q --nologo 2>&1)",
       "PowerShell(dotnet test C:\\\\Code\\\\goalfueled --no-build 2>&1)",
-      "PowerShell(git -C c:\\\\Code\\\\goalfueled diff -- src/web/src/components/IngredientFinder.tsx src/web/src/index.css src/web/src/pages/TodayPage.tsx)"
+      "PowerShell(git -C c:\\\\Code\\\\goalfueled diff -- src/web/src/components/IngredientFinder.tsx src/web/src/index.css src/web/src/pages/TodayPage.tsx)",
+      "PowerShell(npm run lint 2>&1)"
     ]
   }
 }
