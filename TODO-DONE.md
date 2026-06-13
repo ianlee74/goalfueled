@@ -6,6 +6,17 @@
 
 ## Completed Items
 
+### Hide the inline Add buttons on mobile — 2026-06-13 CDT
+
+- [x] **Hid the inline `+ Add fuel` / `+ Add burn` buttons on small screens** where the floating LOG button already covers those flows.
+
+**NOTES:**
+
+- The "floating +" is the raised center **LOG** action in the mobile tab bar (`.tab-log`/`.tabbar`), shown below 1024px and hidden at `@media (min-width: 1024px)` (which swaps in the desktop sidebar). Tapping LOG opens the `LogSheet` bottom sheet (Fuel/Burn/Weight) which navigates to `/?add=fuel` / `/?add=burn`; `TodayPage` reads the `?add=` param and opens the matching form — so mobile users keep full access. No JS/flow changes needed.
+- Pure CSS tied to the same `min-width: 1024px` breakpoint: wrapped the inline buttons row in `.log-add-actions` (`display: none` by default, `display: flex` only at ≥1024px), so the inline buttons and the LOG button are never both visible/hidden.
+- Also made the empty-day hint responsive (`.log-add-hint-desktop` / `.log-add-hint-mobile`) since it previously told mobile users to use buttons "above" that are now hidden.
+- Verified: `npm run build` succeeds; `npm run lint` 0 errors (3 pre-existing warnings). No backend changes.
+
 ### Ingredient lookup for free-form fuel items on the Log — 2026-06-13 CDT
 
 - [x] **Added an ingredient lookup when adding a `free-form` `fuel` item to the `Log`**: picking a match inserts its name and per-serving calories.

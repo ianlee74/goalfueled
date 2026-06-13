@@ -277,11 +277,21 @@ p { line-height: 1.5; }
 
 /* Reserve room for the fixed tab bar on mobile; swap to sidebar spacing on desktop. */
 .app-main { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
+/* On mobile the raised LOG button in the tab bar already opens the Add fuel/burn flows, so the
+   inline "+ Add fuel"/"+ Add burn" buttons on the Today page are redundant — hide them to free up
+   space. They reappear on desktop (≥1024px), the same breakpoint that hides the tab bar/LOG button. */
+.log-add-actions { display: none; }
+/* The empty-day hint points at whichever add affordance is actually on screen (mobile vs desktop). */
+.log-add-hint-desktop { display: none; }
+.log-add-hint-mobile { display: inline; }
 @media (min-width: 1024px) {
   .tabbar { display: none; }
   .sidebar { display: flex; }
   .app-shell { padding-left: 220px; }
   .app-main { padding-bottom: 1rem; }
+  .log-add-actions { display: flex; }
+  .log-add-hint-desktop { display: inline; }
+  .log-add-hint-mobile { display: none; }
 }
 
 /* ---- Bottom sheet (quick log) ---- */

@@ -576,8 +576,9 @@ export function TodayPage() {
         </div>
       </details>
 
-      {/* Add buttons reveal the (otherwise hidden) add forms. */}
-      <div className="row wrap" style={{ gap: '0.5rem' }}>
+      {/* Add buttons reveal the (otherwise hidden) add forms. Hidden on mobile, where the raised LOG
+          button in the tab bar already opens these add flows (it would be redundant) — see index.css. */}
+      <div className="row wrap log-add-actions" style={{ gap: '0.5rem' }}>
         <button
           type="button"
           className="btn btn-caps btn-fuel"
@@ -795,7 +796,9 @@ export function TodayPage() {
 
         {isEmptyDay && (
           <p className="muted small" style={{ margin: 0 }}>
-            Nothing logged for this day yet. Use “+ Add fuel” or “+ Add burn” above to get started.
+            Nothing logged for this day yet. Use the{' '}
+            <span className="log-add-hint-desktop">“+ Add fuel” / “+ Add burn” buttons above</span>
+            <span className="log-add-hint-mobile">LOG button below</span> to get started.
           </p>
         )}
 

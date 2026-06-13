@@ -6,8 +6,6 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-- [] **Hide the `Add` buttons when on mobile**: on the log page, when the screen is small and the `+` (log) button is visible at the bottom, it seems redundant to also have the `+ Add fuel` and `+ Add burn` buttons visible in the middle of the page. Let's hide these buttons and free up some screen space when in this mode.
-
 - [] **Expand the meal plan per-day breakdown** to include all nutrition info that is listed in the `Daily Nutrition` section.
 
 - [] **Delete confirmation dialog**: when I delete an ingredient, I get a system confirmation dialog. This doesn't match the style of our app. Please create a custom confirmation dialog that matches the style of our app.
