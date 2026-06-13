@@ -488,9 +488,10 @@ label.field .hint, div.field .hint { font-weight: 400; color: var(--muted); font
 .badge.app { background: var(--primary-soft); color: var(--primary-dark); }
 .badge.mine { background: var(--badge-mine-bg); color: var(--badge-mine-text); }
 
-/* ---- Ingredient finder ----
-   A searchable, filterable combobox replacing the plain ingredient <select>s. The popover sits
-   on the surface with the raised-element shadow; tag chips echo the condensed-caps chip voice. */
+/* ---- Finder (type-ahead combobox) ----
+   A searchable combobox replacing plain <select>s / native <datalist>s: the ingredient finder
+   (with filter-tag chips) and the burn-activity finder on the Add-Burn form share it. The popover
+   sits on the surface with the raised-element shadow; tag chips echo the condensed-caps chip voice. */
 .finder { position: relative; min-width: 0; }
 .finder-pop {
   position: absolute; z-index: 25; left: 0; right: 0; top: calc(100% + 4px);
@@ -523,6 +524,8 @@ label.field .hint, div.field .hint { font-weight: 400; color: var(--muted); font
 .finder-option-name { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
 /* The "why it matched" hint (alias / localized name / tag) reads in the progress emerald. */
 .finder-aka { color: var(--primary-dark); }
+/* The last-time kcal on a burn-activity option reads in ember — burn's color (DESIGN.md §1.1). */
+.finder-burn { color: var(--accent-dark); }
 .finder-empty { margin: 0.2rem 0.3rem; }
 
 /* ---- Search-term chips (tags / aliases on the ingredient form) ---- */

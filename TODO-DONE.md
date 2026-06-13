@@ -6,6 +6,18 @@
 
 ## Completed Items
 
+### Improve the Activity dropdown on the Add-Burn form — 2026-06-13 CDT
+
+- [x] **Improved the `Activity` dropdown**: replaced the cramped native `<datalist>` autocomplete on the Add-Burn form with a themed type-ahead combobox consistent with the ingredient finder.
+
+**NOTES:**
+
+- New `src/web/src/components/ActivityFinder.tsx`: a free-text combobox over the user's past activities (`burnSuggestions`), reusing the existing `.finder`/`.finder-pop` popover styling. Case/accent-insensitive substring match, full keyboard nav (arrows/Enter/Escape), combobox ARIA, options capped at 30 with a "keep typing" footer. The field stays open-ended (no fixed activity catalog), so any typed name is valid; picking a past activity fills the name AND defaults the calories from its last entry.
+- Extracted the shared `fold()` helper (lower-case + strip diacritics, mirrors server `SearchText.Fold`) into new `src/web/src/lib/fold.ts`, used by both the ingredient and activity finders; `IngredientFinder.tsx` now imports it instead of defining its own copy.
+- `TodayPage.tsx`: swapped the `<input list=...>` + `<datalist>` for `<ActivityFinder>`, widened the field min-width 8rem→10rem.
+- `index.css`: generalized the finder section comment and added `.finder-burn` (ember-accent "−N kcal last time" hint, burn's color per DESIGN.md §1.1).
+- Verified: `npm run build` succeeds (tsc + vite); `npm run lint` 0 errors (3 pre-existing warnings). No backend changes.
+
 ### Remove option to add a `fuel` recipe to the Log — 2026-06-12 CDT
 
 - [x] **Removed the option to add a `fuel` recipe to the `Log`**: recipes define a meal and are no longer directly loggable; meals and free-form items remain.

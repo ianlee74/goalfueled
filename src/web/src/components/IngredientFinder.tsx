@@ -1,16 +1,12 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { UNIT_LABELS, type Ingredient } from '../api/types'
+import { fold } from '../lib/fold'
 
 // The ingredient finder: a searchable, filterable combobox that replaces the old plain
 // <select>. Type-ahead search matches an ingredient's name, aliases, tags and non-English
 // names — case- and accent-insensitively — and the tag chips narrow the list by category.
 // Filtering happens client-side over the already-loaded catalog (the same list the old
 // dropdown rendered), mirroring the server's SearchText folding rules.
-
-/** Mirrors SearchText.Fold on the server: lower-case + strip combining diacritics, so "jalapeno" matches "jalapeño" in either direction. */
-function fold(value: string): string {
-  return value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-}
 
 interface FinderHit {
   ingredient: Ingredient

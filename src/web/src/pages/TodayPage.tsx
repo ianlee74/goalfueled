@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { burnApi, consumptionApi, gamificationApi, goalApi, mealApi, mealPlanApi, userApi } from '../api/services'
 import { useAuth } from '../auth/AuthContext'
+import { ActivityFinder } from '../components/ActivityFinder'
 import { NutritionLabel } from '../components/NutritionLabel'
 import { FuelBurnIcon } from '../components/FuelBurnIcon'
 import { FuelGauge } from '../components/FuelGauge'
@@ -671,18 +672,14 @@ export function TodayPage() {
       {showBurnForm && (
         <div className="card stack fb-section fb-burn">
           <div className="row" style={{ gap: '0.5rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <label className="field" style={{ flex: 1, minWidth: '8rem' }}>
+            <label className="field" style={{ flex: 1, minWidth: '10rem' }}>
               Activity
-              <input
-                className="input"
-                list="burn-activity-names"
+              <ActivityFinder
+                suggestions={burnSuggestions}
                 value={burnName}
-                placeholder="e.g. Morning run"
-                onChange={(e) => onBurnNameChange(e.target.value)}
+                onChange={onBurnNameChange}
+                onSelect={(s) => { setBurnName(s.name); setBurnCalories(String(s.lastCalories)) }}
               />
-              <datalist id="burn-activity-names">
-                {burnSuggestions.map((s) => <option key={s.name} value={s.name} />)}
-              </datalist>
             </label>
             <label className="field">
               Calories burned
