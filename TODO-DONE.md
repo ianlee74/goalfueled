@@ -6,6 +6,17 @@
 
 ## Completed Items
 
+### Fix review-queue route shadowing (follow-up to the nutrition-lookup fix) — 2026-06-13 CDT
+
+- [x] **Fixed `ingredients/review-queue` and `recipes/review-queue` being shadowed by `{id}` routes** — the admin review queues were broken at runtime.
+
+**NOTES:**
+
+- Same bug class proven for the nutrition lookup: in the Functions isolated host a `GET {resource}/{id}` route captures any single-literal-segment GET sibling. Audited all Functions: only `ingredients/review-queue` and `recipes/review-queue` were affected (multi-segment routes like `{id}/approve` are safe; `burn/suggestions`, `consumption/planned`, `gamification/review` are safe because their `{id}` sibling is DELETE-only or absent — all verified 200).
+- Renamed `ingredients/review-queue` → `ingredient-review-queue` and `recipes/review-queue` → `recipe-review-queue` (matching the `ingredient-nutrition-lookup` convention), with explanatory comments as a regression guard. Updated the two frontend API client calls in `services.ts`. The React Router SPA routes (`/ingredients/review-queue` etc.) are browser URLs, not API calls, so left unchanged.
+- Runtime proof: old paths returned 404 "...not found." (the shadow); new paths return 403 for non-admins (handler reached) and **200 `[]` for an admin**. So the review queues from the two prior tasks now actually work end to end.
+- Verified: `dotnet build` 0 errors; `dotnet test` 306/306 passed; `npm run build` succeeds; `npm run lint` 0 errors (3 pre-existing warnings).
+
 ### Fix "Look up nutrition" — route shadowing was the real cause — 2026-06-13 CDT
 
 - [x] **Fixed the `Look up nutrition` button**: the documented endpoint was being shadowed by the `ingredients/{id}` route; gave it a distinct route and added an offline catalog fallback.

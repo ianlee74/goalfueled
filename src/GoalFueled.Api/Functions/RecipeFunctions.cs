@@ -35,9 +35,12 @@ public sealed class RecipeFunctions
             return HttpResults.Ok(result);
         });
 
+    // Distinct top-level route, NOT "recipes/review-queue": in the Functions isolated host the literal
+    // "review-queue" segment is captured by "recipes/{id}" (id="review-queue") and answered with 404
+    // "Recipe not found." A non-colliding path makes the route unambiguous so it can never be shadowed.
     [Function("GetRecipeReviewQueue")]
     public Task<IActionResult> ReviewQueue(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "recipes/review-queue")] HttpRequest req) =>
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "recipe-review-queue")] HttpRequest req) =>
         ApiEndpoint.RunAuthenticated(req, _auth, async user =>
             HttpResults.Ok(await _recipes.ListReviewQueueAsync(user, req.HttpContext.RequestAborted)));
 

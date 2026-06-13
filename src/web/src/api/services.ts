@@ -57,8 +57,8 @@ export const ingredientApi = {
   // Marks/unmarks the ingredient as one of the signed-in user's favorites.
   setFavorite: (id: string, isFavorite: boolean) =>
     api.put<FavoriteState>(`/ingredients/${id}/favorite`, { isFavorite }),
-  // Admin review queue + actions.
-  reviewQueue: () => api.get<Ingredient[]>('/ingredients/review-queue'),
+  // Admin review queue + actions. Distinct top-level path so it can't be shadowed by /ingredients/{id}.
+  reviewQueue: () => api.get<Ingredient[]>('/ingredient-review-queue'),
   approve: (id: string) => api.post<Ingredient>(`/ingredients/${id}/approve`),
   reject: (id: string) => api.post<Ingredient>(`/ingredients/${id}/reject`),
 }
@@ -76,8 +76,8 @@ export const recipeApi = {
   // Marks/unmarks the recipe as one of the signed-in user's favorites.
   setFavorite: (id: string, isFavorite: boolean) =>
     api.put<FavoriteState>(`/recipes/${id}/favorite`, { isFavorite }),
-  // Admin review queue + actions.
-  reviewQueue: () => api.get<Recipe[]>('/recipes/review-queue'),
+  // Admin review queue + actions. Distinct top-level path so it can't be shadowed by /recipes/{id}.
+  reviewQueue: () => api.get<Recipe[]>('/recipe-review-queue'),
   approve: (id: string) => api.post<Recipe>(`/recipes/${id}/approve`),
   reject: (id: string) => api.post<Recipe>(`/recipes/${id}/reject`),
 }

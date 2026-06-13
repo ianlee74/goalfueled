@@ -51,9 +51,12 @@ public sealed class IngredientFunctions
             return HttpResults.Ok(result);
         });
 
+    // Distinct top-level route, NOT "ingredients/review-queue": in the Functions isolated host the
+    // literal "review-queue" segment is captured by "ingredients/{id}" (id="review-queue") and answered
+    // with 404 "Ingredient not found." See LookupIngredientNutrition above for the same shadowing class.
     [Function("GetIngredientReviewQueue")]
     public Task<IActionResult> ReviewQueue(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "ingredients/review-queue")] HttpRequest req) =>
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "ingredient-review-queue")] HttpRequest req) =>
         ApiEndpoint.RunAuthenticated(req, _auth, async user =>
             HttpResults.Ok(await _ingredients.ListReviewQueueAsync(user, req.HttpContext.RequestAborted)));
 
