@@ -6,6 +6,18 @@
 
 ## Completed Items
 
+### Fix customized ingredient stuck in "Saving…" — 2026-06-13 CDT
+
+- [x] **Fixed the customized ingredient stuck in `Saving…`**: Customize now seeds an unsaved new-ingredient form, so the user must press Save to create the private copy.
+
+**NOTES:**
+
+- Root cause: `customize()` called `setSaving(true)` then `navigate('/ingredients/{cloneId}')`. Navigating to the clone's id stays on the same `/ingredients/:id` route component, so the page re-rendered (not remounted) and `saving` was never reset — the loading effect only manages a separate `loading` flag. The Save button was permanently "Saving…"/disabled.
+- Chose **Interpretation B** (client-side seeding, nothing persisted until Save) — matches the user's literal expectation ("I should need to press Save before the custom ingredient is created"), avoids orphan clones, and removes the stuck-button bug since `customize()` no longer touches `saving`. Reuses the form's existing seed-from-existing-ingredient mechanism.
+- The Customize button now navigates to `/ingredients/new` passing the source `Ingredient` via router `location.state` (`{ customizeFrom }`); a mount effect seeds all fields (guarded by `seededRef`, replaces the route to drop the state), shows an info banner, and the normal `create` path runs on Save. `saving` now reflects only real save activity.
+- Loose end (intentional, per task guidance): `ingredientApi.customize` + the backend `POST /ingredients/{id}/customize` endpoint are now unused by the frontend but left in place (harmless; backend untouched). NOTE: the recipe Customize button still uses the server-clone-then-navigate flow and may exhibit the same stuck-Saving pattern — not in scope for this task, flagged for follow-up.
+- Verified: `npm run build` succeeds; `npm run lint` 0 errors (3 pre-existing warnings). Frontend-only.
+
 ### Custom delete confirmation dialog — 2026-06-13 CDT
 
 - [x] **Replaced the browser-native delete confirms** with a reusable in-app confirmation dialog matching the design language.

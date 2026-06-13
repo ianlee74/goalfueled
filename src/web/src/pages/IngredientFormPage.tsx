@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ingredientApi } from '../api/services'
 import { ImageUpload } from '../components/ImageUpload'
 import { SanitizedHtml } from '../components/SanitizedHtml'
@@ -26,6 +26,7 @@ export function IngredientFormPage() {
   const { id } = useParams<{ id: string }>()
   const isNew = !id || id === 'new'
   const navigate = useNavigate()
+  const location = useLocation()
   const { confirm, dialog } = useConfirm()
   const { profile } = useAuth()
   const { ordered: nutrients, byId } = useNutrients()
@@ -48,6 +49,10 @@ export function IngredientFormPage() {
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // The ingredient as loaded from the server (edit/read-only mode), kept so "Customize" can seed a
+  // new form from the exact source rather than reconstructing it from the editable field state.
+  const loadedRef = useRef<Ingredient | null>(null)
 
   // Automatic nutrition lookup (USDA via the backend).
   const [lookingUp, setLookingUp] = useState(false)
@@ -73,6 +78,7 @@ export function IngredientFormPage() {
     ingredientApi.get(id!)
       .then((i) => {
         if (cancelled) return
+        loadedRef.current = i
         setName(i.name)
         setDescription(i.description ?? '')
         setImageUrl(i.imageUrl ?? '')
@@ -140,6 +146,34 @@ export function IngredientFormPage() {
     setSeededInfo(`Filled this form from "${i.name}" (per ${i.servingSize} ${UNIT_LABELS[i.unit]}). ` +
       `Adjust the name and values, then save — or open "${i.name}" itself if you don't need a new one.`)
   }
+
+  // "Customize" an app-level ingredient: the read-only view navigates here (to the create form)
+  // with the source ingredient in router state. We seed *every* field — including the name — into
+  // a brand-new, unsaved form, so nothing is created server-side until the user presses Save.
+  // The state is consumed once (replaced away) so a refresh/back doesn't re-seed unexpectedly.
+  const customizeFrom = (location.state as { customizeFrom?: Ingredient } | null)?.customizeFrom
+  const seededRef = useRef(false)
+  useEffect(() => {
+    if (!isNew || !customizeFrom || seededRef.current) return
+    seededRef.current = true
+    const i = customizeFrom
+    setName(i.name)
+    setDescription(i.description ?? '')
+    setImageUrl(i.imageUrl ?? '')
+    setUnit(i.unit)
+    setServingSize(String(i.servingSize))
+    setAmounts(i.nutritionPerServing.map((a) => ({ ...a })))
+    setTags([...i.tags])
+    setAliases([...i.aliases])
+    setLocalizedNames(i.localizedNames.map((l) => ({ key: nextLocalizedKey++, ...l })))
+    // The seeded name matches an existing ingredient; suppress the "similar ingredients" popover
+    // for it (the user is intentionally copying that one).
+    skipMatchName.current = i.name.trim()
+    setSeededInfo(`Started a private copy of "${i.name}". Adjust the name and values, then press ` +
+      `Save to create your own version.`)
+    // Drop the router state so this only seeds once.
+    navigate('/ingredients/new', { replace: true })
+  }, [isNew, customizeFrom, navigate])
 
   // Nutrients available to add (not already in the list).
   const present = useMemo(() => new Set(amounts.map((a) => a.nutrientId)), [amounts])
@@ -230,18 +264,13 @@ export function IngredientFormPage() {
     }
   }
 
-  // Clone an app-level (read-only) ingredient into a private copy, then open it for editing.
-  async function customize() {
-    if (!id || isNew) return
-    setError(null)
-    setSaving(true)
-    try {
-      const clone = await ingredientApi.customize(id)
-      navigate(`/ingredients/${clone.id}`, { replace: true })
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Customize failed.')
-      setSaving(false)
-    }
+  // "Customize" an app-level (read-only) ingredient: open the create form pre-filled from this
+  // ingredient. Nothing is persisted until the user reviews and presses Save (creating their own
+  // private copy via the normal create path), so the Save button stays idle until they submit.
+  function customize() {
+    const source = loadedRef.current
+    if (isNew || canEdit || !source) return
+    navigate('/ingredients/new', { state: { customizeFrom: source } })
   }
 
   function remove() {
@@ -282,9 +311,9 @@ export function IngredientFormPage() {
         <div className="notice info">
           <div className="row spread" style={{ gap: '0.5rem' }}>
             <span>This is an app-level ingredient. You can view it but not edit it.</span>
-            <button type="button" className="btn btn-sm" disabled={saving} onClick={customize}
+            <button type="button" className="btn btn-sm" onClick={customize}
               title="Make a private copy you can edit">
-              {saving ? 'Customizing…' : 'Customize'}
+              Customize
             </button>
           </div>
         </div>
