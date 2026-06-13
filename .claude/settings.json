@@ -2,6 +2,7 @@
   "permissions": {
     "allow": [
       "PowerShell(cd C:\\Code\\goalfueled*)",
+      "PowerShell(cd src/*)",
       "PowerShell(git -C *)",
       "PowerShell(git status *)",
       "PowerShell(git diff *)",
@@ -16,6 +17,7 @@
       "PowerShell(echo *)",
       "PowerShell(Test-Path *)",
       "Bash(cd /c/Code/goalfueled/*)",
+      "Bash(cd src/*)",
       "Bash(git status *)",
       "Bash(git diff *)",
       "Bash(git log *)",

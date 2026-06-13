@@ -6,6 +6,18 @@
 
 ## Completed Items
 
+### Ingredient lookup for free-form fuel items on the Log — 2026-06-13 CDT
+
+- [x] **Added an ingredient lookup when adding a `free-form` `fuel` item to the `Log`**: picking a match inserts its name and per-serving calories.
+
+**NOTES:**
+
+- New `src/web/src/components/FoodItemFinder.tsx`: a free-text combobox modeled on `ActivityFinder` (combobox markup, keyboard nav, ARIA, `.finder` styling, onChange/onSelect split) but with a debounced (~280ms, 2-char min) server search via `ingredientApi.list(search)` — chosen over preloaded filtering because the ingredient catalog is large and not loaded by TodayPage. Re-runs `findHit` on results so each row explains why it matched; a `lastQuery` ref suppresses re-search right after a pick.
+- Per-serving calories come from the shared `caloriesOf(ingredient)` helper (`ingredientMatch.ts`), so the displayed kcal and the inserted value match.
+- Free-form preserved: the input value is always the raw typed text; typing any description and submitting works unchanged. The popover is convenience-only — Enter with no highlighted match just closes it, leaving the typed text; only an explicit pick fills `freeName` + `freeCalories` (calories remain editable). Only the FreeForm fuel source uses the finder; Meal is untouched.
+- `TodayPage.tsx`: replaced the FreeForm "Item" text input with `<FoodItemFinder>`. No backend changes.
+- Verified: `npm run build` succeeds; `npm run lint` 0 errors (3 pre-existing warnings).
+
 ### Search for existing ingredients when adding a new one — 2026-06-13 CDT
 
 - [x] **Searched for existing ingredients while naming a new one** to prevent duplicates; selecting a match seeds the form from it.

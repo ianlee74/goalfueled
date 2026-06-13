@@ -3,6 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { burnApi, consumptionApi, gamificationApi, goalApi, mealApi, mealPlanApi, userApi } from '../api/services'
 import { useAuth } from '../auth/AuthContext'
 import { ActivityFinder } from '../components/ActivityFinder'
+import { FoodItemFinder } from '../components/FoodItemFinder'
+import { caloriesOf } from '../lib/ingredientMatch'
 import { NutritionLabel } from '../components/NutritionLabel'
 import { FuelBurnIcon } from '../components/FuelBurnIcon'
 import { FuelGauge } from '../components/FuelGauge'
@@ -614,11 +616,17 @@ export function TodayPage() {
               <>
                 <label className="field" style={{ flex: 1, minWidth: '8rem' }}>
                   Item
-                  <input
-                    className="input"
+                  {/* Free-text item description with an ingredient lookup: typing searches the
+                      catalog, and picking a match fills the name AND its per-serving calories.
+                      The field stays free-form — any typed description can be submitted as-is. */}
+                  <FoodItemFinder
                     value={freeName}
-                    placeholder="e.g. Handful of almonds"
-                    onChange={(e) => setFreeName(e.target.value)}
+                    onChange={setFreeName}
+                    onSelect={(i) => {
+                      setFreeName(i.name)
+                      const kcal = caloriesOf(i)
+                      if (kcal != null) setFreeCalories(String(kcal))
+                    }}
                   />
                 </label>
                 <label className="field">

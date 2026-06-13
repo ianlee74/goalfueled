@@ -6,8 +6,6 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-- [] **When adding a `free-form` `fuel` item to the `Log` do an ingredient lookup**: when a user is adding a `free-form` type `fuel` item to the `Log`, do an ingredient lookup as they enter the `item` description. If they pick a match, then insert its name and per-serving calories.
-
 ## FUTURE FEATURES
 
 >[AI Agent] skip ALL items in this section.
