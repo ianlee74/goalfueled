@@ -6,6 +6,17 @@
 
 ## Completed Items
 
+### Expand the meal-plan per-day breakdown to all nutrients — 2026-06-13 CDT
+
+- [x] **Expanded the meal-plan per-day breakdown** to include every nutrient shown in the Daily Nutrition section, per day plus Average and Total.
+
+**NOTES:**
+
+- Replaced the 4-column `MacroMatrix` (kcal/Protein/Carbs/Fat) on `PlanFormPage` with a new `NutrientMatrix` showing all nutrients. Orientation flipped to **nutrients as rows, days + Average/day + Weekly total as columns** — the long nutrient list stays vertical (mirrors the NutritionLabel), the up-to-9 value columns sit horizontally. First column is sticky and the wrapper (`.matrix-scroll`) scrolls horizontally so many columns don't break small screens.
+- Reuses the same source of truth as `NutritionLabel`: the `useNutrients()` catalog (`ordered` for row order, `byId` for names + `isCoreLabelItem` weighting, `NUTRIENT_UNIT_ABBR` for units) and the same round/row-filter logic. `NutritionLabel.tsx` untouched. Calculations unchanged (same `summary.days`/`dailyAverage`/`weeklyTotal`).
+- Calories row keeps the bold `.kcal` treatment; core macros render bolder via `.core`. Kept the separate Daily Nutrition card + goal comparison (not subsumed — it still provides goal/kcal-per-day context).
+- Verified: `npm run build` succeeds; `npm run lint` 0 errors (3 pre-existing warnings). No backend changes.
+
 ### Hide the inline Add buttons on mobile — 2026-06-13 CDT
 
 - [x] **Hid the inline `+ Add fuel` / `+ Add burn` buttons on small screens** where the floating LOG button already covers those flows.

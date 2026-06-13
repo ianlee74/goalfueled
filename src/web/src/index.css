@@ -665,6 +665,23 @@ label.field .hint, div.field .hint { font-weight: 400; color: var(--muted); font
   font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted);
 }
 
+/* Full per-day nutrient matrix: nutrients down the rows, days + summaries across. The wrapper
+   scrolls horizontally on narrow screens so up to 9 columns never break the page layout. */
+.matrix-scroll { overflow-x: auto; }
+/* Pin the nutrient-name column so it stays visible while the day columns scroll. */
+.nutrient-matrix th.day, .nutrient-matrix td.day {
+  position: sticky; left: 0; z-index: 1; background: var(--surface);
+}
+.nutrient-matrix td.day { font-weight: 500; }
+.nutrient-matrix tr.core td.day { font-weight: 700; }
+.nutrient-matrix td.day .muted { font-weight: 400; font-size: 0.8em; }
+/* Core label items (protein, carbs, fats…) carry a touch more weight, like the NutritionLabel. */
+.nutrient-matrix tr.core td.num { font-weight: 600; }
+/* The Avg / Total summary columns sit behind a heavier left rule and read as the takeaways. */
+.nutrient-matrix th.num.summary, .nutrient-matrix td.num.summary {
+  font-weight: 600; border-left: 2px solid var(--border);
+}
+
 .goal-grid { display: grid; gap: 0.75rem; }
 .goal-card {
   text-align: left; padding: 1rem; border: 2px solid var(--border); border-radius: var(--radius);

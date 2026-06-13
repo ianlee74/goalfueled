@@ -5,8 +5,9 @@ import { IngredientFinder } from '../components/IngredientFinder'
 import { NutritionLabel } from '../components/NutritionLabel'
 import { TimePicker } from '../components/TimePicker'
 import { useAuth } from '../auth/AuthContext'
+import { useNutrients } from '../hooks/useNutrients'
 import {
-  DAYS_OF_WEEK, GOAL_LABELS, UNIT_LABELS,
+  DAYS_OF_WEEK, GOAL_LABELS, NUTRIENT_UNIT_ABBR, UNIT_LABELS,
   type DayOfWeek, type Ingredient, type Meal, type MealPlanCadence,
   type MealPlanInput, type NutrientAmount,
 } from '../api/types'
@@ -676,9 +677,9 @@ export function PlanFormPage() {
       {cadence === 'Weekly' && summary.days.length > 0 && (
         <div className="card stack">
           <h2>Per-day breakdown
-            <span className="muted small"> calories &amp; macros</span>
+            <span className="muted small"> full nutrition, per day</span>
           </h2>
-          <MacroMatrix
+          <NutrientMatrix
             days={summary.days}
             dailyAverage={summary.dailyAverage}
             weeklyTotal={summary.weeklyTotal}
@@ -751,66 +752,72 @@ function ScheduledMealFields({ row, meals, readOnly, showDay, onUpdate }: {
   )
 }
 
-// The calories + macro columns shown in the compact per-day matrix, in label order.
-// Grams are implied by the column header so cells stay terse.
-const MACRO_COLUMNS: { id: string; label: string }[] = [
-  { id: 'calories', label: 'kcal' },
-  { id: 'protein', label: 'Protein' },
-  { id: 'total_carbohydrate', label: 'Carbs' },
-  { id: 'total_fat', label: 'Fat' },
-]
-
-function macroValue(amounts: NutrientAmount[], nutrientId: string): number {
-  return amounts.find((n) => n.nutrientId === nutrientId)?.value ?? 0
-}
-
 function roundCell(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(1)
 }
 
-// A single scannable table for a weekly plan: one row per active day, then emphasized Average and
-// Total summary rows. Columns are calories + the three core macros — the full micronutrient detail
-// stays in the "Daily nutrition" label above, so this stays compact and comparison-friendly.
-function MacroMatrix({ days, dailyAverage, weeklyTotal }: {
+// The full per-day nutrition breakdown for a weekly plan. Nutrients run down the rows (in the same
+// catalog order, with the same names/units/rounding as the Daily-nutrition NutritionLabel — the
+// shared source of truth is the nutrient catalog from useNutrients), and the active days plus the
+// emphasized Average-per-day and Weekly-total summary columns run across. This orientation keeps the
+// long nutrient list vertical (mirroring the NutritionLabel) while letting up to 7 days + 2 summaries
+// sit side by side; on narrow screens the wrapper scrolls horizontally with the nutrient column pinned.
+function NutrientMatrix({ days, dailyAverage, weeklyTotal }: {
   days: { dayOfWeek: DayOfWeek | null; nutrition: NutrientAmount[] }[]
   dailyAverage: NutrientAmount[]
   weeklyTotal: NutrientAmount[]
 }) {
-  const summaryRows: { label: string; amounts: NutrientAmount[] }[] = [
-    { label: 'Average / day', amounts: dailyAverage },
-    { label: 'Weekly total', amounts: weeklyTotal },
+  const { byId, ordered } = useNutrients()
+
+  // One value column per active day, then the two summary columns.
+  const columns: { key: string; label: string; amounts: NutrientAmount[]; summary?: boolean }[] = [
+    ...days.map((d) => ({
+      key: d.dayOfWeek ?? 'all',
+      label: d.dayOfWeek ?? 'Every day',
+      amounts: d.nutrition,
+    })),
+    { key: '__avg', label: 'Avg / day', amounts: dailyAverage, summary: true },
+    { key: '__total', label: 'Weekly total', amounts: weeklyTotal, summary: true },
   ]
+
+  // Per-column nutrientId -> value lookup, matching NutritionLabel's approach.
+  const valueMaps = columns.map((c) => new Map(c.amounts.map((a) => [a.nutrientId, a.value])))
+
+  // Catalog order, only nutrients present in at least one column — identical to NutritionLabel.
+  const rows = ordered.filter((def) => valueMaps.some((m) => m.has(def.id)))
+  if (rows.length === 0) return <p className="muted small">No nutritional info recorded.</p>
+
   return (
-    <table className="macro-matrix">
-      <thead>
-        <tr>
-          <th className="day">Day</th>
-          {MACRO_COLUMNS.map((c) => <th key={c.id} className="num">{c.label}</th>)}
-        </tr>
-      </thead>
-      <tbody>
-        {days.map((d) => (
-          <tr key={d.dayOfWeek ?? 'all'}>
-            <td className="day">{d.dayOfWeek ?? 'Every day'}</td>
-            {MACRO_COLUMNS.map((c) => (
-              <td key={c.id} className={`num ${c.id === 'calories' ? 'kcal' : ''}`}>
-                {roundCell(macroValue(d.nutrition, c.id))}
-              </td>
+    <div className="matrix-scroll">
+      <table className="macro-matrix nutrient-matrix">
+        <thead>
+          <tr>
+            <th className="day">Nutrient</th>
+            {columns.map((c) => (
+              <th key={c.key} className={`num ${c.summary ? 'summary' : ''}`}>{c.label}</th>
             ))}
           </tr>
-        ))}
-        {summaryRows.map((r, i) => (
-          <tr key={r.label} className={`summary ${i === 0 ? 'first' : ''}`}>
-            <td className="day">{r.label}</td>
-            {MACRO_COLUMNS.map((c) => (
-              <td key={c.id} className={`num ${c.id === 'calories' ? 'kcal' : ''}`}>
-                {roundCell(macroValue(r.amounts, c.id))}
-              </td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {rows.map((def) => {
+            const meta = byId.get(def.id)
+            const unit = meta ? NUTRIENT_UNIT_ABBR[meta.unit] : ''
+            const isCalories = def.id === 'calories'
+            return (
+              <tr key={def.id} className={meta?.isCoreLabelItem ? 'core' : ''}>
+                <td className="day">{meta?.name ?? def.id} <span className="muted">{unit}</span></td>
+                {valueMaps.map((m, i) => (
+                  <td key={columns[i].key}
+                    className={`num ${isCalories ? 'kcal' : ''} ${columns[i].summary ? 'summary' : ''}`}>
+                    {m.has(def.id) ? roundCell(m.get(def.id) ?? 0) : <span className="muted">—</span>}
+                  </td>
+                ))}
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
   )
 }
 

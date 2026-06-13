@@ -6,8 +6,6 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-- [] **Expand the meal plan per-day breakdown** to include all nutrition info that is listed in the `Daily Nutrition` section.
-
 - [] **Delete confirmation dialog**: when I delete an ingredient, I get a system confirmation dialog. This doesn't match the style of our app. Please create a custom confirmation dialog that matches the style of our app.
 
 - [] **Customized ingredient is always "Saving..."**: when I create a customized ingredient, the `Save` button appears to always be in the `Saving...` state instead of waiting for me to press a `Save` button. I should need to press the `Save` button before the custom ingredient is created.
