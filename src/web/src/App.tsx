@@ -6,6 +6,7 @@ import { LoginPage } from './pages/LoginPage'
 import { WelcomePage } from './pages/WelcomePage'
 import { IngredientsPage } from './pages/IngredientsPage'
 import { IngredientFormPage } from './pages/IngredientFormPage'
+import { IngredientReviewQueuePage } from './pages/IngredientReviewQueuePage'
 import { RecipesPage } from './pages/RecipesPage'
 import { RecipeFormPage } from './pages/RecipeFormPage'
 import { RecipeReviewQueuePage } from './pages/RecipeReviewQueuePage'
@@ -54,6 +55,7 @@ export default function App() {
       <Route element={<Layout />}>
         <Route index element={<TodayPage />} />
         <Route path="/ingredients" element={<IngredientsPage />} />
+        <Route path="/ingredients/review-queue" element={<IngredientReviewQueuePage />} />
         <Route path="/ingredients/:id" element={<IngredientFormPage />} />
         <Route path="/recipes" element={<RecipesPage />} />
         <Route path="/recipes/review-queue" element={<RecipeReviewQueuePage />} />

@@ -6,8 +6,6 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-- [] **Submit ingredient to app**: add an option to `Submit to public` for `ingredients` like we have for `recipes`.
-
 - [] **`Look up nutrition` button on the `/ingredient/new` page still doesn't work**: where does this information come from? Is there something I need to know in order to use it? Try and make this work as it should.
 
 ## FUTURE FEATURES

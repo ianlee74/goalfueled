@@ -20,10 +20,16 @@ public sealed record IngredientDto(
     IReadOnlyList<NutrientAmount> NutritionPerServing,
     OwnershipScope Scope,
     string? OwnerUserId,
+    string? OriginalCreatorUserId,
+    IngredientVisibility Visibility,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     /// <summary>True if the current caller is allowed to edit/delete this ingredient.</summary>
     bool CanEdit,
+    /// <summary>True if the caller may submit this private ingredient for public review.</summary>
+    bool CanSubmitForReview,
+    /// <summary>True if the caller (an acting admin) may approve/reject this pending ingredient.</summary>
+    bool CanReview,
     /// <summary>True when the current caller has marked this ingredient as a favorite (per-user).</summary>
     bool IsFavorite = false);
 

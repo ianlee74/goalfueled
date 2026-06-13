@@ -52,6 +52,29 @@ public class Ingredient
     /// <summary>Owner user id for user-scoped ingredients; null for app-scoped ingredients.</summary>
     public string? OwnerUserId { get; set; }
 
+    /// <summary>
+    /// Public-visibility lifecycle for the ingredient review workflow (mirrors recipes). Nullable so
+    /// documents written before this field existed materialize as null rather than throwing on read
+    /// (Cosmos non-nullable value-type landmine). Interpret null via <see cref="EffectiveVisibility"/>:
+    /// an app-scoped ingredient is inherently <see cref="IngredientVisibility.Public"/>, a user one is
+    /// <see cref="IngredientVisibility.Private"/>.
+    /// </summary>
+    public IngredientVisibility? Visibility { get; set; }
+
+    /// <summary>
+    /// The user the ingredient should be credited to once public; retained after approval so the
+    /// original author keeps credit even though the ingredient stays user-scoped/owned. Nullable for
+    /// the same old-document reason as <see cref="Visibility"/>.
+    /// </summary>
+    public string? OriginalCreatorUserId { get; set; }
+
+    /// <summary>
+    /// Resolves <see cref="Visibility"/> to a concrete value, treating a null (legacy) value as the
+    /// scope-appropriate default: app-scoped ingredients are public; user-scoped are private.
+    /// </summary>
+    public IngredientVisibility EffectiveVisibility =>
+        Visibility ?? (Scope == OwnershipScope.App ? IngredientVisibility.Public : IngredientVisibility.Private);
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;

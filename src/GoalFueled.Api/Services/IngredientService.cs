@@ -15,6 +15,12 @@ public sealed class IngredientService
 {
     private readonly IIngredientRepository _repo;
 
+    /// <summary>
+    /// How many of a user's ingredients may sit in <see cref="IngredientVisibility.PendingReview"/> at
+    /// once. An in-app guard against flooding the review queue (mirrors the recipe cap).
+    /// </summary>
+    private const int MaxPendingReviewsPerUser = 10;
+
     public IngredientService(IIngredientRepository repo) => _repo = repo;
 
     /// <summary>
@@ -42,6 +48,14 @@ public sealed class IngredientService
         return ToDto(ingredient, user);
     }
 
+    /// <summary>Ingredients awaiting review. Admin-only (acting as admin).</summary>
+    public async Task<IReadOnlyList<IngredientDto>> ListReviewQueueAsync(AppUser user, CancellationToken ct)
+    {
+        EnsureActingAdmin(user);
+        var ingredients = await _repo.ListPendingReviewAsync(ct);
+        return ingredients.Select(i => ToDto(i, user)).ToList();
+    }
+
     public async Task<IngredientDto> CreateAsync(AppUser user, IngredientInput input, CancellationToken ct)
     {
         Validate(input);
@@ -60,6 +74,9 @@ public sealed class IngredientService
             LocalizedNames = NormalizeLocalizedNames(input.LocalizedNames),
             Scope = appLevel ? OwnershipScope.App : OwnershipScope.User,
             OwnerUserId = appLevel ? null : user.Id,
+            OriginalCreatorUserId = user.Id,
+            // App-level ingredients are inherently public; user ingredients start private.
+            Visibility = appLevel ? IngredientVisibility.Public : IngredientVisibility.Private,
         };
 
         await _repo.AddAsync(ingredient, ct);
@@ -93,6 +110,8 @@ public sealed class IngredientService
                 .Select(l => new LocalizedName(l.Language, l.Name)).ToList(),
             Scope = OwnershipScope.User,
             OwnerUserId = user.Id,
+            OriginalCreatorUserId = user.Id,
+            Visibility = IngredientVisibility.Private,
         };
 
         await _repo.AddAsync(clone, ct);
@@ -116,11 +135,13 @@ public sealed class IngredientService
         ingredient.LocalizedNames = NormalizeLocalizedNames(input.LocalizedNames);
         ingredient.UpdatedAt = DateTimeOffset.UtcNow;
 
-        // Admins may move an ingredient to/from app level via the AppLevel flag.
+        // Admins may move an ingredient to/from app level via the AppLevel flag. An ingredient that is
+        // already public can never be made private again (see review-workflow rules below).
         if (user.IsActingAsAdmin)
         {
             ingredient.Scope = input.AppLevel ? OwnershipScope.App : OwnershipScope.User;
-            ingredient.OwnerUserId = input.AppLevel ? null : (ingredient.OwnerUserId ?? user.Id);
+            ingredient.OwnerUserId = input.AppLevel ? null : (ingredient.OwnerUserId ?? ingredient.OriginalCreatorUserId ?? user.Id);
+            if (input.AppLevel) ingredient.Visibility = IngredientVisibility.Public;
         }
 
         await _repo.UpdateAsync(ingredient, ct);
@@ -134,11 +155,81 @@ public sealed class IngredientService
         await _repo.DeleteAsync(ingredient, ct);
     }
 
+    // ---- review workflow ----
+
+    /// <summary>
+    /// User action: submit a private ingredient for review so it can become public.
+    /// Only the owner of a <see cref="IngredientVisibility.Private"/> (or previously rejected)
+    /// ingredient may do this; it transitions to <see cref="IngredientVisibility.PendingReview"/>.
+    /// </summary>
+    public async Task<IngredientDto> SubmitForReviewAsync(AppUser user, string id, CancellationToken ct)
+    {
+        var ingredient = await _repo.GetByIdAsync(id, ct) ?? throw new NotFoundException("Ingredient not found.");
+
+        if (!(ingredient.Scope == OwnershipScope.User && ingredient.OwnerUserId == user.Id))
+            throw new ForbiddenException("You can only submit your own ingredients for review.");
+        if (ingredient.EffectiveVisibility == IngredientVisibility.Public)
+            throw new ValidationException("This ingredient is already public.");
+        if (ingredient.EffectiveVisibility == IngredientVisibility.PendingReview)
+            throw new ValidationException("This ingredient is already awaiting review.");
+
+        // Abuse guard: cap how many submissions one user can have in flight at once.
+        var pending = await _repo.CountPendingReviewByOwnerAsync(user.Id, ct);
+        if (pending >= MaxPendingReviewsPerUser)
+            throw new ValidationException(
+                $"You can have at most {MaxPendingReviewsPerUser} ingredients awaiting review at a time. " +
+                "Please wait for some to be reviewed before submitting more.");
+
+        ingredient.OriginalCreatorUserId ??= ingredient.OwnerUserId;
+        ingredient.Visibility = IngredientVisibility.PendingReview;
+        ingredient.UpdatedAt = DateTimeOffset.UtcNow;
+        await _repo.UpdateAsync(ingredient, ct);
+        return ToDto(ingredient, user);
+    }
+
+    /// <summary>
+    /// Admin action: approve a pending ingredient, making it <see cref="IngredientVisibility.Public"/>.
+    /// Once public an ingredient can never become private again; the original creator stays credited
+    /// and the ingredient stays user-scoped/owned (it does not become an app-level ingredient).
+    /// </summary>
+    public async Task<IngredientDto> ApproveAsync(AppUser user, string id, CancellationToken ct)
+    {
+        EnsureActingAdmin(user);
+        var ingredient = await _repo.GetByIdAsync(id, ct) ?? throw new NotFoundException("Ingredient not found.");
+        if (ingredient.EffectiveVisibility != IngredientVisibility.PendingReview)
+            throw new ValidationException("Only ingredients awaiting review can be approved.");
+
+        ingredient.Visibility = IngredientVisibility.Public;
+        // Preserve the credit for whoever created it; the ingredient stays user-scoped/owned.
+        ingredient.OriginalCreatorUserId ??= ingredient.OwnerUserId;
+        ingredient.UpdatedAt = DateTimeOffset.UtcNow;
+        await _repo.UpdateAsync(ingredient, ct);
+        return ToDto(ingredient, user);
+    }
+
+    /// <summary>
+    /// Admin action: reject a pending ingredient, returning it to a private-ish
+    /// <see cref="IngredientVisibility.Rejected"/> state visible only to its owner.
+    /// </summary>
+    public async Task<IngredientDto> RejectAsync(AppUser user, string id, CancellationToken ct)
+    {
+        EnsureActingAdmin(user);
+        var ingredient = await _repo.GetByIdAsync(id, ct) ?? throw new NotFoundException("Ingredient not found.");
+        if (ingredient.EffectiveVisibility != IngredientVisibility.PendingReview)
+            throw new ValidationException("Only ingredients awaiting review can be rejected.");
+
+        ingredient.Visibility = IngredientVisibility.Rejected;
+        ingredient.UpdatedAt = DateTimeOffset.UtcNow;
+        await _repo.UpdateAsync(ingredient, ct);
+        return ToDto(ingredient, user);
+    }
+
     // ---- authorization ----
 
     private static void EnsureCanView(Ingredient i, AppUser user)
     {
         if (i.Scope == OwnershipScope.App) return;
+        if (i.EffectiveVisibility == IngredientVisibility.Public) return;
         if (i.OwnerUserId == user.Id) return;
         if (user.IsActingAsAdmin) return; // admins can view all data
         throw new NotFoundException("Ingredient not found.");
@@ -151,8 +242,22 @@ public sealed class IngredientService
         throw new ForbiddenException("You can only modify your own ingredients.");
     }
 
+    private static void EnsureActingAdmin(AppUser user)
+    {
+        if (!user.IsActingAsAdmin)
+            throw new ForbiddenException("This action requires admin access.");
+    }
+
     private static bool CanEdit(Ingredient i, AppUser user) =>
         user.IsActingAsAdmin || (i.Scope == OwnershipScope.User && i.OwnerUserId == user.Id);
+
+    /// <summary>The owner of a non-public ingredient may submit it for public review.</summary>
+    private static bool CanSubmitForReview(Ingredient i, AppUser user) =>
+        i.Scope == OwnershipScope.User && i.OwnerUserId == user.Id &&
+        i.EffectiveVisibility is IngredientVisibility.Private or IngredientVisibility.Rejected;
+
+    private static bool CanReview(Ingredient i, AppUser user) =>
+        user.IsActingAsAdmin && i.EffectiveVisibility == IngredientVisibility.PendingReview;
 
     // ---- validation & mapping ----
 
@@ -245,6 +350,8 @@ public sealed class IngredientService
         i.Aliases ?? (IReadOnlyList<string>)Array.Empty<string>(),
         i.LocalizedNames ?? (IReadOnlyList<LocalizedName>)Array.Empty<LocalizedName>(),
         i.Unit, i.ServingSize,
-        i.NutritionPerServing, i.Scope, i.OwnerUserId, i.CreatedAt, i.UpdatedAt,
-        CanEdit(i, user), user.IsFavoriteIngredient(i.Id));
+        i.NutritionPerServing, i.Scope, i.OwnerUserId, i.OriginalCreatorUserId, i.EffectiveVisibility,
+        i.CreatedAt, i.UpdatedAt,
+        CanEdit(i, user), CanSubmitForReview(i, user), CanReview(i, user),
+        user.IsFavoriteIngredient(i.Id));
 }

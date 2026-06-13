@@ -13,12 +13,13 @@ public class IngredientRepository : IIngredientRepository
     public async Task<IReadOnlyList<Ingredient>> ListVisibleAsync(
         string userId, string? search = null, CancellationToken ct = default)
     {
-        // Visible = app-level ingredients + the caller's own. The scope filter is a translatable
-        // equality predicate; the name search and ordering run in memory because the Cosmos provider
-        // can't translate ToLower()/Contains reliably.
+        // Visible = app-level ingredients + the caller's own (any visibility) + every public one.
+        // The scope filter is a translatable equality predicate; the name search and ordering run in
+        // memory because the Cosmos provider can't translate ToLower()/Contains reliably.
         var visible = await _db.Ingredients
             .Where(i => i.Scope == OwnershipScope.App ||
-                        (i.Scope == OwnershipScope.User && i.OwnerUserId == userId))
+                        (i.Scope == OwnershipScope.User && i.OwnerUserId == userId) ||
+                        i.Visibility == IngredientVisibility.Public)
             .ToListAsync(ct);
 
         return Refine(visible, search);
@@ -26,9 +27,29 @@ public class IngredientRepository : IIngredientRepository
 
     public async Task<IReadOnlyList<Ingredient>> ListAllAsync(string? search = null, CancellationToken ct = default)
     {
-        // Admin "view all": every ingredient regardless of owner/scope.
+        // Admin "view all": every ingredient regardless of owner/scope/visibility.
         var all = await _db.Ingredients.ToListAsync(ct);
         return Refine(all, search);
+    }
+
+    public async Task<IReadOnlyList<Ingredient>> ListPendingReviewAsync(CancellationToken ct = default)
+    {
+        // Order in memory: the Cosmos provider's ORDER BY on DateTimeOffset is unreliable.
+        var pending = await _db.Ingredients
+            .Where(i => i.Visibility == IngredientVisibility.PendingReview)
+            .ToListAsync(ct);
+        return pending.OrderBy(i => i.UpdatedAt).ToList();
+    }
+
+    public async Task<int> CountPendingReviewByOwnerAsync(string ownerUserId, CancellationToken ct = default)
+    {
+        // Materialize the (small) owner-scoped set; the Cosmos provider can't translate Count() here.
+        var pending = await _db.Ingredients
+            .Where(i => i.Scope == OwnershipScope.User &&
+                        i.OwnerUserId == ownerUserId &&
+                        i.Visibility == IngredientVisibility.PendingReview)
+            .ToListAsync(ct);
+        return pending.Count;
     }
 
     /// <summary>

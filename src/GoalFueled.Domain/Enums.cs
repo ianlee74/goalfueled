@@ -45,6 +45,19 @@ public enum RecipeVisibility
     Rejected = 3
 }
 
+/// <summary>
+/// Lifecycle of a user-created ingredient with respect to public visibility. Mirrors
+/// <see cref="RecipeVisibility"/>: an ingredient submitted for review must be approved by an admin
+/// before becoming public, and once public it can never be made private again.
+/// </summary>
+public enum IngredientVisibility
+{
+    Private = 0,
+    PendingReview = 1,
+    Public = 2,
+    Rejected = 3
+}
+
 /// <summary>Cadence of a meal plan.</summary>
 public enum MealPlanCadence
 {

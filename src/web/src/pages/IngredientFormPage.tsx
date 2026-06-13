@@ -9,8 +9,9 @@ import { useNutrients } from '../hooks/useNutrients'
 import { useConfirm } from '../hooks/useConfirm'
 import { useAuth } from '../auth/AuthContext'
 import {
-  NUTRIENT_UNIT_ABBR, UNIT_LABELS,
-  type Ingredient, type IngredientInput, type LocalizedName, type NutrientAmount, type UnitOfMeasure,
+  INGREDIENT_VISIBILITY_LABELS, NUTRIENT_UNIT_ABBR, UNIT_LABELS,
+  type Ingredient, type IngredientInput, type IngredientVisibility,
+  type LocalizedName, type NutrientAmount, type UnitOfMeasure,
 } from '../api/types'
 
 const UNIT_OPTIONS = Object.keys(UNIT_LABELS) as UnitOfMeasure[]
@@ -39,6 +40,8 @@ export function IngredientFormPage() {
   const [appLevel, setAppLevel] = useState(false)
   const [amounts, setAmounts] = useState<NutrientAmount[]>([])
   const [canEdit, setCanEdit] = useState(true)
+  const [canSubmit, setCanSubmit] = useState(false)
+  const [visibility, setVisibility] = useState<IngredientVisibility>('Private')
 
   // Finder search metadata: tags double as browse categories, aliases cover alternate names,
   // localized names let the finder match non-English searches.
@@ -90,6 +93,8 @@ export function IngredientFormPage() {
         setLocalizedNames(i.localizedNames.map((l) => ({ key: nextLocalizedKey++, ...l })))
         setAppLevel(i.scope === 'App')
         setCanEdit(i.canEdit)
+        setCanSubmit(i.canSubmitForReview)
+        setVisibility(i.visibility)
       })
       .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load.') })
       .finally(() => { if (!cancelled) setLoading(false) })
@@ -230,11 +235,11 @@ export function IngredientFormPage() {
     }
   }
 
-  async function save() {
+  async function save(): Promise<string | null> {
     setError(null)
-    if (!name.trim()) { setError('Name is required.'); return }
+    if (!name.trim()) { setError('Name is required.'); return null }
     const serving = Number(servingSize)
-    if (!Number.isFinite(serving) || serving <= 0) { setError('Serving size must be greater than zero.'); return }
+    if (!Number.isFinite(serving) || serving <= 0) { setError('Serving size must be greater than zero.'); return null }
 
     const input: IngredientInput = {
       name: name.trim(),
@@ -255,11 +260,29 @@ export function IngredientFormPage() {
 
     setSaving(true)
     try {
-      if (isNew) await ingredientApi.create(input)
-      else await ingredientApi.update(id!, input)
-      navigate('/ingredients', { replace: true })
+      const saved = isNew ? await ingredientApi.create(input) : await ingredientApi.update(id!, input)
+      return saved.id
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Save failed.')
+      setSaving(false)
+      return null
+    }
+  }
+
+  async function saveAndExit() {
+    const savedId = await save()
+    if (savedId) navigate('/ingredients', { replace: true })
+  }
+
+  async function submitForReview() {
+    // Persist first so pending review reflects the latest content.
+    const savedId = await save()
+    if (!savedId) return
+    try {
+      await ingredientApi.submitForReview(savedId)
+      navigate('/ingredients', { replace: true })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Submit failed.')
       setSaving(false)
     }
   }
@@ -317,6 +340,9 @@ export function IngredientFormPage() {
             </button>
           </div>
         </div>
+      )}
+      {!isNew && !readOnly && (
+        <div className="notice info">Status: <strong>{INGREDIENT_VISIBILITY_LABELS[visibility]}</strong></div>
       )}
 
       <div className="card stack">
@@ -504,10 +530,16 @@ export function IngredientFormPage() {
       </div>
 
       {!readOnly && (
-        <div className="row" style={{ gap: '0.5rem' }}>
-          <button className="btn btn-primary" style={{ flex: 1 }} disabled={saving} onClick={save}>
+        <div className="row" style={{ gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button className="btn btn-primary" style={{ flex: 1 }} disabled={saving} onClick={saveAndExit}>
             {saving ? 'Saving…' : 'Save'}
           </button>
+          {!isNew && canSubmit && (
+            <button className="btn" disabled={saving} onClick={submitForReview}
+              title="Submit this ingredient for admin review to become public">
+              Submit for public
+            </button>
+          )}
           {!isNew && (
             <button className="btn btn-danger" disabled={saving} onClick={remove}>Delete</button>
           )}

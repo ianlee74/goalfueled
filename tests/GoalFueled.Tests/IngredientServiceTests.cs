@@ -338,4 +338,151 @@ public class IngredientServiceTests
         Assert.Equal("es", localized.Language);
         Assert.Equal("Garbanzos", localized.Name);
     }
+
+    // ---- review workflow state transitions ----
+
+    [Fact]
+    public async Task User_creates_private_ingredient_credited_to_them()
+    {
+        using var db = TestHelpers.NewContext();
+        var (_, user, svc) = await SetupAsync(db);
+
+        var created = await svc.CreateAsync(user, Input("Oats"), default);
+
+        Assert.Equal(IngredientVisibility.Private, created.Visibility);
+        Assert.Equal(user.Id, created.OriginalCreatorUserId);
+    }
+
+    [Fact]
+    public async Task Admin_app_level_ingredient_is_public()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, _, svc) = await SetupAsync(db);
+
+        var created = await svc.CreateAsync(admin, Input("Salt", appLevel: true), default);
+
+        Assert.Equal(IngredientVisibility.Public, created.Visibility);
+    }
+
+    [Fact]
+    public async Task Submit_for_review_moves_private_to_pending()
+    {
+        using var db = TestHelpers.NewContext();
+        var (_, user, svc) = await SetupAsync(db);
+        var mine = await svc.CreateAsync(user, Input("Public Candidate"), default);
+
+        var pending = await svc.SubmitForReviewAsync(user, mine.Id, default);
+
+        Assert.Equal(IngredientVisibility.PendingReview, pending.Visibility);
+    }
+
+    [Fact]
+    public async Task Only_owner_can_submit_for_review()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, svc) = await SetupAsync(db);
+        var mine = await svc.CreateAsync(user, Input("Mine"), default);
+
+        // Even an admin is not the owner — submission is an owner-only action.
+        await Assert.ThrowsAsync<ForbiddenException>(() => svc.SubmitForReviewAsync(admin, mine.Id, default));
+    }
+
+    [Fact]
+    public async Task Admin_approves_pending_ingredient_to_public_keeping_creator_credit()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, svc) = await SetupAsync(db);
+        var mine = await svc.CreateAsync(user, Input("Candidate"), default);
+        await svc.SubmitForReviewAsync(user, mine.Id, default);
+
+        var queue = await svc.ListReviewQueueAsync(admin, default);
+        Assert.Contains(queue, i => i.Id == mine.Id);
+
+        var approved = await svc.ApproveAsync(admin, mine.Id, default);
+
+        Assert.Equal(IngredientVisibility.Public, approved.Visibility);
+        Assert.Equal(user.Id, approved.OriginalCreatorUserId);
+        // Approval keeps the ingredient user-scoped/owned (it does not become an app-level ingredient).
+        Assert.Equal(OwnershipScope.User, approved.Scope);
+        Assert.Equal(user.Id, approved.OwnerUserId);
+    }
+
+    [Fact]
+    public async Task Public_ingredient_can_never_become_private_again()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, svc) = await SetupAsync(db);
+        var mine = await svc.CreateAsync(user, Input("Candidate"), default);
+        await svc.SubmitForReviewAsync(user, mine.Id, default);
+        await svc.ApproveAsync(admin, mine.Id, default);
+
+        // Owner editing the ingredient does not change its (now public) visibility.
+        var edited = await svc.UpdateAsync(user, mine.Id, Input("Candidate v2"), default);
+        Assert.Equal(IngredientVisibility.Public, edited.Visibility);
+
+        // Resubmitting a public ingredient is rejected.
+        await Assert.ThrowsAsync<ValidationException>(() => svc.SubmitForReviewAsync(user, mine.Id, default));
+        // It is no longer eligible for submission per the DTO flag either.
+        Assert.False(edited.CanSubmitForReview);
+    }
+
+    [Fact]
+    public async Task Admin_rejects_pending_ingredient_and_owner_can_resubmit()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, svc) = await SetupAsync(db);
+        var mine = await svc.CreateAsync(user, Input("Candidate"), default);
+        await svc.SubmitForReviewAsync(user, mine.Id, default);
+
+        var rejected = await svc.RejectAsync(admin, mine.Id, default);
+        Assert.Equal(IngredientVisibility.Rejected, rejected.Visibility);
+
+        // A rejected ingredient may be revised and resubmitted.
+        var resubmitted = await svc.SubmitForReviewAsync(user, mine.Id, default);
+        Assert.Equal(IngredientVisibility.PendingReview, resubmitted.Visibility);
+    }
+
+    [Fact]
+    public async Task Non_admin_cannot_access_review_queue_or_approve()
+    {
+        using var db = TestHelpers.NewContext();
+        var (_, user, svc) = await SetupAsync(db);
+        var mine = await svc.CreateAsync(user, Input("Candidate"), default);
+        await svc.SubmitForReviewAsync(user, mine.Id, default);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => svc.ListReviewQueueAsync(user, default));
+        await Assert.ThrowsAsync<ForbiddenException>(() => svc.ApproveAsync(user, mine.Id, default));
+        await Assert.ThrowsAsync<ForbiddenException>(() => svc.RejectAsync(user, mine.Id, default));
+    }
+
+    [Fact]
+    public async Task Approve_only_valid_from_pending_state()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, svc) = await SetupAsync(db);
+        var mine = await svc.CreateAsync(user, Input("Still Private"), default);
+
+        // Not yet submitted → cannot approve.
+        await Assert.ThrowsAsync<ValidationException>(() => svc.ApproveAsync(admin, mine.Id, default));
+    }
+
+    [Fact]
+    public async Task Approved_public_ingredient_visible_to_other_users()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, svc) = await SetupAsync(db);
+        var other = await TestHelpers.NewAuthenticator(db,
+            new AuthenticatedIdentity("dev", "other", "other@dev.local", "Other"))
+            .GetCurrentUserAsync(TestHelpers.BlankRequest());
+
+        var mine = await svc.CreateAsync(user, Input("Shared"), default);
+        await svc.SubmitForReviewAsync(user, mine.Id, default);
+        await svc.ApproveAsync(admin, mine.Id, default);
+
+        var otherList = await svc.ListAsync(other!, null, default);
+        Assert.Contains(otherList, i => i.Id == mine.Id);
+        // But the other user cannot edit it.
+        var seen = await svc.GetAsync(other!, mine.Id, default);
+        Assert.False(seen.CanEdit);
+    }
 }

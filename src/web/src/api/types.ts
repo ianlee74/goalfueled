@@ -129,6 +129,9 @@ export interface LocalizedName {
   name: string
 }
 
+// The public-visibility lifecycle is shared in shape with recipes (see RecipeVisibility).
+export type IngredientVisibility = 'Private' | 'PendingReview' | 'Public' | 'Rejected'
+
 export interface Ingredient {
   id: string
   name: string
@@ -143,9 +146,13 @@ export interface Ingredient {
   nutritionPerServing: NutrientAmount[]
   scope: OwnershipScope
   ownerUserId?: string
+  originalCreatorUserId?: string
+  visibility: IngredientVisibility
   createdAt: string
   updatedAt: string
   canEdit: boolean
+  canSubmitForReview: boolean
+  canReview: boolean
   // True when the signed-in user has marked this ingredient as a favorite (per-user).
   isFavorite: boolean
 }
@@ -617,6 +624,14 @@ export const GOAL_CADENCE_LABELS: Record<GoalCadence, string> = {
 
 // Friendly labels for the recipe visibility lifecycle.
 export const RECIPE_VISIBILITY_LABELS: Record<RecipeVisibility, string> = {
+  Private: 'Private',
+  PendingReview: 'Pending review',
+  Public: 'Public',
+  Rejected: 'Rejected',
+}
+
+// Friendly labels for the ingredient visibility lifecycle (mirrors recipes).
+export const INGREDIENT_VISIBILITY_LABELS: Record<IngredientVisibility, string> = {
   Private: 'Private',
   PendingReview: 'Pending review',
   Public: 'Public',

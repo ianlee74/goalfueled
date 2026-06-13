@@ -6,6 +6,19 @@
 
 ## Completed Items
 
+### Submit ingredient to public (review workflow) — 2026-06-13 CDT
+
+- [x] **Added a `Submit to public` workflow for ingredients** mirroring recipes: owner submits, admin approves/rejects from a review queue.
+
+**NOTES:**
+
+- Mirrors the recipe flow. New `IngredientVisibility` enum (Private/PendingReview/Public/Rejected) — kept domain-specific (RecipeVisibility isn't generic) for consistency. `Ingredient.Visibility` and `OriginalCreatorUserId` are **nullable** (Cosmos rule); a computed `EffectiveVisibility` resolves null to the scope default (App→Public, User→Private), so legacy docs need no migration.
+- Scope/visibility on approval mirrors recipes exactly: an approved ingredient **stays User-scoped and owned by the original user**, only visibility flips to Public (does NOT become App-scoped); `OriginalCreatorUserId` keeps the author credited; public can never revert. `ListVisibleAsync` now includes Public ingredients so they're visible to all and usable in recipes, while editing stays owner/admin-only.
+- Service: `SubmitForReviewAsync` (owner-only, Private/Rejected→PendingReview, capped), `ApproveAsync`/`RejectAsync` (admin-only via `EnsureActingAdmin`), `ListReviewQueueAsync`; DTO exposes `Visibility` + computed `CanSubmitForReview`/`CanReview`. Endpoints: `ingredients/review-queue` (ordered before `{id}`), `/submit-for-review`, `/approve`, `/reject`.
+- Frontend: status badge + "Submit for public" button on `IngredientFormPage` (saves first, then submits); new `IngredientReviewQueuePage` (separate from the recipe queue — lower-risk since the recipe queue is strongly typed to recipes) at `/ingredients/review-queue`, linked from IngredientsPage and YouPage for acting-admins.
+- 9 new review-workflow tests mirroring the recipe suite.
+- Verified: `dotnet build` 0 errors; `dotnet test` 302/302 passed; `npm run build` succeeds; `npm run lint` 0 errors (3 pre-existing warnings).
+
 ### Admin review features — investigated, hardened, tested — 2026-06-13 CDT
 
 - [x] **Investigated the admin recipe-review flow and the `/you` admin-view toggle**: both already exist and work; added the missing tests + a security-hardening refactor.

@@ -46,6 +46,12 @@ public sealed class IngredientFunctions
             return HttpResults.Ok(result);
         });
 
+    [Function("GetIngredientReviewQueue")]
+    public Task<IActionResult> ReviewQueue(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "ingredients/review-queue")] HttpRequest req) =>
+        ApiEndpoint.RunAuthenticated(req, _auth, async user =>
+            HttpResults.Ok(await _ingredients.ListReviewQueueAsync(user, req.HttpContext.RequestAborted)));
+
     [Function("GetIngredient")]
     public Task<IActionResult> Get(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "ingredients/{id}")] HttpRequest req,
@@ -90,4 +96,25 @@ public sealed class IngredientFunctions
             await _ingredients.DeleteAsync(user, id, req.HttpContext.RequestAborted);
             return HttpResults.NoContent();
         });
+
+    [Function("SubmitIngredientForReview")]
+    public Task<IActionResult> SubmitForReview(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "ingredients/{id}/submit-for-review")] HttpRequest req,
+        string id) =>
+        ApiEndpoint.RunAuthenticated(req, _auth, async user =>
+            HttpResults.Ok(await _ingredients.SubmitForReviewAsync(user, id, req.HttpContext.RequestAborted)));
+
+    [Function("ApproveIngredient")]
+    public Task<IActionResult> Approve(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "ingredients/{id}/approve")] HttpRequest req,
+        string id) =>
+        ApiEndpoint.RunAuthenticated(req, _auth, async user =>
+            HttpResults.Ok(await _ingredients.ApproveAsync(user, id, req.HttpContext.RequestAborted)));
+
+    [Function("RejectIngredient")]
+    public Task<IActionResult> Reject(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "ingredients/{id}/reject")] HttpRequest req,
+        string id) =>
+        ApiEndpoint.RunAuthenticated(req, _auth, async user =>
+            HttpResults.Ok(await _ingredients.RejectAsync(user, id, req.HttpContext.RequestAborted)));
 }

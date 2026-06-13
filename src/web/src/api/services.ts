@@ -52,9 +52,14 @@ export const ingredientApi = {
   customize: (id: string) => api.post<Ingredient>(`/ingredients/${id}/customize`),
   update: (id: string, input: IngredientInput) => api.put<Ingredient>(`/ingredients/${id}`, input),
   remove: (id: string) => api.del(`/ingredients/${id}`),
+  submitForReview: (id: string) => api.post<Ingredient>(`/ingredients/${id}/submit-for-review`),
   // Marks/unmarks the ingredient as one of the signed-in user's favorites.
   setFavorite: (id: string, isFavorite: boolean) =>
     api.put<FavoriteState>(`/ingredients/${id}/favorite`, { isFavorite }),
+  // Admin review queue + actions.
+  reviewQueue: () => api.get<Ingredient[]>('/ingredients/review-queue'),
+  approve: (id: string) => api.post<Ingredient>(`/ingredients/${id}/approve`),
+  reject: (id: string) => api.post<Ingredient>(`/ingredients/${id}/reject`),
 }
 
 export const recipeApi = {

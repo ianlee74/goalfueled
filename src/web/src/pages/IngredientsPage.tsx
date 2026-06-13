@@ -51,7 +51,12 @@ export function IngredientsPage() {
     <div className="stack">
       <div className="row spread">
         <h1>Ingredients</h1>
-        <Link className="btn btn-primary btn-sm" to="/ingredients/new">+ New</Link>
+        <div className="row" style={{ gap: '0.5rem' }}>
+          {isAdmin && (
+            <Link className="btn btn-sm" to="/ingredients/review-queue">Review queue</Link>
+          )}
+          <Link className="btn btn-primary btn-sm" to="/ingredients/new">+ New</Link>
+        </div>
       </div>
 
       <input
