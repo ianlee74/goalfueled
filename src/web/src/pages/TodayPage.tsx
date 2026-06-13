@@ -576,7 +576,7 @@ export function TodayPage() {
       <div className="row wrap" style={{ gap: '0.5rem' }}>
         <button
           type="button"
-          className="btn btn-primary"
+          className="btn btn-caps btn-fuel"
           aria-expanded={showFuelForm}
           onClick={() => setShowFuelForm((v) => !v)}
         >
@@ -584,7 +584,7 @@ export function TodayPage() {
         </button>
         <button
           type="button"
-          className="btn"
+          className="btn btn-caps btn-burn"
           aria-expanded={showBurnForm}
           onClick={() => setShowBurnForm((v) => !v)}
         >

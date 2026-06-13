@@ -442,6 +442,17 @@ a.chip:hover { text-decoration: none; background: var(--hover); }
   text-transform: uppercase; letter-spacing: 0.05em;
 }
 .btn-primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+/* Condensed-caps label for a secondary button sitting beside a primary one. */
+.btn-caps {
+  font-family: var(--font-display); font-weight: 700; font-size: 1.02rem;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+/* Fuel/burn-tinted secondary buttons — mirror the fb-section vocabulary (emerald = fuel,
+   ember = burn) without competing with the ember-filled primary CTA. */
+.btn-fuel { border-color: var(--primary); color: var(--primary-dark); }
+.btn-fuel:hover { background: var(--primary-soft); }
+.btn-burn { border-color: var(--accent); color: var(--accent); }
+.btn-burn:hover { background: var(--accent-soft); }
 /* Destructive actions are demoted (DESIGN.md §6): quiet at rest, danger-tinted on hover. */
 .btn-danger { background: transparent; border-color: var(--border); color: var(--danger); }
 .btn-danger:hover { background: var(--danger-soft); border-color: var(--danger-border); }

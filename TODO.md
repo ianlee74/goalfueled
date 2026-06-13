@@ -6,6 +6,24 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
+- [] **Add favorites**: add an option to to mark ingredients, recipes, and meals as being a `favorite`. Favorites should always appear at the top of the lists in the `Library`.
+
+- [] **Remove option to add a `fuel` recipe to the `Log`**: it doesn't make sense to add a recipe to the log. Recipes are designed to define a meal not be consumed directly.
+
+- [] **Improve the `Activity` dropdown**: when adding a `burn` to the `Log`, the `Activity` dropdown is small and looks out of place. Improve it.
+
+- [] **Simplify the nutrition breakdown on `meal plans`**: the current view of avg, daily breakdowns, and total nutrional info is too length. Simplify it. Perhaps a table format?
+
+- [] **Show per serving nutritional info for `meals`** the same way we do for `recipes`.
+
+- [] **Add an option to customize**: for app-level `ingredients` and `recipes` add an option to `customize` it. This should create a clone of the current item as a private item that the user can then customize as they wish.
+
+- [] **`Look up nutrition` doesn't work**: when adding an `ingredient` the `Look up nutrition` button is intended to find information about the ingredient in a web search and automatically populate the nutritional information it found into the form. This currently doesn't seem to do anything. Is it possible to make this work as intended?
+
+- [] **Search for existing ingredients when adding a new one**: to help prevent duplicate ingredients from being added, when a user is entering a name for a new ingredient, do a lookup of existing ingredients so they can see that it already exists. If they select an existing item from the lookup list, add the nutritional info for that item into the form they are on.
+
+- [] **When adding a `free-form` `fuel` item to the `Log` do an ingredient lookup**: when a user is adding a `free-form` type `fuel` item to the `Log`, do an ingredient lookup as they enter the `item` description. If they pick a match, then insert its name and per-serving calories.
+
 ## FUTURE FEATURES
 
 >[AI Agent] skip ALL items in this section.
