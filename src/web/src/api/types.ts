@@ -146,6 +146,8 @@ export interface Ingredient {
   createdAt: string
   updatedAt: string
   canEdit: boolean
+  // True when the signed-in user has marked this ingredient as a favorite (per-user).
+  isFavorite: boolean
 }
 
 export interface IngredientInput {
@@ -160,6 +162,12 @@ export interface IngredientInput {
   tags?: string[]
   aliases?: string[]
   localizedNames?: LocalizedName[]
+}
+
+/** The favorite state of one library item (ingredient/recipe/meal) for the signed-in user. */
+export interface FavoriteState {
+  id: string
+  isFavorite: boolean
 }
 
 /** Result of an automatic nutrition lookup; amounts are per 100 g, mapped to the app's catalog. */
@@ -197,6 +205,8 @@ export interface Recipe {
   canEdit: boolean
   canSubmitForReview: boolean
   canReview: boolean
+  // True when the signed-in user has marked this recipe as a favorite (per-user).
+  isFavorite: boolean
 }
 
 export interface RecipeItemInput {
@@ -230,6 +240,8 @@ export interface Meal {
   createdAt: string
   updatedAt: string
   canEdit: boolean
+  // True when the signed-in user has marked this meal as a favorite (per-user).
+  isFavorite: boolean
 }
 
 export interface MealPortionInput {

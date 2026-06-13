@@ -2,7 +2,7 @@ import { api } from './client'
 import type {
   AdminUser, BurnActivity, BurnActivityInput, BurnDay, BurnSuggestion,
   CompletePlannedMealInput, ConsumptionDay, ConsumptionEntry, ConsumptionEntryInput,
-  CurrentUser, Dashboard, GamificationSummary, Goal, GoalInput, Ingredient, IngredientInput,
+  CurrentUser, Dashboard, FavoriteState, GamificationSummary, Goal, GoalInput, Ingredient, IngredientInput,
   Meal, MealInput, MealPlan, MealPlanInput, NutrientDefinition, NutritionLookupResult,
   OnboardingInput, PlannedDay, ProfileInput, Recipe, RecipeInput, WeeklyReview, WeightEntry,
   WeightEntryInput, WeightScheduleInput,
@@ -50,6 +50,9 @@ export const ingredientApi = {
   create: (input: IngredientInput) => api.post<Ingredient>('/ingredients', input),
   update: (id: string, input: IngredientInput) => api.put<Ingredient>(`/ingredients/${id}`, input),
   remove: (id: string) => api.del(`/ingredients/${id}`),
+  // Marks/unmarks the ingredient as one of the signed-in user's favorites.
+  setFavorite: (id: string, isFavorite: boolean) =>
+    api.put<FavoriteState>(`/ingredients/${id}/favorite`, { isFavorite }),
 }
 
 export const recipeApi = {
@@ -60,6 +63,9 @@ export const recipeApi = {
   update: (id: string, input: RecipeInput) => api.put<Recipe>(`/recipes/${id}`, input),
   remove: (id: string) => api.del(`/recipes/${id}`),
   submitForReview: (id: string) => api.post<Recipe>(`/recipes/${id}/submit-for-review`),
+  // Marks/unmarks the recipe as one of the signed-in user's favorites.
+  setFavorite: (id: string, isFavorite: boolean) =>
+    api.put<FavoriteState>(`/recipes/${id}/favorite`, { isFavorite }),
   // Admin review queue + actions.
   reviewQueue: () => api.get<Recipe[]>('/recipes/review-queue'),
   approve: (id: string) => api.post<Recipe>(`/recipes/${id}/approve`),
@@ -73,6 +79,9 @@ export const mealApi = {
   create: (input: MealInput) => api.post<Meal>('/meals', input),
   update: (id: string, input: MealInput) => api.put<Meal>(`/meals/${id}`, input),
   remove: (id: string) => api.del(`/meals/${id}`),
+  // Marks/unmarks the meal as one of the signed-in user's favorites.
+  setFavorite: (id: string, isFavorite: boolean) =>
+    api.put<FavoriteState>(`/meals/${id}/favorite`, { isFavorite }),
 }
 
 export const mealPlanApi = {

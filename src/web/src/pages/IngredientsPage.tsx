@@ -5,6 +5,8 @@ import { useAuth } from '../auth/AuthContext'
 import { UNIT_LABELS, type Ingredient } from '../api/types'
 import { IconIngredient } from '../components/icons'
 import { EmptyState, SkeletonList } from '../components/Placeholders'
+import { FavoriteStar } from '../components/FavoriteStar'
+import { withFavorite } from '../lib/favorites'
 
 export function IngredientsPage() {
   const { profile } = useAuth()
@@ -33,6 +35,17 @@ export function IngredientsPage() {
     }, 250)
     return () => { cancelled = true; clearTimeout(handle) }
   }, [search, showAll, isAdmin])
+
+  // Optimistic toggle: flip + re-float locally, then persist; revert on failure.
+  async function toggleFavorite(item: Ingredient) {
+    const next = !item.isFavorite
+    setItems((prev) => withFavorite(prev, item.id, next))
+    try {
+      await ingredientApi.setFavorite(item.id, next)
+    } catch {
+      setItems((prev) => withFavorite(prev, item.id, !next))
+    }
+  }
 
   return (
     <div className="stack">
@@ -87,6 +100,7 @@ export function IngredientsPage() {
                 </div>
               )}
             </div>
+            <FavoriteStar isFavorite={i.isFavorite} onToggle={() => toggleFavorite(i)} />
           </Link>
         ))}
       </div>

@@ -23,7 +23,9 @@ public sealed record IngredientDto(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     /// <summary>True if the current caller is allowed to edit/delete this ingredient.</summary>
-    bool CanEdit);
+    bool CanEdit,
+    /// <summary>True when the current caller has marked this ingredient as a favorite (per-user).</summary>
+    bool IsFavorite = false);
 
 /// <summary>Payload for creating or updating an ingredient.</summary>
 public sealed record IngredientInput(

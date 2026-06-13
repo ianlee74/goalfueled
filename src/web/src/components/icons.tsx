@@ -211,6 +211,19 @@ export function IconMenu(p: IconProps) {
   )
 }
 
+/** Faceted five-point star — favorite marker. `filled` renders the solid (favorited) state. */
+export function IconStar(p: IconProps & { filled?: boolean }) {
+  const { filled, ...rest } = p
+  return (
+    <Svg {...rest}>
+      <path
+        d="M12 3.5l2.5 5.3 5.7.7-4.2 4 1.1 5.7L12 16.4l-5.1 2.8 1.1-5.7-4.2-4 5.7-.7Z"
+        fill={filled ? 'currentColor' : 'none'}
+      />
+    </Svg>
+  )
+}
+
 /** Monoline rocket — the brand mark (replaces the emoji logo). */
 export function IconRocket(p: IconProps) {
   return (

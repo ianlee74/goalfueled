@@ -21,7 +21,9 @@ public sealed record MealDto(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     /// <summary>True if the current caller is allowed to edit/delete this meal.</summary>
-    bool CanEdit);
+    bool CanEdit,
+    /// <summary>True when the current caller has marked this meal as a favorite (per-user).</summary>
+    bool IsFavorite = false);
 
 /// <summary>One portion line in a create/update payload.</summary>
 public sealed record MealPortionInput(

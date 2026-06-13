@@ -33,7 +33,9 @@ public sealed record RecipeDto(
     /// <summary>True if the caller may submit this private recipe for public review.</summary>
     bool CanSubmitForReview,
     /// <summary>True if the caller (an acting admin) may approve/reject this pending recipe.</summary>
-    bool CanReview);
+    bool CanReview,
+    /// <summary>True when the current caller has marked this recipe as a favorite (per-user).</summary>
+    bool IsFavorite = false);
 
 /// <summary>One ingredient line in a create/update payload.</summary>
 public sealed record RecipeItemInput(

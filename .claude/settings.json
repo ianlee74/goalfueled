@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(git -C C:\\\\Code\\\\goalfueled diff --stat -- src/GoalFueled.Data/Seeding/DatabaseInitializer.cs)",
+      "PowerShell(git -C C:\\\\Code\\\\goalfueled diff -- src/GoalFueled.Data/Seeding/DatabaseInitializer.cs)",
+      "PowerShell(dotnet test C:\\\\Code\\\\goalfueled --nologo -v q 2>&1)",
+      "PowerShell(dotnet build C:\\\\Code\\\\goalfueled -v q --nologo 2>&1)"
+    ]
+  }
+}

@@ -6,6 +6,19 @@
 
 ## Completed Items
 
+### Add favorites — 2026-06-12 CDT
+
+- [x] **Add favorites**: added an option to mark ingredients, recipes, and meals as a `favorite`; favorites always appear at the top of the Library lists.
+
+**NOTES:**
+
+- **Per-user favorites stored on the user document, not on the entities.** Ingredients, recipes, and meals can be app-level (shared), so a flag on the entity would leak one user's favorite to everyone. `AppUser` gained `FavoriteIngredientIds`/`FavoriteRecipeIds`/`FavoriteMealIds` as `List<string>?` (nullable per the Cosmos old-document rule); empty lists collapse back to `null`.
+- **API**: `PUT /api/{ingredients|recipes|meals}/{id}/favorite` with body `{ isFavorite }` in a new `FavoriteFunctions`/`FavoriteService`. Favoriting validates visibility (throws NotFound for invisible items); un-favoriting always succeeds so stale ids of deleted items can be cleaned up. `FavoritesMax = 1000` cap.
+- **DTOs** gained a trailing `bool IsFavorite = false`, computed per caller (same pattern as `CanEdit`). Sorting happens in the services with a stable `OrderByDescending(isFavorite)` so the existing name order is preserved within each group.
+- **Frontend**: `FavoriteStar` toggle component (new `IconStar`, `aria-pressed`, click-swallowing on card links) on the Ingredients/Recipes/Meals Library cards, with optimistic toggle + local re-sort and revert on API failure. `.fav-btn` styles in `index.css`: muted monoline at rest, ember-accent fill when marked.
+- **Tests**: 9 new `FavoriteServiceTests` (per-user isolation on shared items, ordering, stale-id cleanup, idempotency, persistence) + DI registration test.
+- Verified: `dotnet build` 0 errors; `dotnet test` 279/279 passed; `npm run build` succeeds; `npm run lint` 0 errors (3 pre-existing warnings).
+
 ### Design an Ingredient finder — 2026-06-12 CDT
 
 - [x] **Designed an Ingredient finder**: replaced the plain ingredient drop-downs with a searchable, filterable combobox and enriched ingredient data with tags, aliases, and non-English names that are matched in search.

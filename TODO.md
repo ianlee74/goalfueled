@@ -6,8 +6,6 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-- [] **Add favorites**: add an option to to mark ingredients, recipes, and meals as being a `favorite`. Favorites should always appear at the top of the lists in the `Library`.
-
 - [] **Remove option to add a `fuel` recipe to the `Log`**: it doesn't make sense to add a recipe to the log. Recipes are designed to define a meal not be consumed directly.
 
 - [] **Improve the `Activity` dropdown**: when adding a `burn` to the `Log`, the `Activity` dropdown is small and looks out of place. Improve it.

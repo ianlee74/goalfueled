@@ -94,6 +94,30 @@ public class AppUser
     /// <summary>True once a weight-measurement schedule has been configured.</summary>
     public bool HasWeightSchedule => WeightScheduleCadence is not null && WeightScheduleStartDate is not null;
 
+    /// <summary>
+    /// Ids of the ingredients this user has marked as favorites. Favorites are PER USER and live on
+    /// the user document (not on the entity) because ingredients/recipes/meals can be app-level and
+    /// shared across users — a flag on the shared entity would leak one user's favorite to everyone.
+    /// Nullable so user documents written before this field existed read back as null (treated as
+    /// "no favorites") instead of throwing; kept null rather than empty so old docs stay unchanged.
+    /// </summary>
+    public List<string>? FavoriteIngredientIds { get; set; }
+
+    /// <summary>Ids of the recipes this user has marked as favorites (see <see cref="FavoriteIngredientIds"/>).</summary>
+    public List<string>? FavoriteRecipeIds { get; set; }
+
+    /// <summary>Ids of the meals this user has marked as favorites (see <see cref="FavoriteIngredientIds"/>).</summary>
+    public List<string>? FavoriteMealIds { get; set; }
+
+    /// <summary>True when the user has favorited the given ingredient. Null list = no favorites.</summary>
+    public bool IsFavoriteIngredient(string id) => FavoriteIngredientIds?.Contains(id) == true;
+
+    /// <summary>True when the user has favorited the given recipe. Null list = no favorites.</summary>
+    public bool IsFavoriteRecipe(string id) => FavoriteRecipeIds?.Contains(id) == true;
+
+    /// <summary>True when the user has favorited the given meal. Null list = no favorites.</summary>
+    public bool IsFavoriteMeal(string id) => FavoriteMealIds?.Contains(id) == true;
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public bool IsAdmin => Roles.Contains(AppRole.AppAdmin);

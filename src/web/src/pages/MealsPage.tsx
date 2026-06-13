@@ -5,6 +5,8 @@ import { useAuth } from '../auth/AuthContext'
 import type { Meal } from '../api/types'
 import { IconMeal } from '../components/icons'
 import { EmptyState, SkeletonList } from '../components/Placeholders'
+import { FavoriteStar } from '../components/FavoriteStar'
+import { withFavorite } from '../lib/favorites'
 
 export function MealsPage() {
   const { profile } = useAuth()
@@ -33,6 +35,17 @@ export function MealsPage() {
     }, 250)
     return () => { cancelled = true; clearTimeout(handle) }
   }, [search, showAll, isAdmin])
+
+  // Optimistic toggle: flip + re-float locally, then persist; revert on failure.
+  async function toggleFavorite(item: Meal) {
+    const next = !item.isFavorite
+    setItems((prev) => withFavorite(prev, item.id, next))
+    try {
+      await mealApi.setFavorite(item.id, next)
+    } catch {
+      setItems((prev) => withFavorite(prev, item.id, !next))
+    }
+  }
 
   return (
     <div className="stack">
@@ -79,6 +92,7 @@ export function MealsPage() {
                 {caloriesOf(m) != null && ` · ${caloriesOf(m)} kcal total`}
               </div>
             </div>
+            <FavoriteStar isFavorite={m.isFavorite} onToggle={() => toggleFavorite(m)} />
           </Link>
         ))}
       </div>

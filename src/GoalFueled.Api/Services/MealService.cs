@@ -40,7 +40,9 @@ public sealed class MealService
         var meals = all && user.IsActingAsAdmin
             ? await _repo.ListAllAsync(search, ct)
             : await _repo.ListVisibleAsync(user.Id, search, ct);
-        return await ToDtosAsync(meals, user, ct);
+        // Favorites first (a stable sort, so the repo's name ordering holds within each group).
+        var ordered = meals.OrderByDescending(m => user.IsFavoriteMeal(m.Id)).ToList();
+        return await ToDtosAsync(ordered, user, ct);
     }
 
     public async Task<MealDto> GetAsync(AppUser user, string id, CancellationToken ct)
@@ -190,6 +192,7 @@ public sealed class MealService
 
         return new MealDto(
             m.Id, m.Name, portions, m.Scope, m.OwnerUserId,
-            total, m.CreatedAt, m.UpdatedAt, CanEdit(m, user));
+            total, m.CreatedAt, m.UpdatedAt, CanEdit(m, user),
+            user.IsFavoriteMeal(m.Id));
     }
 }

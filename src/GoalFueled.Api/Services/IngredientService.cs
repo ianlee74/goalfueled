@@ -28,7 +28,11 @@ public sealed class IngredientService
         var items = all && user.IsActingAsAdmin
             ? await _repo.ListAllAsync(search, ct)
             : await _repo.ListVisibleAsync(user.Id, search, ct);
-        return items.Select(i => ToDto(i, user)).ToList();
+        // Favorites first (a stable sort, so the repo's name ordering holds within each group).
+        return items
+            .OrderByDescending(i => user.IsFavoriteIngredient(i.Id))
+            .Select(i => ToDto(i, user))
+            .ToList();
     }
 
     public async Task<IngredientDto> GetAsync(AppUser user, string id, CancellationToken ct)
@@ -209,5 +213,5 @@ public sealed class IngredientService
         i.LocalizedNames ?? (IReadOnlyList<LocalizedName>)Array.Empty<LocalizedName>(),
         i.Unit, i.ServingSize,
         i.NutritionPerServing, i.Scope, i.OwnerUserId, i.CreatedAt, i.UpdatedAt,
-        CanEdit(i, user));
+        CanEdit(i, user), user.IsFavoriteIngredient(i.Id));
 }

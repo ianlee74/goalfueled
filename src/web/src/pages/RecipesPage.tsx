@@ -5,6 +5,8 @@ import { useAuth } from '../auth/AuthContext'
 import { RECIPE_VISIBILITY_LABELS, type Recipe } from '../api/types'
 import { IconRecipe } from '../components/icons'
 import { EmptyState, SkeletonList } from '../components/Placeholders'
+import { FavoriteStar } from '../components/FavoriteStar'
+import { withFavorite } from '../lib/favorites'
 
 export function RecipesPage() {
   const { profile } = useAuth()
@@ -33,6 +35,17 @@ export function RecipesPage() {
     }, 250)
     return () => { cancelled = true; clearTimeout(handle) }
   }, [search, showAll, isAdmin])
+
+  // Optimistic toggle: flip + re-float locally, then persist; revert on failure.
+  async function toggleFavorite(item: Recipe) {
+    const next = !item.isFavorite
+    setItems((prev) => withFavorite(prev, item.id, next))
+    try {
+      await recipeApi.setFavorite(item.id, next)
+    } catch {
+      setItems((prev) => withFavorite(prev, item.id, !next))
+    }
+  }
 
   return (
     <div className="stack">
@@ -84,6 +97,7 @@ export function RecipesPage() {
                 {caloriesOf(r) != null && ` · ${caloriesOf(r)} kcal total`}
               </div>
             </div>
+            <FavoriteStar isFavorite={r.isFavorite} onToggle={() => toggleFavorite(r)} />
           </Link>
         ))}
       </div>

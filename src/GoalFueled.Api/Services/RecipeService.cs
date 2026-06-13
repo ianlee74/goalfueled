@@ -43,7 +43,9 @@ public sealed class RecipeService
         var recipes = all && user.IsActingAsAdmin
             ? await _repo.ListAllAsync(search, ct)
             : await _repo.ListVisibleAsync(user.Id, search, ct);
-        return await ToDtosAsync(recipes, user, ct);
+        // Favorites first (a stable sort, so the repo's name ordering holds within each group).
+        var ordered = recipes.OrderByDescending(r => user.IsFavoriteRecipe(r.Id)).ToList();
+        return await ToDtosAsync(ordered, user, ct);
     }
 
     public async Task<RecipeDto> GetAsync(AppUser user, string id, CancellationToken ct)
@@ -299,6 +301,7 @@ public sealed class RecipeService
             r.Id, r.Name, r.Description, r.ImageUrl, items, r.Servings,
             r.Scope, r.OwnerUserId, r.OriginalCreatorUserId, r.Visibility,
             total, perServing, r.CreatedAt, r.UpdatedAt,
-            CanEdit(r, user), CanSubmitForReview(r, user), CanReview(r, user));
+            CanEdit(r, user), CanSubmitForReview(r, user), CanReview(r, user),
+            user.IsFavoriteRecipe(r.Id));
     }
 }
