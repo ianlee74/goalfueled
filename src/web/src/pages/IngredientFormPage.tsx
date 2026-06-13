@@ -6,6 +6,7 @@ import { SanitizedHtml } from '../components/SanitizedHtml'
 import { fold } from '../lib/fold'
 import { caloriesOf, findHit, type FinderHit } from '../lib/ingredientMatch'
 import { useNutrients } from '../hooks/useNutrients'
+import { useConfirm } from '../hooks/useConfirm'
 import { useAuth } from '../auth/AuthContext'
 import {
   NUTRIENT_UNIT_ABBR, UNIT_LABELS,
@@ -25,6 +26,7 @@ export function IngredientFormPage() {
   const { id } = useParams<{ id: string }>()
   const isNew = !id || id === 'new'
   const navigate = useNavigate()
+  const { confirm, dialog } = useConfirm()
   const { profile } = useAuth()
   const { ordered: nutrients, byId } = useNutrients()
 
@@ -242,17 +244,25 @@ export function IngredientFormPage() {
     }
   }
 
-  async function remove() {
+  function remove() {
     if (!id || isNew) return
-    if (!confirm('Delete this ingredient? This cannot be undone.')) return
-    setSaving(true)
-    try {
-      await ingredientApi.remove(id)
-      navigate('/ingredients', { replace: true })
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Delete failed.')
-      setSaving(false)
-    }
+    confirm({
+      title: 'Delete this ingredient?',
+      message: 'This cannot be undone.',
+      confirmLabel: 'Delete',
+      pendingLabel: 'Deleting…',
+      onConfirm: async () => {
+        setSaving(true)
+        try {
+          await ingredientApi.remove(id)
+          navigate('/ingredients', { replace: true })
+        } catch (e) {
+          setError(e instanceof Error ? e.message : 'Delete failed.')
+          setSaving(false)
+          throw e // keep the dialog open so the inline error is visible for retry
+        }
+      },
+    })
   }
 
   if (loading) return <p className="muted">Loading…</p>
@@ -261,6 +271,7 @@ export function IngredientFormPage() {
 
   return (
     <div className="stack">
+      {dialog}
       <div className="row spread">
         <h1>{isNew ? 'New ingredient' : readOnly ? 'Ingredient' : 'Edit ingredient'}</h1>
         <button className="btn btn-sm" onClick={() => navigate(-1)}>Back</button>

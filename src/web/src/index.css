@@ -311,6 +311,33 @@ p { line-height: 1.5; }
   display: flex; flex-direction: column; gap: 0.75rem;
 }
 
+/* ---- Confirmation dialog (app-styled replacement for window.confirm) ---- */
+.confirm-backdrop {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(0, 0, 0, 0.5);
+  display: grid; place-items: center;
+  padding: 1rem;
+}
+.confirm-dialog {
+  width: 100%; max-width: 380px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.25rem;
+  display: flex; flex-direction: column; gap: 0.6rem;
+  animation: confirm-pop 0.16s ease;
+}
+.confirm-title {
+  margin: 0;
+  font-family: var(--font-display); font-weight: 800; font-size: 1.35rem; line-height: 1.1;
+}
+.confirm-message { margin: 0; color: var(--muted); font-size: 0.95rem; line-height: 1.4; }
+.confirm-actions {
+  display: flex; justify-content: flex-end; gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+@keyframes confirm-pop { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .confirm-dialog { animation: none; } }
+
 /* ---- Loading & empty placeholders (DESIGN.md §6) ---- */
 .skeleton {
   position: relative; overflow: hidden;

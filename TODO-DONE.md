@@ -6,6 +6,19 @@
 
 ## Completed Items
 
+### Custom delete confirmation dialog — 2026-06-13 CDT
+
+- [x] **Replaced the browser-native delete confirms** with a reusable in-app confirmation dialog matching the design language.
+
+**NOTES:**
+
+- Found 4 `window.confirm` call sites, all delete guards, all replaced: IngredientFormPage (the reported case), MealFormPage, RecipeFormPage, PlanFormPage. No other confirms exist in the app.
+- New `src/web/src/components/ConfirmDialog.tsx` (presentational) + `src/web/src/hooks/useConfirm.tsx` (hook in its own file to satisfy `react-refresh/only-export-components`). `useConfirm()` returns `{ confirm, dialog }`; call `confirm({ title, message, confirmLabel, pendingLabel, onConfirm })` and render `{dialog}` once. The dialog awaits the async `onConfirm`, disables both buttons and shows `pendingLabel` while running (no double-submit), closes on success, reopens on a thrown error so the page's inline error notice stays visible.
+- Each page's `remove()` now calls `confirm({...})` with the original delete + navigate + error handling moved verbatim into `onConfirm` (with `throw e` on failure); side effects unchanged.
+- Accessibility: `role="dialog"`, `aria-modal`, `aria-labelledby`/`aria-describedby`, focus moves to confirm on open, Tab trapped between the two buttons, Escape + backdrop click cancel (ignored while pending), `prefers-reduced-motion` honored.
+- CSS: `.confirm-backdrop`/`.confirm-dialog`/etc. in `index.css` reusing existing tokens and the Sheet/LevelUp raised-surface + dimmed-backdrop conventions; buttons use `.btn-caps` + `.btn-danger` voice.
+- Verified: `npm run build` succeeds; `npm run lint` 0 errors (3 pre-existing warnings). No backend changes.
+
 ### Expand the meal-plan per-day breakdown to all nutrients — 2026-06-13 CDT
 
 - [x] **Expanded the meal-plan per-day breakdown** to include every nutrient shown in the Daily Nutrition section, per day plus Average and Total.

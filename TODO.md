@@ -6,8 +6,6 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-- [] **Delete confirmation dialog**: when I delete an ingredient, I get a system confirmation dialog. This doesn't match the style of our app. Please create a custom confirmation dialog that matches the style of our app.
-
 - [] **Customized ingredient is always "Saving..."**: when I create a customized ingredient, the `Save` button appears to always be in the `Saving...` state instead of waiting for me to press a `Save` button. I should need to press the `Save` button before the custom ingredient is created.
 
 - [] **Admin review features?**: I can't find the page where I review pending recipes. Was that lost in the UI redesign or maybe my user isn't appearing as the App Admin anymore? Investigate. Also, if I'm an app admin, show an option in the `/you` page where I can switch my view from being an admin vs a regular user.

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { mealApi, recipeApi } from '../api/services'
 import { NutritionLabel } from '../components/NutritionLabel'
+import { useConfirm } from '../hooks/useConfirm'
 import { useAuth } from '../auth/AuthContext'
 import type { MealInput, MealPortionInput, NutrientAmount, Recipe } from '../api/types'
 
@@ -16,6 +17,7 @@ export function MealFormPage() {
   const { id } = useParams<{ id: string }>()
   const isNew = !id || id === 'new'
   const navigate = useNavigate()
+  const { confirm, dialog } = useConfirm()
   const { profile } = useAuth()
 
   const [name, setName] = useState('')
@@ -117,17 +119,25 @@ export function MealFormPage() {
     if (savedId) navigate('/meals', { replace: true })
   }
 
-  async function remove() {
+  function remove() {
     if (!id || isNew) return
-    if (!confirm('Delete this meal? This cannot be undone.')) return
-    setSaving(true)
-    try {
-      await mealApi.remove(id)
-      navigate('/meals', { replace: true })
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Delete failed.')
-      setSaving(false)
-    }
+    confirm({
+      title: 'Delete this meal?',
+      message: 'This cannot be undone.',
+      confirmLabel: 'Delete',
+      pendingLabel: 'Deleting…',
+      onConfirm: async () => {
+        setSaving(true)
+        try {
+          await mealApi.remove(id)
+          navigate('/meals', { replace: true })
+        } catch (e) {
+          setError(e instanceof Error ? e.message : 'Delete failed.')
+          setSaving(false)
+          throw e
+        }
+      },
+    })
   }
 
   if (loading) return <p className="muted">Loading…</p>
@@ -136,6 +146,7 @@ export function MealFormPage() {
 
   return (
     <div className="stack">
+      {dialog}
       <div className="row spread">
         <h1>{isNew ? 'New meal' : readOnly ? 'Meal' : 'Edit meal'}</h1>
         <button className="btn btn-sm" onClick={() => navigate(-1)}>Back</button>

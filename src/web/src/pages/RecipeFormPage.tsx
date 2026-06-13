@@ -5,6 +5,7 @@ import { ImageUpload } from '../components/ImageUpload'
 import { IngredientFinder } from '../components/IngredientFinder'
 import { NutritionLabel } from '../components/NutritionLabel'
 import { SanitizedHtml } from '../components/SanitizedHtml'
+import { useConfirm } from '../hooks/useConfirm'
 import { useAuth } from '../auth/AuthContext'
 import {
   RECIPE_VISIBILITY_LABELS, UNIT_LABELS,
@@ -25,6 +26,7 @@ export function RecipeFormPage() {
   const { id } = useParams<{ id: string }>()
   const isNew = !id || id === 'new'
   const navigate = useNavigate()
+  const { confirm, dialog } = useConfirm()
   const { profile } = useAuth()
 
   const [name, setName] = useState('')
@@ -164,17 +166,25 @@ export function RecipeFormPage() {
     }
   }
 
-  async function remove() {
+  function remove() {
     if (!id || isNew) return
-    if (!confirm('Delete this recipe? This cannot be undone.')) return
-    setSaving(true)
-    try {
-      await recipeApi.remove(id)
-      navigate('/recipes', { replace: true })
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Delete failed.')
-      setSaving(false)
-    }
+    confirm({
+      title: 'Delete this recipe?',
+      message: 'This cannot be undone.',
+      confirmLabel: 'Delete',
+      pendingLabel: 'Deleting…',
+      onConfirm: async () => {
+        setSaving(true)
+        try {
+          await recipeApi.remove(id)
+          navigate('/recipes', { replace: true })
+        } catch (e) {
+          setError(e instanceof Error ? e.message : 'Delete failed.')
+          setSaving(false)
+          throw e
+        }
+      },
+    })
   }
 
   if (loading) return <p className="muted">Loading…</p>
@@ -183,6 +193,7 @@ export function RecipeFormPage() {
 
   return (
     <div className="stack">
+      {dialog}
       <div className="row spread">
         <h1>{isNew ? 'New recipe' : readOnly ? 'Recipe' : 'Edit recipe'}</h1>
         <button className="btn btn-sm" onClick={() => navigate(-1)}>Back</button>
