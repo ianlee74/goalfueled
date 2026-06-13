@@ -6,8 +6,6 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-- [] **Admin review features?**: I can't find the page where I review pending recipes. Was that lost in the UI redesign or maybe my user isn't appearing as the App Admin anymore? Investigate. Also, if I'm an app admin, show an option in the `/you` page where I can switch my view from being an admin vs a regular user.
-
 - [] **Submit ingredient to app**: add an option to `Submit to public` for `ingredients` like we have for `recipes`.
 
 - [] **`Look up nutrition` button on the `/ingredient/new` page still doesn't work**: where does this information come from? Is there something I need to know in order to use it? Try and make this work as it should.

@@ -311,4 +311,75 @@ public class UserProfileServiceTests
         await Assert.ThrowsAsync<ValidationException>(() =>
             svc.SetWeightScheduleAsync(user, new WeightScheduleInput((WeightScheduleCadence)99), default));
     }
+
+    // ---- admin-view toggle ----
+
+    // Provisions an admin (the first user) and a regular user against the same context, plus the service.
+    private static async Task<(AppUser admin, AppUser user, UserRepository repo, UserProfileService svc)>
+        SetupWithAdminAsync(GoalFueledDbContext db)
+    {
+        var admin = await TestHelpers.NewAuthenticator(db,
+            new AuthenticatedIdentity("dev", "admin", "admin@dev.local", "Admin"))
+            .GetCurrentUserAsync(TestHelpers.BlankRequest());
+        var user = await TestHelpers.NewAuthenticator(db,
+            new AuthenticatedIdentity("dev", "user", "user@dev.local", "User"))
+            .GetCurrentUserAsync(TestHelpers.BlankRequest());
+        var repo = new UserRepository(db);
+        var weights = new WeightService(new WeightEntryRepository(db), TestHelpers.NewAwards(db));
+        var plans = new MealPlanService(
+            new MealPlanRepository(db), new MealRepository(db),
+            new RecipeRepository(db), new IngredientRepository(db));
+        return (admin!, user!, repo, new UserProfileService(repo, weights, plans));
+    }
+
+    [Fact]
+    public async Task New_admin_acts_as_admin_by_default()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, _, _, _) = await SetupWithAdminAsync(db);
+
+        // The admin capability and the current view both start true for a freshly provisioned admin.
+        Assert.True(admin.IsAdmin);
+        Assert.True(admin.AdminViewEnabled);
+        Assert.True(admin.IsActingAsAdmin);
+    }
+
+    [Fact]
+    public async Task SetAdminView_off_stops_admin_acting_as_admin_and_persists()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, _, repo, svc) = await SetupWithAdminAsync(db);
+
+        var updated = await svc.SetAdminViewAsync(admin, new AdminViewInput(false), default);
+
+        // Capability is unchanged, but the current view (and thus IsActingAsAdmin) flips off.
+        Assert.True(updated.IsAdmin);
+        Assert.False(updated.AdminViewEnabled);
+        Assert.False(updated.IsActingAsAdmin);
+
+        var saved = await repo.GetByIdAsync(admin.Id);
+        Assert.False(saved!.AdminViewEnabled);
+        Assert.False(saved.IsActingAsAdmin);
+
+        // Flipping it back restores the admin view.
+        var reEnabled = await svc.SetAdminViewAsync(admin, new AdminViewInput(true), default);
+        Assert.True(reEnabled.AdminViewEnabled);
+        Assert.True(reEnabled.IsActingAsAdmin);
+        Assert.True((await repo.GetByIdAsync(admin.Id))!.AdminViewEnabled);
+    }
+
+    [Fact]
+    public async Task Non_admin_cannot_enable_admin_view()
+    {
+        using var db = TestHelpers.NewContext();
+        var (_, user, repo, svc) = await SetupWithAdminAsync(db);
+
+        // A genuine non-admin must NEVER be able to act as admin via the toggle.
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            svc.SetAdminViewAsync(user, new AdminViewInput(true), default));
+
+        var saved = await repo.GetByIdAsync(user.Id);
+        Assert.False(saved!.IsAdmin);
+        Assert.False(saved.IsActingAsAdmin);
+    }
 }

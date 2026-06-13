@@ -1,7 +1,6 @@
 using GoalFueled.Api.Auth;
 using GoalFueled.Api.Common;
 using GoalFueled.Api.Services;
-using GoalFueled.Data.Repositories;
 using GoalFueled.Domain;
 using GoalFueled.Domain.Contracts;
 using GoalFueled.Domain.Entities;
@@ -15,13 +14,11 @@ namespace GoalFueled.Api.Functions;
 public sealed class UserFunctions
 {
     private readonly IAuthenticator _auth;
-    private readonly IUserRepository _users;
     private readonly UserProfileService _profile;
 
-    public UserFunctions(IAuthenticator auth, IUserRepository users, UserProfileService profile)
+    public UserFunctions(IAuthenticator auth, UserProfileService profile)
     {
         _auth = auth;
-        _users = users;
         _profile = profile;
     }
 
@@ -84,11 +81,9 @@ public sealed class UserFunctions
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "me/admin-view")] HttpRequest req) =>
         ApiEndpoint.RunAuthenticated(req, _auth, async user =>
         {
-            if (!user.IsAdmin) throw new ForbiddenException("Only admins can change the admin view.");
             var input = await HttpResults.ReadJsonAsync<AdminViewInput>(req, req.HttpContext.RequestAborted);
-            user.AdminViewEnabled = input.Enabled;
-            await _users.UpdateAsync(user, req.HttpContext.RequestAborted);
-            return HttpResults.Ok(ToDto(user));
+            var updated = await _profile.SetAdminViewAsync(user, input, req.HttpContext.RequestAborted);
+            return HttpResults.Ok(ToDto(updated));
         });
 
     private static CurrentUserDto ToDto(AppUser u)

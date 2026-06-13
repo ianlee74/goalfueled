@@ -6,6 +6,18 @@
 
 ## Completed Items
 
+### Admin review features — investigated, hardened, tested — 2026-06-13 CDT
+
+- [x] **Investigated the admin recipe-review flow and the `/you` admin-view toggle**: both already exist and work; added the missing tests + a security-hardening refactor.
+
+**NOTES:**
+
+- **Where the review page is**: the admin recipe-approval queue (distinct from the gamification weekly `/review`) is `RecipeReviewQueuePage.tsx`, routed at `/recipes/review-queue`, reachable from **`/you` → Admin section** (the "Recipe review queue" link). There is no top-level nav link by design — admin entry points live under `/you`. The link only shows when the user is an app admin AND the "Admin view" toggle is ON, which is likely why it seemed "missing."
+- **Admin semantics** (already correct & secure): `AppUser.IsAdmin => Roles.Contains(AppAdmin)` (durable capability); `AdminViewEnabled` (toggleable, default true); `IsActingAsAdmin => IsAdmin && AdminViewEnabled`. A non-admin can never act as admin. `CurrentUserDto` already exposes all three; `/you` already shows the "Admin view" checkbox toggle (admins only) wired to `POST /me/admin-view`; the review-queue + approve/reject endpoints are gated by `EnsureActingAdmin`.
+- **What was actually missing (task #5)**: backend tests for the toggle + me-payload admin fields. Also refactored the inlined toggle logic out of `UserFunctions.AdminView` into `UserProfileService.SetAdminViewAsync` (enforces `if (!user.IsAdmin) throw ForbiddenException`), matching the other profile mutations and making the authorization unit-testable. Removed the now-unused `IUserRepository` dependency from `UserFunctions`.
+- 3 new `UserProfileServiceTests`: new admin acts as admin by default; toggling off flips `IsActingAsAdmin` false (keeps `IsAdmin`) and persists/restores; a non-admin gets `ForbiddenException` and never gains admin view.
+- No frontend changes needed. Verified: `dotnet build` 0 errors; `dotnet test` 292/292 passed; `npm run build` succeeds; `npm run lint` 0 errors (3 pre-existing warnings).
+
 ### Fix customized ingredient stuck in "Saving…" — 2026-06-13 CDT
 
 - [x] **Fixed the customized ingredient stuck in `Saving…`**: Customize now seeds an unsaved new-ingredient form, so the user must press Save to create the private copy.

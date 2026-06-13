@@ -105,6 +105,23 @@ public sealed class UserProfileService
     }
 
     /// <summary>
+    /// Toggles an admin's "admin view" on or off so they can browse the app as a regular user.
+    /// Authorization is enforced here: only a genuine admin (<see cref="AppUser.IsAdmin"/>) may change the
+    /// setting — a non-admin can NEVER enable it, so the toggle can never grant real privileges it didn't
+    /// already have. The persisted <see cref="AppUser.AdminViewEnabled"/> drives
+    /// <see cref="AppUser.IsActingAsAdmin"/>, which every admin-only check reads.
+    /// </summary>
+    public async Task<AppUser> SetAdminViewAsync(AppUser user, AdminViewInput input, CancellationToken ct)
+    {
+        if (!user.IsAdmin)
+            throw new ForbiddenException("Only admins can change the admin view.");
+
+        user.AdminViewEnabled = input.Enabled;
+        await _users.UpdateAsync(user, ct);
+        return user;
+    }
+
+    /// <summary>
     /// Sets (or clears) the user's recurring weight-measurement schedule. A null cadence clears it (no
     /// recurring weight task then appears in The Log). When a cadence is given, the start date defaults to
     /// today; for the "every N" cadences the interval must be ≥ 1 and within a sane bound.
