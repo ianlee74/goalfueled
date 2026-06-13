@@ -59,26 +59,24 @@ public class ConsumptionServiceTests
     private static double CaloriesOf(IReadOnlyList<NutrientAmount> n) =>
         n.FirstOrDefault(a => a.NutrientId == "calories")?.Value ?? 0;
 
-    // ---- logging recipes/meals from the catalog ----
+    // ---- logging meals from the catalog ----
 
+    // Recipes define a meal; they are not consumed directly, so a recipe-sourced log input is rejected
+    // outright (even when the recipe exists and is the caller's own).
     [Fact]
-    public async Task Log_recipe_records_entry_with_scaled_nutrition()
+    public async Task Log_rejects_recipe_source()
     {
         using var db = TestHelpers.NewContext();
         var (admin, user, _, ingredients, recipes, _, _, _, consumption) = await SetupAsync(db);
         var recipe = await BuildCaloricRecipeAsync(admin, user, ingredients, recipes, 100);
 
-        // Eat 2 servings → 200 kcal logged.
-        var entry = await consumption.LogAsync(user,
-            new ConsumptionEntryInput(ConsumptionSource.Recipe, recipe.Id, Servings: 2), default);
+        var ex = await Assert.ThrowsAsync<ValidationException>(() =>
+            consumption.LogAsync(user,
+                new ConsumptionEntryInput(ConsumptionSource.Recipe, recipe.Id, Servings: 2), default));
+        Assert.Contains("Recipes cannot be logged directly", ex.Message);
 
-        Assert.Equal(ConsumptionSource.Recipe, entry.Source);
-        Assert.Equal(recipe.Id, entry.SourceId);
-        Assert.Equal("kcal-recipe", entry.Name); // snapshotted from the catalog
-        Assert.Equal(2, entry.Servings);
-        Assert.Equal(200, CaloriesOf(entry.Nutrition), 1);
-        Assert.False(entry.SourceMissing);
-        Assert.Equal(Today, entry.Date); // defaults to today
+        // Nothing was persisted.
+        Assert.Empty((await consumption.GetDayAsync(user, Today, default)).Entries);
     }
 
     [Fact]
@@ -133,11 +131,13 @@ public class ConsumptionServiceTests
     public async Task Day_view_sums_nutrition_across_entries()
     {
         using var db = TestHelpers.NewContext();
-        var (admin, user, _, ingredients, recipes, _, _, _, consumption) = await SetupAsync(db);
+        var (admin, user, _, ingredients, recipes, meals, _, _, consumption) = await SetupAsync(db);
         var recipe = await BuildCaloricRecipeAsync(admin, user, ingredients, recipes, 100);
+        var meal = await meals.CreateAsync(user,
+            new MealInput("kcal-meal", new List<MealPortionInput> { new(recipe.Id, 1) }, false), default);
 
         await consumption.LogAsync(user,
-            new ConsumptionEntryInput(ConsumptionSource.Recipe, recipe.Id, Servings: 2), default); // 200
+            new ConsumptionEntryInput(ConsumptionSource.Meal, meal.Id, Servings: 2), default); // 200
         await consumption.LogAsync(user, new ConsumptionEntryInput(
             ConsumptionSource.FreeForm, Name: "Soda", Servings: 1,
             Nutrition: new List<NutrientAmount> { new("calories", 140) }), default); // 140
@@ -217,16 +217,18 @@ public class ConsumptionServiceTests
     }
 
     [Fact]
-    public async Task Cannot_log_recipe_owned_by_another_user()
+    public async Task Cannot_log_meal_owned_by_another_user()
     {
         using var db = TestHelpers.NewContext();
-        var (admin, user, other, ingredients, recipes, _, _, _, consumption) = await SetupAsync(db);
-        // A private recipe owned by `other`.
+        var (admin, user, other, ingredients, recipes, meals, _, _, consumption) = await SetupAsync(db);
+        // A private meal owned by `other`.
         var recipe = await BuildCaloricRecipeAsync(admin, other, ingredients, recipes, 100);
+        var meal = await meals.CreateAsync(other,
+            new MealInput("their-meal", new List<MealPortionInput> { new(recipe.Id, 1) }, false), default);
 
         await Assert.ThrowsAsync<ValidationException>(() =>
             consumption.LogAsync(user,
-                new ConsumptionEntryInput(ConsumptionSource.Recipe, recipe.Id, Servings: 1), default));
+                new ConsumptionEntryInput(ConsumptionSource.Meal, meal.Id, Servings: 1), default));
     }
 
     // ---- validation ----
@@ -237,7 +239,7 @@ public class ConsumptionServiceTests
         using var db = TestHelpers.NewContext();
         var (_, user, _, _, _, _, _, _, consumption) = await SetupAsync(db);
         await Assert.ThrowsAsync<ValidationException>(() =>
-            consumption.LogAsync(user, new ConsumptionEntryInput(ConsumptionSource.Recipe, SourceId: null), default));
+            consumption.LogAsync(user, new ConsumptionEntryInput(ConsumptionSource.Meal, SourceId: null), default));
     }
 
     [Fact]
@@ -272,14 +274,50 @@ public class ConsumptionServiceTests
                 ConsumptionSource.FreeForm, Name: "x", Date: Today.AddDays(1)), default));
     }
 
+    // ---- historical recipe-sourced entries (persisted before recipe logging was removed) ----
+
+    // Inserts an entry the way old documents look (Source=Recipe) directly through the repository,
+    // bypassing LogAsync's rejection — exactly the shape historical data has in Cosmos.
+    private static async Task<ConsumptionEntry> InsertHistoricalRecipeEntryAsync(
+        GoalFueledDbContext db, AppUser user, string recipeId, string name, double servings)
+    {
+        var entry = new ConsumptionEntry
+        {
+            OwnerUserId = user.Id,
+            Date = Today,
+            Source = ConsumptionSource.Recipe,
+            SourceId = recipeId,
+            Name = name,
+            Servings = servings,
+        };
+        await new ConsumptionEntryRepository(db).AddAsync(entry, default);
+        return entry;
+    }
+
     [Fact]
-    public async Task Missing_catalog_source_marks_entry_source_missing()
+    public async Task Historical_recipe_entry_still_loads_and_computes_nutrition()
     {
         using var db = TestHelpers.NewContext();
         var (admin, user, _, ingredients, recipes, _, _, _, consumption) = await SetupAsync(db);
         var recipe = await BuildCaloricRecipeAsync(admin, user, ingredients, recipes, 100);
-        var entry = await consumption.LogAsync(user,
-            new ConsumptionEntryInput(ConsumptionSource.Recipe, recipe.Id, Servings: 1), default);
+        await InsertHistoricalRecipeEntryAsync(db, user, recipe.Id, "kcal-recipe", 2);
+
+        var day = await consumption.GetDayAsync(user, Today, default);
+
+        Assert.Single(day.Entries);
+        Assert.Equal(ConsumptionSource.Recipe, day.Entries[0].Source);
+        Assert.False(day.Entries[0].SourceMissing);
+        Assert.Equal(200, CaloriesOf(day.Entries[0].Nutrition), 1); // 100 kcal/serving × 2, computed live
+        Assert.Equal(200, CaloriesOf(day.TotalNutrition), 1); // and it still rolls into the day total
+    }
+
+    [Fact]
+    public async Task Historical_recipe_entry_with_missing_source_is_marked_source_missing()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, _, ingredients, recipes, _, _, _, consumption) = await SetupAsync(db);
+        var recipe = await BuildCaloricRecipeAsync(admin, user, ingredients, recipes, 100);
+        await InsertHistoricalRecipeEntryAsync(db, user, recipe.Id, "kcal-recipe", 1);
 
         // Delete the underlying recipe; the logged entry should still list, name preserved, marked missing.
         await recipes.DeleteAsync(user, recipe.Id, default);

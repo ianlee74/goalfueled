@@ -98,7 +98,12 @@ public enum ConsumptionSource
     /// <summary>An existing catalog <see cref="Entities.Meal"/>; nutrition computed live from the meal.</summary>
     Meal = 0,
 
-    /// <summary>An existing catalog <see cref="Entities.Recipe"/>; nutrition computed live from the recipe.</summary>
+    /// <summary>
+    /// An existing catalog <see cref="Entities.Recipe"/>; nutrition computed live from the recipe.
+    /// No longer accepted for NEW log entries (recipes define a meal; they are not consumed directly),
+    /// but the value must remain: entries persisted before that rule still carry it and must keep
+    /// loading, displaying and computing.
+    /// </summary>
     Recipe = 1,
 
     /// <summary>A free-form item not in the catalog; nutrition (if any) is captured inline on the entry.</summary>

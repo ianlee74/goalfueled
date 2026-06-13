@@ -13,11 +13,15 @@ namespace GoalFueled.Api.Services;
 /// only visible to, the logging user (no app-level or cross-user view, even for admins, mirroring
 /// <see cref="WeightService"/> / <see cref="GoalService"/>).
 ///
-/// <para>An entry either references the catalog (a <see cref="Meal"/> or <see cref="Recipe"/>), in which
-/// case nutrition is computed live from the source via the same calculators the Meals/Recipes features
-/// use (scaled by the logged servings), or it is a free-form item carrying its own optional per-serving
-/// nutrition inline. The catalog name is snapshotted at log time so the log reads sensibly even if the
-/// source is later renamed or deleted.</para>
+/// <para>An entry either references the catalog (a <see cref="Meal"/>), in which case nutrition is
+/// computed live from the source via the same calculators the Meals/Recipes features use (scaled by the
+/// logged servings), or it is a free-form item carrying its own optional per-serving nutrition inline.
+/// The catalog name is snapshotted at log time so the log reads sensibly even if the source is later
+/// renamed or deleted.</para>
+///
+/// <para>Recipe-sourced entries can no longer be created (recipes define a meal; they are not consumed
+/// directly), but entries persisted before that rule still reference recipes, so the read/compute paths
+/// keep their <see cref="ConsumptionSource.Recipe"/> handling for historical data.</para>
 /// </summary>
 public sealed class ConsumptionService
 {
@@ -92,16 +96,6 @@ public sealed class ConsumptionService
                     throw new ValidationException("That meal is not available to you.");
                 entry.SourceId = meal.Id;
                 entry.Name = string.IsNullOrWhiteSpace(input.Name) ? meal.Name : input.Name!.Trim();
-                break;
-            }
-            case ConsumptionSource.Recipe:
-            {
-                var recipe = await _recipes.GetByIdAsync(input.SourceId!, ct)
-                    ?? throw new ValidationException("The selected recipe was not found.");
-                if (!CanUseRecipe(recipe, user))
-                    throw new ValidationException("That recipe is not available to you.");
-                entry.SourceId = recipe.Id;
-                entry.Name = string.IsNullOrWhiteSpace(input.Name) ? recipe.Name : input.Name!.Trim();
                 break;
             }
             default: // FreeForm
@@ -368,6 +362,14 @@ public sealed class ConsumptionService
         if (!Enum.IsDefined(typeof(ConsumptionSource), input.Source))
             throw new ValidationException("Unknown consumption source.");
 
+        // Recipes define how a meal is made — they are not eaten directly, so NEW recipe-sourced entries
+        // are rejected. The enum value (and the Recipe branch in ComputeWithSourceAsync) must stay,
+        // because entries persisted before this rule still reference recipes and must keep loading,
+        // displaying and computing correctly.
+        if (input.Source == ConsumptionSource.Recipe)
+            throw new ValidationException(
+                "Recipes cannot be logged directly. Log a meal that uses the recipe, or a free-form item.");
+
         ValidateServings(input.Servings);
 
         if (input.Date is { } date && date > DateOnly.FromDateTime(DateTime.UtcNow))
@@ -376,9 +378,8 @@ public sealed class ConsumptionService
         switch (input.Source)
         {
             case ConsumptionSource.Meal:
-            case ConsumptionSource.Recipe:
                 if (string.IsNullOrWhiteSpace(input.SourceId))
-                    throw new ValidationException("A meal or recipe entry must reference a catalog item.");
+                    throw new ValidationException("A meal entry must reference a catalog item.");
                 InputLimits.LimitText(input.Name, InputLimits.NameMaxLength, "Name");
                 break;
             default: // FreeForm
@@ -454,6 +455,8 @@ public sealed class ConsumptionService
                 var perMeal = MealNutritionCalculator.ComputeTotal(meal, recipesById, ingredientsById);
                 return (NutritionMath.Scale(perMeal, entry.Servings), false);
             }
+            // Only historical entries (logged before recipe logging was removed) carry a Recipe source;
+            // they must keep displaying and computing, so this branch stays.
             case ConsumptionSource.Recipe:
             {
                 var recipe = entry.SourceId is not null ? await _recipes.GetByIdAsync(entry.SourceId, ct) : null;

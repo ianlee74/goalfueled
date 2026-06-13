@@ -6,6 +6,17 @@
 
 ## Completed Items
 
+### Remove option to add a `fuel` recipe to the Log — 2026-06-12 CDT
+
+- [x] **Removed the option to add a `fuel` recipe to the `Log`**: recipes define a meal and are no longer directly loggable; meals and free-form items remain.
+
+**NOTES:**
+
+- **Reject, don't remove**: `ConsumptionSource.Recipe` stays in the enum because persisted log documents still carry it. New recipe-sourced input is rejected in `ConsumptionService.Validate` with: "Recipes cannot be logged directly. Log a meal that uses the recipe, or a free-form item." The read/compute path keeps its Recipe branch so historical recipe entries still load, display, and roll into day totals and goal progress.
+- **Frontend**: removed the "Recipe" option from the Today page fuel form (and its now-unused recipe catalog load); `ConsumptionEntryInput.source` is typed `Exclude<ConsumptionSource, 'Recipe'>` so the compiler forbids sending it. Rendering of existing recipe-kind entries is untouched.
+- **Tests** restructured: recipe-log test became a rejection test; new historical-entry tests insert Recipe-source entries directly via the repository (the shape old documents have) and assert they still list with live-computed nutrition, including the missing-source case.
+- Verified: `dotnet build` 0 errors; `dotnet test` 280/280 passed; `npm run build` succeeds; `npm run lint` 0 errors (3 pre-existing warnings).
+
 ### Add favorites — 2026-06-12 CDT
 
 - [x] **Add favorites**: added an option to mark ingredients, recipes, and meals as a `favorite`; favorites always appear at the top of the Library lists.

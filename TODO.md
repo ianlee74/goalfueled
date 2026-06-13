@@ -6,8 +6,6 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-- [] **Remove option to add a `fuel` recipe to the `Log`**: it doesn't make sense to add a recipe to the log. Recipes are designed to define a meal not be consumed directly.
-
 - [] **Improve the `Activity` dropdown**: when adding a `burn` to the `Log`, the `Activity` dropdown is small and looks out of place. Improve it.
 
 - [] **Simplify the nutrition breakdown on `meal plans`**: the current view of avg, daily breakdowns, and total nutrional info is too length. Simplify it. Perhaps a table format?

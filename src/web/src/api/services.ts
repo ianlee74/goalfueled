@@ -112,7 +112,7 @@ export const goalApi = {
 export const consumptionApi = {
   // The caller's consumption log for a day (defaults to today server-side when date is omitted).
   day: (date?: string) => api.get<ConsumptionDay>(`/consumption${date ? `?date=${date}` : ''}`),
-  // Logs a consumed item (catalog meal/recipe or free-form).
+  // Logs a consumed item (catalog meal or free-form; recipes cannot be logged directly).
   log: (input: ConsumptionEntryInput) => api.post<ConsumptionEntry>('/consumption', input),
   remove: (id: string) => api.del(`/consumption/${id}`),
   // The active plan's planned-meal tasks for a day (each flagged done when completed).

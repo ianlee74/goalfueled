@@ -25,7 +25,10 @@ public class ConsumptionEntry
     /// <summary>The calendar day the item was consumed on.</summary>
     public DateOnly Date { get; set; }
 
-    /// <summary>What kind of thing was logged: an existing meal, an existing recipe, or a free-form item.</summary>
+    /// <summary>
+    /// What kind of thing was logged: an existing meal or a free-form item. <see cref="ConsumptionSource.Recipe"/>
+    /// appears only on historical entries logged before recipe logging was removed; new recipe entries are rejected.
+    /// </summary>
     public ConsumptionSource Source { get; set; } = ConsumptionSource.FreeForm;
 
     /// <summary>

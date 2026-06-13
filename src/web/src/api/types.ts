@@ -397,6 +397,8 @@ export interface GoalInput {
   recurrenceDays?: number
 }
 
+// 'Recipe' survives only on historical entries (logged before recipe logging was removed); the API
+// rejects it for new entries — recipes define a meal, they are not consumed directly.
 export type ConsumptionSource = 'Meal' | 'Recipe' | 'FreeForm'
 
 export interface ConsumptionEntry {
@@ -473,8 +475,9 @@ export interface ConsumptionDay {
 }
 
 export interface ConsumptionEntryInput {
-  source: ConsumptionSource
-  // Required for Meal/Recipe sources.
+  // 'Recipe' is not accepted (the API rejects it); log a meal or a free-form item instead.
+  source: Exclude<ConsumptionSource, 'Recipe'>
+  // Required for the Meal source.
   sourceId?: string
   // Required for free-form entries; optional name override for catalog entries.
   name?: string

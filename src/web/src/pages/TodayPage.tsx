@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { burnApi, consumptionApi, gamificationApi, goalApi, mealApi, mealPlanApi, recipeApi, userApi } from '../api/services'
+import { burnApi, consumptionApi, gamificationApi, goalApi, mealApi, mealPlanApi, userApi } from '../api/services'
 import { useAuth } from '../auth/AuthContext'
 import { NutritionLabel } from '../components/NutritionLabel'
 import { FuelBurnIcon } from '../components/FuelBurnIcon'
@@ -14,7 +14,7 @@ import {
   type BurnActivity, type BurnDay, type BurnSuggestion,
   type ConsumptionDay, type ConsumptionEntry, type ConsumptionSource, type GamificationSummary,
   type Goal, type Level, type Meal,
-  type MealPlan, type PlannedDay, type PlannedMealTask, type Recipe, type WeightTask,
+  type MealPlan, type PlannedDay, type PlannedMealTask, type WeightTask,
 } from '../api/types'
 import { formatWeight } from '../lib/weight'
 
@@ -115,9 +115,9 @@ export function TodayPage() {
   // checking the box logs that many. Cleared on reload so a fresh day starts at the default again.
   const [plannedServings, setPlannedServings] = useState<Record<string, string>>({})
 
-  // Catalog pickers (the user's own + app-level + public) for the ad-hoc log.
+  // Catalog picker (the user's own + app-level) for the ad-hoc log. Only meals are loggable —
+  // recipes define a meal, they are not consumed directly (historical recipe entries still render).
   const [meals, setMeals] = useState<Meal[]>([])
-  const [recipes, setRecipes] = useState<Recipe[]>([])
   // Goals feed the gauge's budget (a recurring calorie-cap goal wins over maintenance).
   const [goals, setGoals] = useState<Goal[]>([])
   // Fuel Points / level / week score for the header chips and the level-up moment.
@@ -126,7 +126,8 @@ export function TodayPage() {
 
   // Ad-hoc add-entry form state.
   const [showFuelForm, setShowFuelForm] = useState(false)
-  const [source, setSource] = useState<ConsumptionSource>('Meal')
+  // 'Recipe' is deliberately not offerable: recipes define a meal and cannot be logged (the API rejects them).
+  const [source, setSource] = useState<Exclude<ConsumptionSource, 'Recipe'>>('Meal')
   const [sourceId, setSourceId] = useState('')
   const [servings, setServings] = useState('1')
   const [freeName, setFreeName] = useState('')
@@ -155,9 +156,9 @@ export function TodayPage() {
   // Load catalog + plan options + burn-name suggestions once.
   useEffect(() => {
     let cancelled = false
-    Promise.all([mealApi.list(), recipeApi.list(), mealPlanApi.list(), burnApi.suggestions(), goalApi.list()])
-      .then(([m, r, p, s, g]) => {
-        if (!cancelled) { setMeals(m); setRecipes(r); setPlans(p); setBurnSuggestions(s); setGoals(g) }
+    Promise.all([mealApi.list(), mealPlanApi.list(), burnApi.suggestions(), goalApi.list()])
+      .then(([m, p, s, g]) => {
+        if (!cancelled) { setMeals(m); setPlans(p); setBurnSuggestions(s); setGoals(g) }
       })
       .catch(() => {})
     gamificationApi.summary()
@@ -202,7 +203,7 @@ export function TodayPage() {
     // activePlanId is included so switching plans refreshes the tasks.
   }, [date, activePlanId])
 
-  const options = source === 'Recipe' ? recipes : meals
+  const options = meals
   const effectiveSourceId = source === 'FreeForm'
     ? ''
     : (options.some((o) => o.id === sourceId) ? sourceId : (options[0]?.id ?? ''))
@@ -601,10 +602,9 @@ export function TodayPage() {
               <select
                 className="select"
                 value={source}
-                onChange={(e) => setSource(e.target.value as ConsumptionSource)}
+                onChange={(e) => setSource(e.target.value as Exclude<ConsumptionSource, 'Recipe'>)}
               >
                 <option value="Meal">{CONSUMPTION_SOURCE_LABELS.Meal}</option>
-                <option value="Recipe">{CONSUMPTION_SOURCE_LABELS.Recipe}</option>
                 <option value="FreeForm">{CONSUMPTION_SOURCE_LABELS.FreeForm}</option>
               </select>
             </label>
@@ -635,7 +635,7 @@ export function TodayPage() {
               </>
             ) : (
               <label className="field" style={{ flex: 1, minWidth: '8rem' }}>
-                {source === 'Recipe' ? 'Recipe' : 'Meal'}
+                Meal
                 <select className="select" value={effectiveSourceId} onChange={(e) => setSourceId(e.target.value)}>
                   <option value="">Select a {source.toLowerCase()}…</option>
                   {options.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}

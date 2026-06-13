@@ -114,13 +114,15 @@ public sealed record CompletePlannedMealInput(
 
 /// <summary>
 /// Payload for logging a consumed item. Either reference the catalog (set <see cref="Source"/> to
-/// <c>Meal</c> or <c>Recipe</c> with a <see cref="SourceId"/>) so nutrition is computed from it, or log
-/// a free-form item (<see cref="Source"/> = <c>FreeForm</c>) with a <see cref="Name"/> and optional
-/// inline per-serving <see cref="Nutrition"/>. The date is optional and defaults to today.
+/// <c>Meal</c> with a <see cref="SourceId"/>) so nutrition is computed from it, or log a free-form item
+/// (<see cref="Source"/> = <c>FreeForm</c>) with a <see cref="Name"/> and optional inline per-serving
+/// <see cref="Nutrition"/>. The date is optional and defaults to today. <c>Recipe</c> is rejected for
+/// new entries (recipes define a meal; they are not consumed directly) — it survives only on historical
+/// persisted entries.
 /// </summary>
 public sealed record ConsumptionEntryInput(
     ConsumptionSource Source,
-    /// <summary>Required for Meal/Recipe sources: the catalog item's id. Ignored for free-form entries.</summary>
+    /// <summary>Required for the Meal source: the catalog item's id. Ignored for free-form entries.</summary>
     string? SourceId = null,
     /// <summary>Required for free-form entries; optional override of the snapshot name for catalog entries.</summary>
     string? Name = null,
