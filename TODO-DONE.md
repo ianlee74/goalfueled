@@ -6,6 +6,18 @@
 
 ## Completed Items
 
+### Show per-serving nutritional info for meals — 2026-06-13 CDT
+
+- [x] **Showed per-serving nutritional info for `meals`** the same way recipes do, via a two-column NutritionLabel (Whole meal / Per serving).
+
+**NOTES:**
+
+- Recipes compute per-serving as `total / Servings` (`RecipeNutritionCalculator.ComputePerServing`) and render a two-column `NutritionLabel`. Mirrored that for meals.
+- **Model decision**: a Meal had no servings notion. Added a servings *yield* to Meal so a meal can represent a batch and "per serving" = total / servings, identical to recipes. The entity field is **nullable** per the Cosmos rule (`double? Servings = 1`); old persisted meals read back null and are treated as 1 serving, so existing meals/seed load unchanged. `MealInput.Servings = 1` was appended after `AppLevel` so existing positional call sites keep compiling.
+- New `MealNutritionCalculator.ComputePerServing` reuses the existing `ComputeTotal` + `NutritionMath` (no duplicated math). `MealService` sets/validates servings (`> 0`) and populates `NutritionPerServing` + `Servings` in the DTO. `MealFormPage` gained a Servings input and the two-column nutrition card.
+- 3 new `MealServiceTests` (per-serving math, default-to-1 legacy path, servings validation).
+- Verified: `dotnet build` 0 errors; `dotnet test` 283/283 passed; `npm run build` succeeds; `npm run lint` 0 errors (3 pre-existing warnings).
+
 ### Simplify the nutrition breakdown on meal plans — 2026-06-13 CDT
 
 - [x] **Simplified the meal-plan nutrition breakdown**: replaced the stack of per-day full nutrition labels with a single compact macro matrix table.

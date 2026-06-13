@@ -62,4 +62,19 @@ public sealed class MealNutritionCalculator
 
         return NutritionMath.Sum(contributions);
     }
+
+    /// <summary>
+    /// Per-serving nutrition for a meal (total / Servings), against resolved lookups. A null or
+    /// non-positive serving count is treated as 1 serving so old meals (which predate the field) and
+    /// single-serving meals report per-serving == total.
+    /// </summary>
+    public static IReadOnlyList<NutrientAmount> ComputePerServing(
+        Meal meal,
+        IReadOnlyDictionary<string, Recipe> recipesById,
+        IReadOnlyDictionary<string, Ingredient> ingredientsById)
+    {
+        var total = ComputeTotal(meal, recipesById, ingredientsById);
+        var servings = meal.Servings ?? 1;
+        return servings > 0 ? NutritionMath.Scale(total, 1.0 / servings) : total;
+    }
 }

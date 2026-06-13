@@ -19,6 +19,7 @@ export function MealFormPage() {
   const { profile } = useAuth()
 
   const [name, setName] = useState('')
+  const [servings, setServings] = useState('1')
   const [appLevel, setAppLevel] = useState(false)
   const [portions, setPortions] = useState<PortionRow[]>([])
   const [canEdit, setCanEdit] = useState(true)
@@ -47,6 +48,7 @@ export function MealFormPage() {
       .then((m) => {
         if (cancelled) return
         setName(m.name)
+        setServings(String(m.servings))
         setAppLevel(m.scope === 'App')
         setPortions(m.portions.map((p) => ({ key: nextKey++, recipeId: p.recipeId, servings: p.servings })))
         setCanEdit(m.canEdit)
@@ -67,14 +69,15 @@ export function MealFormPage() {
         .filter((p) => p.recipeId && Number(p.servings) > 0)
         .map((p) => ({ recipeId: p.recipeId, servings: Number(p.servings) })),
       appLevel: appLevel && !!profile?.isActingAsAdmin,
+      servings: Number(servings),
     }
   }
 
   // Live nutrition: roll it up client-side whenever portions change. This mirrors the server's math
   // (see previewNutrition): sum over portions of the recipe's per-serving nutrition × portion servings.
-  const total = useMemo(
-    () => previewNutrition(portions, recipeById),
-    [portions, recipeById])
+  const { total, perServing } = useMemo(
+    () => previewNutrition(portions, Number(servings), recipeById),
+    [portions, servings, recipeById])
 
   function addPortion() {
     const first = recipes[0]
@@ -94,6 +97,8 @@ export function MealFormPage() {
   async function save(): Promise<string | null> {
     setError(null)
     if (!name.trim()) { setError('Name is required.'); return null }
+    const serv = Number(servings)
+    if (!Number.isFinite(serv) || serv <= 0) { setError('Servings must be greater than zero.'); return null }
 
     setSaving(true)
     try {
@@ -146,6 +151,12 @@ export function MealFormPage() {
             onChange={(e) => setName(e.target.value)} placeholder="e.g. Post-Workout Lunch" />
         </label>
 
+        <label className="field" style={{ maxWidth: 160 }}>
+          Servings
+          <input className="input" type="number" min="0" step="any" value={servings}
+            disabled={readOnly} onChange={(e) => setServings(e.target.value)} />
+        </label>
+
         {profile?.isActingAsAdmin && (
           <label className="toggle">
             <input type="checkbox" checked={appLevel} disabled={readOnly}
@@ -186,8 +197,11 @@ export function MealFormPage() {
       </div>
 
       <div className="card stack">
-        <h2>Nutrition <span className="muted small">whole meal</span></h2>
-        <NutritionLabel amounts={total} />
+        <h2>Nutrition</h2>
+        <NutritionLabel columns={[
+          { label: 'Whole meal', amounts: total },
+          { label: 'Per serving', amounts: perServing },
+        ]} />
       </div>
 
       {!readOnly && (
@@ -206,9 +220,10 @@ export function MealFormPage() {
 
 // Client-side roll-up mirroring the server: sum over portions of the referenced recipe's per-serving
 // nutrition scaled by the portion's serving count. Portions whose recipe is missing are skipped.
+// Per-serving divides the meal total by the meal's serving yield (mirrors MealNutritionCalculator).
 function previewNutrition(
-  portions: PortionRow[], byId: Map<string, Recipe>,
-): NutrientAmount[] {
+  portions: PortionRow[], servings: number, byId: Map<string, Recipe>,
+): { total: NutrientAmount[]; perServing: NutrientAmount[] } {
   const totals = new Map<string, number>()
   for (const portion of portions) {
     const recipe = byId.get(portion.recipeId)
@@ -217,5 +232,9 @@ function previewNutrition(
       totals.set(n.nutrientId, (totals.get(n.nutrientId) ?? 0) + n.value * portion.servings)
     }
   }
-  return [...totals].map(([nutrientId, value]) => ({ nutrientId, value }))
+  const total = [...totals].map(([nutrientId, value]) => ({ nutrientId, value }))
+  const perServing = servings > 0
+    ? total.map((t) => ({ nutrientId: t.nutrientId, value: t.value / servings }))
+    : total
+  return { total, perServing }
 }

@@ -9,6 +9,13 @@ public class Meal
 
     public List<MealPortion> Portions { get; set; } = new();
 
+    /// <summary>
+    /// How many servings the whole meal yields, used to derive per-serving nutrition (total / Servings).
+    /// Nullable so old persisted meals (which predate this field) still load; a null or non-positive
+    /// value is treated as 1 serving (per-serving == total).
+    /// </summary>
+    public double? Servings { get; set; } = 1;
+
     public OwnershipScope Scope { get; set; } = OwnershipScope.User;
 
     public string? OwnerUserId { get; set; }

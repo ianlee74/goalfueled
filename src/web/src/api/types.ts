@@ -234,9 +234,13 @@ export interface Meal {
   id: string
   name: string
   portions: MealPortion[]
+  // How many servings the whole meal yields (old meals default to 1).
+  servings: number
   scope: OwnershipScope
   ownerUserId?: string
   totalNutrition: NutrientAmount[]
+  // Nutrition per single serving of the meal (total / servings).
+  nutritionPerServing: NutrientAmount[]
   createdAt: string
   updatedAt: string
   canEdit: boolean
@@ -253,6 +257,8 @@ export interface MealInput {
   name: string
   portions: MealPortionInput[]
   appLevel: boolean
+  // How many servings the whole meal yields; must be greater than zero.
+  servings: number
 }
 
 export type MealPlanCadence = 'Daily' | 'Weekly'

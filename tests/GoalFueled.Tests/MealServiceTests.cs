@@ -39,6 +39,9 @@ public class MealServiceTests
     private static MealInput Meal(string name, bool appLevel, params MealPortionInput[] portions) =>
         new(name, portions.ToList(), appLevel);
 
+    private static MealInput Meal(string name, double servings, bool appLevel, params MealPortionInput[] portions) =>
+        new(name, portions.ToList(), appLevel, servings);
+
     private static double Nutrient(IReadOnlyList<NutrientAmount> amounts, string id) =>
         amounts.SingleOrDefault(a => a.NutrientId == id)?.Value ?? 0;
 
@@ -184,6 +187,62 @@ public class MealServiceTests
 
         Assert.Equal(247.5, Nutrient(meal.TotalNutrition, "calories"), 3);
         Assert.Equal(46.5, Nutrient(meal.TotalNutrition, "protein"), 3);
+    }
+
+    [Fact]
+    public async Task Per_serving_nutrition_is_total_divided_by_meal_servings()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, ingredients, recipes, meals) = await SetupAsync(db);
+
+        // 100 g chicken = 165 kcal, 31 g protein. Recipe yields 1 serving from 100 g.
+        var chicken = await ingredients.CreateAsync(admin,
+            Ingredient("Chicken", UnitOfMeasure.Gram, 100, true, ("calories", 165), ("protein", 31)), default);
+        var dish = await recipes.CreateAsync(user, Recipe("Dish", 1, false,
+            new RecipeItemInput(chicken.Id, 100, UnitOfMeasure.Gram)), default);
+
+        // Meal = 4 servings of the dish, but the meal itself yields 2 servings.
+        // Total: 4 × 165 = 660 kcal, 4 × 31 = 124 g protein. Per serving = total / 2.
+        var meal = await meals.CreateAsync(user, Meal("Batch", servings: 2, appLevel: false,
+            new MealPortionInput(dish.Id, 4)), default);
+
+        Assert.Equal(2, meal.Servings, 3);
+        Assert.Equal(660, Nutrient(meal.TotalNutrition, "calories"), 3);
+        Assert.Equal(124, Nutrient(meal.TotalNutrition, "protein"), 3);
+        Assert.Equal(330, Nutrient(meal.NutritionPerServing, "calories"), 3);
+        Assert.Equal(62, Nutrient(meal.NutritionPerServing, "protein"), 3);
+    }
+
+    [Fact]
+    public async Task Per_serving_defaults_to_total_when_meal_has_one_serving()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, ingredients, recipes, meals) = await SetupAsync(db);
+
+        var chicken = await ingredients.CreateAsync(admin,
+            Ingredient("Chicken", UnitOfMeasure.Gram, 100, true, ("calories", 165)), default);
+        var dish = await recipes.CreateAsync(user, Recipe("Dish", 1, false,
+            new RecipeItemInput(chicken.Id, 100, UnitOfMeasure.Gram)), default);
+
+        // Default-servings overload (legacy callers): meal yields 1 serving → per-serving == total.
+        var meal = await meals.CreateAsync(user, Meal("Plate", false,
+            new MealPortionInput(dish.Id, 2)), default);
+
+        Assert.Equal(1, meal.Servings, 3);
+        Assert.Equal(330, Nutrient(meal.TotalNutrition, "calories"), 3);
+        Assert.Equal(330, Nutrient(meal.NutritionPerServing, "calories"), 3);
+    }
+
+    [Fact]
+    public async Task Validation_rejects_zero_or_negative_meal_servings()
+    {
+        using var db = TestHelpers.NewContext();
+        var (_, user, _, _, meals) = await SetupAsync(db);
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            meals.CreateAsync(user, Meal("Zero", servings: 0, appLevel: false), default));
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            meals.CreateAsync(user, Meal("Negative", servings: -1, appLevel: false), default));
     }
 
     [Fact]

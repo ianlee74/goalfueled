@@ -61,6 +61,7 @@ public sealed class MealService
         {
             Name = input.Name.Trim(),
             Portions = NormalizePortions(input.Portions),
+            Servings = input.Servings,
             Scope = appLevel ? OwnershipScope.App : OwnershipScope.User,
             OwnerUserId = appLevel ? null : user.Id,
         };
@@ -77,6 +78,7 @@ public sealed class MealService
 
         meal.Name = input.Name.Trim();
         meal.Portions = NormalizePortions(input.Portions);
+        meal.Servings = input.Servings;
         meal.UpdatedAt = DateTimeOffset.UtcNow;
 
         // Admins may move a meal to/from app level via the AppLevel flag.
@@ -122,6 +124,8 @@ public sealed class MealService
     private async Task ValidateAsync(MealInput input, AppUser user, CancellationToken ct)
     {
         InputLimits.RequireText(input.Name, InputLimits.NameMaxLength, "Name");
+        if (input.Servings <= 0)
+            throw new ValidationException("Servings must be greater than zero.");
         InputLimits.LimitCount(input.Portions?.Count ?? 0, InputLimits.MealPortionsMax, "meal portions");
 
         foreach (var portion in input.Portions ?? Array.Empty<MealPortionInput>())
@@ -184,6 +188,7 @@ public sealed class MealService
         IReadOnlyDictionary<string, Ingredient> ingredientsById)
     {
         var total = MealNutritionCalculator.ComputeTotal(m, recipesById, ingredientsById);
+        var perServing = MealNutritionCalculator.ComputePerServing(m, recipesById, ingredientsById);
         var portions = m.Portions
             .Select(p => new MealPortionDto(
                 p.RecipeId, p.Servings,
@@ -191,8 +196,8 @@ public sealed class MealService
             .ToList();
 
         return new MealDto(
-            m.Id, m.Name, portions, m.Scope, m.OwnerUserId,
-            total, m.CreatedAt, m.UpdatedAt, CanEdit(m, user),
+            m.Id, m.Name, portions, m.Servings ?? 1, m.Scope, m.OwnerUserId,
+            total, perServing, m.CreatedAt, m.UpdatedAt, CanEdit(m, user),
             user.IsFavoriteMeal(m.Id));
     }
 }

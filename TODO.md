@@ -6,8 +6,6 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-- [] **Show per serving nutritional info for `meals`** the same way we do for `recipes`.
-
 - [] **Add an option to customize**: for app-level `ingredients` and `recipes` add an option to `customize` it. This should create a clone of the current item as a private item that the user can then customize as they wish.
 
 - [] **`Look up nutrition` doesn't work**: when adding an `ingredient` the `Look up nutrition` button is intended to find information about the ingredient in a web search and automatically populate the nutritional information it found into the form. This currently doesn't seem to do anything. Is it possible to make this work as intended?
