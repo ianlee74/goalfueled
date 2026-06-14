@@ -23,15 +23,18 @@ public sealed class AdminUserFunctions
         _auth = auth;
     }
 
+    // NOTE: routes must NOT begin with "admin" — the Azure Functions host reserves that prefix
+    // (a startsWith match, not an exact segment) for its own host endpoints, so even "admin-users"
+    // fails to register and 404s. Use a prefix that doesn't start with "admin" (here "manage-users").
     [Function("ListUsers")]
     public Task<IActionResult> List(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "admin/users")] HttpRequest req) =>
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "manage-users")] HttpRequest req) =>
         ApiEndpoint.RunAuthenticated(req, _auth, async user =>
             HttpResults.Ok(await _admin.ListAsync(user, req.HttpContext.RequestAborted)));
 
     [Function("SetUserAdminRole")]
     public Task<IActionResult> SetAdminRole(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "admin/users/{id}/admin-role")] HttpRequest req,
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "manage-users/{id}/admin-role")] HttpRequest req,
         string id) =>
         ApiEndpoint.RunAuthenticated(req, _auth, async user =>
         {

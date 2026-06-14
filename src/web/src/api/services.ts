@@ -26,9 +26,9 @@ export const userApi = {
 
 // Admin-only user management. Endpoints return 403 unless the caller is acting as an admin.
 export const adminApi = {
-  listUsers: () => api.get<AdminUser[]>('/admin/users'),
+  listUsers: () => api.get<AdminUser[]>('/manage-users'),
   setAdminRole: (id: string, isAdmin: boolean) =>
-    api.post<AdminUser>(`/admin/users/${id}/admin-role`, { isAdmin }),
+    api.post<AdminUser>(`/manage-users/${id}/admin-role`, { isAdmin }),
 }
 
 // Builds a `?search=…&all=…` query string. `all` is honored server-side only for acting admins.
