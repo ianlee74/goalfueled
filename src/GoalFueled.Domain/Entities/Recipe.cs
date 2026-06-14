@@ -23,6 +23,16 @@ public class Recipe
     /// <summary>How many servings the full recipe yields, used to derive per-serving nutrition.</summary>
     public double Servings { get; set; } = 1;
 
+    /// <summary>
+    /// What kind of fuel this recipe is (food / supplement / hydration). Nullable so recipes persisted
+    /// before this field existed still load — a non-nullable value-type field throws "Nullable object
+    /// must have a value" on read for old Cosmos documents. A null read is treated as
+    /// <see cref="FuelType.Food"/> (the sensible default) when mapped to the DTO; new recipes default to
+    /// <see cref="FuelType.Food"/> on the create path. Mirrors <see cref="Meal.FuelType"/>; a Fuel Source
+    /// (Meal) can only be composed of recipes whose fuel type matches its own.
+    /// </summary>
+    public FuelType? FuelType { get; set; } = Domain.FuelType.Food;
+
     public OwnershipScope Scope { get; set; } = OwnershipScope.User;
 
     public string? OwnerUserId { get; set; }

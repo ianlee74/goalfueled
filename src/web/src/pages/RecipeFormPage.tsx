@@ -8,8 +8,8 @@ import { SanitizedHtml } from '../components/SanitizedHtml'
 import { useConfirm } from '../hooks/useConfirm'
 import { useAuth } from '../auth/AuthContext'
 import {
-  RECIPE_VISIBILITY_LABELS, UNIT_LABELS,
-  type Ingredient, type NutrientAmount, type RecipeInput,
+  FUEL_TYPE_LABELS, RECIPE_VISIBILITY_LABELS, UNIT_LABELS,
+  type FuelType, type Ingredient, type NutrientAmount, type RecipeInput,
   type RecipeItemInput, type RecipeVisibility, type UnitOfMeasure,
 } from '../api/types'
 
@@ -33,6 +33,7 @@ export function RecipeFormPage() {
   const [description, setDescription] = useState('')
   const [imageUrl, setImageUrl] = useState('')
   const [servings, setServings] = useState('1')
+  const [fuelType, setFuelType] = useState<FuelType>('Food')
   const [appLevel, setAppLevel] = useState(false)
   const [items, setItems] = useState<ItemRow[]>([])
   const [canEdit, setCanEdit] = useState(true)
@@ -66,6 +67,7 @@ export function RecipeFormPage() {
         setDescription(r.description ?? '')
         setImageUrl(r.imageUrl ?? '')
         setServings(String(r.servings))
+        setFuelType(r.fuelType)
         setAppLevel(r.scope === 'App')
         setItems(r.items.map((i) => ({ key: nextKey++, ingredientId: i.ingredientId, quantity: i.quantity, unit: i.unit })))
         setCanEdit(r.canEdit)
@@ -91,6 +93,7 @@ export function RecipeFormPage() {
         .filter((i) => i.ingredientId && Number(i.quantity) > 0)
         .map((i) => ({ ingredientId: i.ingredientId, quantity: Number(i.quantity), unit: i.unit })),
       appLevel: appLevel && !!profile?.isActingAsAdmin,
+      fuelType,
     }
   }
 
@@ -241,6 +244,16 @@ export function RecipeFormPage() {
           Servings
           <input className="input" type="number" min="0" step="any" value={servings}
             disabled={readOnly} onChange={(e) => setServings(e.target.value)} />
+        </label>
+
+        <label className="field" style={{ maxWidth: 220 }}>
+          Fuel type
+          <select className="select" value={fuelType} disabled={readOnly}
+            onChange={(e) => setFuelType(e.target.value as FuelType)}>
+            {(Object.entries(FUEL_TYPE_LABELS) as [FuelType, string][]).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
         </label>
 
         {profile?.isActingAsAdmin && (

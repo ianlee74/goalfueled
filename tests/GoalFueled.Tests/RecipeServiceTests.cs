@@ -340,6 +340,94 @@ public class RecipeServiceTests
         Assert.Equal(4000, Nutrient(recipe.TotalNutrition, "calories"), 3);
     }
 
+    // ---- fuel type ----
+
+    [Theory]
+    [InlineData(FuelType.Food)]
+    [InlineData(FuelType.Supplement)]
+    [InlineData(FuelType.Hydration)]
+    public async Task Create_persists_and_round_trips_each_fuel_type(FuelType fuelType)
+    {
+        using var db = TestHelpers.NewContext();
+        var (_, user, _, recipes) = await SetupAsync(db);
+
+        var created = await recipes.CreateAsync(user,
+            new RecipeInput("Source", null, null, null, 1, FuelType: fuelType), default);
+        Assert.Equal(fuelType, created.FuelType);
+
+        // Re-read to confirm it persisted (and that the EF mapping round-trips it).
+        var reloaded = await recipes.GetAsync(user, created.Id, default);
+        Assert.Equal(fuelType, reloaded.FuelType);
+    }
+
+    [Fact]
+    public async Task Create_defaults_fuel_type_to_food_when_omitted()
+    {
+        using var db = TestHelpers.NewContext();
+        var (_, user, _, recipes) = await SetupAsync(db);
+
+        var created = await recipes.CreateAsync(user, Recipe("No fuel type set", 1, false), default);
+
+        Assert.Equal(FuelType.Food, created.FuelType);
+    }
+
+    [Fact]
+    public async Task Legacy_recipe_with_null_fuel_type_reads_back_as_food()
+    {
+        using var db = TestHelpers.NewContext();
+        var (_, user, _, recipes) = await SetupAsync(db);
+
+        // Simulate an old document persisted before the field existed: FuelType left null in storage.
+        var legacy = new Recipe { Name = "Legacy", OwnerUserId = user.Id, FuelType = null };
+        db.Recipes.Add(legacy);
+        await db.SaveChangesAsync();
+
+        var dto = await recipes.GetAsync(user, legacy.Id, default);
+        Assert.Equal(FuelType.Food, dto.FuelType);
+    }
+
+    [Fact]
+    public async Task Update_changes_fuel_type()
+    {
+        using var db = TestHelpers.NewContext();
+        var (_, user, _, recipes) = await SetupAsync(db);
+
+        var created = await recipes.CreateAsync(user,
+            new RecipeInput("Drink", null, null, null, 1, FuelType: FuelType.Food), default);
+
+        var updated = await recipes.UpdateAsync(user, created.Id,
+            new RecipeInput("Drink", null, null, null, 1, FuelType: FuelType.Hydration), default);
+        Assert.Equal(FuelType.Hydration, updated.FuelType);
+
+        var reloaded = await recipes.GetAsync(user, created.Id, default);
+        Assert.Equal(FuelType.Hydration, reloaded.FuelType);
+    }
+
+    [Fact]
+    public async Task Validation_rejects_undefined_fuel_type()
+    {
+        using var db = TestHelpers.NewContext();
+        var (_, user, _, recipes) = await SetupAsync(db);
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            recipes.CreateAsync(user, new RecipeInput("Bad", null, null, null, 1, FuelType: (FuelType)99), default));
+    }
+
+    [Fact]
+    public async Task Customize_carries_over_the_fuel_type()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, _, recipes) = await SetupAsync(db);
+
+        var appRecipe = await recipes.CreateAsync(admin,
+            new RecipeInput("House Electrolytes", null, null, null, 1, AppLevel: true, FuelType: FuelType.Hydration),
+            default);
+
+        var clone = await recipes.CustomizeAsync(user, appRecipe.Id, default);
+
+        Assert.Equal(FuelType.Hydration, clone.FuelType);
+    }
+
     // ---- review workflow state transitions ----
 
     [Fact]

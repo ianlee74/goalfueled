@@ -201,6 +201,9 @@ export interface Recipe {
   imageUrl?: string
   items: RecipeItem[]
   servings: number
+  // What kind of fuel this recipe is (old recipes default to 'Food'). A Fuel Source can only be
+  // composed of recipes whose fuelType matches its own.
+  fuelType: FuelType
   scope: OwnershipScope
   ownerUserId?: string
   originalCreatorUserId?: string
@@ -229,6 +232,8 @@ export interface RecipeInput {
   items: RecipeItemInput[]
   servings: number
   appLevel: boolean
+  // What kind of fuel this recipe is; defaults to 'Food' for new recipes.
+  fuelType: FuelType
 }
 
 // What kind of fuel a Fuel Source represents. Never null in API output (a null stored value

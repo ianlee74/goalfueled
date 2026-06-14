@@ -18,6 +18,8 @@ public sealed record RecipeDto(
     string? ImageUrl,
     IReadOnlyList<RecipeItemDto> Items,
     double Servings,
+    /// <summary>What kind of fuel this recipe is. Never null in the DTO: a null stored value resolves to Food.</summary>
+    FuelType FuelType,
     OwnershipScope Scope,
     string? OwnerUserId,
     string? OriginalCreatorUserId,
@@ -54,4 +56,6 @@ public sealed record RecipeInput(
     /// When true and the caller is acting as admin, the recipe is saved at the app level.
     /// Ignored for non-admins.
     /// </summary>
-    bool AppLevel = false);
+    bool AppLevel = false,
+    /// <summary>What kind of fuel this recipe is. Optional; defaults to Food for new recipes.</summary>
+    FuelType FuelType = FuelType.Food);

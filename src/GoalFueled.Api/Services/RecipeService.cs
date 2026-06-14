@@ -75,6 +75,7 @@ public sealed class RecipeService
             ImageUrl = input.ImageUrl,
             Items = NormalizeItems(input.Items),
             Servings = input.Servings,
+            FuelType = input.FuelType,
             Scope = appLevel ? OwnershipScope.App : OwnershipScope.User,
             OwnerUserId = appLevel ? null : user.Id,
             OriginalCreatorUserId = user.Id,
@@ -108,6 +109,8 @@ public sealed class RecipeService
                 .Select(i => new RecipeItem { IngredientId = i.IngredientId, Quantity = i.Quantity, Unit = i.Unit })
                 .ToList(),
             Servings = source.Servings,
+            // Carry the fuel type over so the clone stays portionable into the same Fuel Sources.
+            FuelType = source.FuelType ?? Domain.FuelType.Food,
             Scope = OwnershipScope.User,
             OwnerUserId = user.Id,
             OriginalCreatorUserId = user.Id,
@@ -129,6 +132,7 @@ public sealed class RecipeService
         recipe.ImageUrl = input.ImageUrl;
         recipe.Items = NormalizeItems(input.Items);
         recipe.Servings = input.Servings;
+        recipe.FuelType = input.FuelType;
         recipe.UpdatedAt = DateTimeOffset.UtcNow;
 
         // Admins may move a recipe to/from app level via the AppLevel flag. A recipe that is already
@@ -262,6 +266,8 @@ public sealed class RecipeService
         InputLimits.LimitText(input.ImageUrl, InputLimits.UrlMaxLength, "Image URL");
         if (input.Servings <= 0)
             throw new ValidationException("Servings must be greater than zero.");
+        if (!Enum.IsDefined(input.FuelType))
+            throw new ValidationException("Fuel type is not valid.");
         InputLimits.LimitCount(input.Items?.Count ?? 0, InputLimits.RecipeItemsMax, "recipe items");
 
         foreach (var item in input.Items ?? Array.Empty<RecipeItemInput>())
@@ -331,6 +337,8 @@ public sealed class RecipeService
 
         return new RecipeDto(
             r.Id, r.Name, r.Description, r.ImageUrl, items, r.Servings,
+            // A null stored fuel type (old documents predating the field) reads back as Food.
+            r.FuelType ?? FuelType.Food,
             r.Scope, r.OwnerUserId, r.OriginalCreatorUserId, r.Visibility,
             total, perServing, r.CreatedAt, r.UpdatedAt,
             CanEdit(r, user), CanSubmitForReview(r, user), CanReview(r, user),

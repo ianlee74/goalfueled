@@ -6,8 +6,6 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-- [] **Add `Fuel Type` attribute to `Recipes`** the `Fuel Type` attribute that is identical to the `Fuel Type` that we added to `Fuel Source`. If a user is adding a `Fuel Source`, then the list of recipes that they can choose from should be only those that match the `Fuel Type` of the one selected for the `Fuel Source`.
-
 ## FUTURE FEATURES
 
 >[AI Agent] skip ALL items in this section.

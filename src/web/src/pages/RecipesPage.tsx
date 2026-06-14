@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { recipeApi } from '../api/services'
 import { useAuth } from '../auth/AuthContext'
-import { RECIPE_VISIBILITY_LABELS, type Recipe } from '../api/types'
+import { FUEL_TYPE_LABELS, RECIPE_VISIBILITY_LABELS, type Recipe } from '../api/types'
 import { IconRecipe } from '../components/icons'
 import { EmptyState, SkeletonList } from '../components/Placeholders'
 import { FavoriteStar } from '../components/FavoriteStar'
@@ -90,7 +90,10 @@ export function RecipesPage() {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="row spread">
                 <strong>{r.name}</strong>
-                <span className={`badge ${badgeClass(r)}`}>{badgeLabel(r)}</span>
+                <div className="row" style={{ gap: '0.35rem' }}>
+                  <span className="badge fuel-type">{FUEL_TYPE_LABELS[r.fuelType]}</span>
+                  <span className={`badge ${badgeClass(r)}`}>{badgeLabel(r)}</span>
+                </div>
               </div>
               <div className="small muted">
                 {r.items.length} ingredient{r.items.length === 1 ? '' : 's'} · {r.servings} serving{r.servings === 1 ? '' : 's'}

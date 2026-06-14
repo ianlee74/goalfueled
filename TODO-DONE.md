@@ -6,6 +6,17 @@
 
 ## Completed Items
 
+### Add Fuel Type to Recipes + filter the Fuel Source recipe picker — 2026-06-14 CDT
+
+- [x] **Added a `Fuel Type` to `Recipes`** (mirroring Fuel Sources) and made the Fuel Source recipe picker offer only recipes matching the selected fuel type.
+
+**NOTES:**
+
+- Part A — mirrored `Meal.FuelType` for `Recipe`: nullable `FuelType?` (null→Food) on the entity, non-null `FuelType` on `RecipeDto`, trailing `FuelType FuelType = Food` on `RecipeInput`, set/validated (`Enum.IsDefined`) in `RecipeService` create/update, EF `HasConversion<string?>()`, and `CustomizeAsync` (clone) carries the fuel type over. Recipe form gained a "Fuel type" select; recipes list shows the fuel-type badge.
+- Part B — `FuelSourceFormPage` recipe picker now offers only recipes whose `fuelType` matches the Fuel Source's selected `fuelType` (`matchingRecipes` memo). Changing the fuel type live-updates options; new rows default to the first matching recipe. Already-selected mismatches are KEPT (no silent data loss) with a per-row hint; empty state shows "No {type} recipes yet…" and disables Add. A header hint explains the matching rule.
+- Tests: RecipeServiceTests fuel-type section mirroring the Meal tests (round-trip each value, default-to-Food, null-legacy→Food, update, invalid rejected, customize carries it).
+- Verified: `dotnet build` 0 errors; `dotnet test` 328/328 passed; `npm run build` succeeds; `npm run lint` 0 errors (3 pre-existing warnings).
+
 ### Update the Fuel Sources description on /library — 2026-06-14 CDT
 
 - [x] **Updated the `Fuel Sources` description** on the `/library` page to convey they can be foods, hydration, or supplements.

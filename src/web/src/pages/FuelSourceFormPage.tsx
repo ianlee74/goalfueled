@@ -7,6 +7,11 @@ import { useAuth } from '../auth/AuthContext'
 import type { FuelType, MealInput, MealPortionInput, NutrientAmount, Recipe } from '../api/types'
 import { FUEL_TYPE_LABELS } from '../api/types'
 
+// Friendly lower-case label for the picker's empty/hint state.
+const FUEL_TYPE_HINT: Record<FuelType, string> = {
+  Food: 'food', Supplement: 'supplement', Hydration: 'hydration',
+}
+
 interface PortionRow extends MealPortionInput {
   // Local-only display field; not sent to the API.
   key: number
@@ -66,6 +71,13 @@ export function FuelSourceFormPage() {
   const recipeById = useMemo(
     () => new Map(recipes.map((r) => [r.id, r])), [recipes])
 
+  // A Fuel Source can only be composed of recipes whose fuel type matches its own, so the picker only
+  // offers recipes of the currently-selected fuel type. Already-added portions are kept even if their
+  // recipe no longer matches (the user chose them deliberately); those mismatched rows surface a hint
+  // below and keep their current recipe selectable so the dropdown still shows what's chosen.
+  const matchingRecipes = useMemo(
+    () => recipes.filter((r) => r.fuelType === fuelType), [recipes, fuelType])
+
   // Build the input payload from current form state.
   function buildInput(): MealInput {
     return {
@@ -86,7 +98,8 @@ export function FuelSourceFormPage() {
     [portions, servings, recipeById])
 
   function addPortion() {
-    const first = recipes[0]
+    // New rows default to the first recipe matching the selected fuel type (the picker only offers those).
+    const first = matchingRecipes[0]
     setPortions((prev) => [...prev, {
       key: nextKey++,
       recipeId: first?.id ?? '',
@@ -193,29 +206,57 @@ export function FuelSourceFormPage() {
 
       <div className="card stack">
         <h2>Recipe portions</h2>
+        <p className="muted small" style={{ margin: 0 }}>
+          Only <strong>{FUEL_TYPE_HINT[fuelType]}</strong> recipes can be portioned into a {FUEL_TYPE_HINT[fuelType]} fuel source.
+        </p>
 
         {portions.length === 0 && <p className="muted small" style={{ margin: 0 }}>No recipes added yet.</p>}
 
-        {portions.map((portion) => (
-          <div key={portion.key} className="recipe-item-row">
-            <select className="select" value={portion.recipeId} disabled={readOnly}
-              onChange={(e) => updatePortion(portion.key, { recipeId: e.target.value })}>
-              <option value="">Select a recipe…</option>
-              {recipes.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-            </select>
-            <input className="input" type="number" min="0" step="any" value={portion.servings}
-              disabled={readOnly}
-              onChange={(e) => updatePortion(portion.key, { servings: Number(e.target.value) })} />
-            <span className="muted small" style={{ alignSelf: 'center' }}>servings</span>
-            {!readOnly && (
-              <button className="btn btn-sm btn-danger" title="Remove"
-                onClick={() => removePortion(portion.key)}>✕</button>
-            )}
-          </div>
-        ))}
+        {portions.map((portion) => {
+          // A previously-chosen recipe that no longer matches the selected fuel type is kept (the user
+          // picked it on purpose), but flagged. Keep it as an option so the dropdown still shows it.
+          const chosen = recipeById.get(portion.recipeId)
+          const mismatched = !!chosen && chosen.fuelType !== fuelType
+          return (
+            <div key={portion.key} className="stack" style={{ gap: '0.25rem' }}>
+              <div className="recipe-item-row">
+                <select className="select" value={portion.recipeId} disabled={readOnly}
+                  title="Recipe"
+                  onChange={(e) => updatePortion(portion.key, { recipeId: e.target.value })}>
+                  <option value="">Select a recipe…</option>
+                  {mismatched && chosen && (
+                    <option value={chosen.id}>
+                      {chosen.name} ({FUEL_TYPE_LABELS[chosen.fuelType]})
+                    </option>
+                  )}
+                  {matchingRecipes.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+                <input className="input" type="number" min="0" step="any" value={portion.servings}
+                  disabled={readOnly}
+                  onChange={(e) => updatePortion(portion.key, { servings: Number(e.target.value) })} />
+                <span className="muted small" style={{ alignSelf: 'center' }}>servings</span>
+                {!readOnly && (
+                  <button type="button" className="btn btn-sm btn-danger" title="Remove"
+                    onClick={() => removePortion(portion.key)}>✕</button>
+                )}
+              </div>
+              {mismatched && chosen && (
+                <p className="muted small" style={{ margin: 0 }}>
+                  This recipe is {FUEL_TYPE_HINT[chosen.fuelType]}, not {FUEL_TYPE_HINT[fuelType]}. Pick a matching recipe or change the fuel type above.
+                </p>
+              )}
+            </div>
+          )
+        })}
+
+        {!readOnly && matchingRecipes.length === 0 && (
+          <p className="muted small" style={{ margin: 0 }}>
+            No {FUEL_TYPE_HINT[fuelType]} recipes yet. Create one (with this fuel type) to portion it here.
+          </p>
+        )}
 
         {!readOnly && (
-          <button className="btn btn-sm" onClick={addPortion} disabled={recipes.length === 0}>
+          <button type="button" className="btn btn-sm" onClick={addPortion} disabled={matchingRecipes.length === 0}>
             + Add recipe portion
           </button>
         )}
