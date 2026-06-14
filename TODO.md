@@ -6,8 +6,6 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-- [] **Ensure that the `Fuel Type` for a `Fuel Source` doesn't change**: once a `Recipe Portion` has been added to a `Fuel Source`, the `Fuel Type` should not be able to be changed unless all the `Recipe Portions` for that `Fuel Source` are first removed.
-
 - [] **Add a `Fuel Type` filter to the `Fuel Sources` page** at '/fuel-sources`.
 
 - [] **Add an `About` page** that explains the purpose of the app and shows the date that it was last updated.

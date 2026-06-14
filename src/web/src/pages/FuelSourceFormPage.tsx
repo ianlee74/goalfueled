@@ -78,6 +78,11 @@ export function FuelSourceFormPage() {
   const matchingRecipes = useMemo(
     () => recipes.filter((r) => r.fuelType === fuelType), [recipes, fuelType])
 
+  // The fuel type is locked while any recipe portion exists: portions are constrained to the chosen
+  // fuel type, so switching it would orphan them. Removing the last portion unlocks it again. This is
+  // enforced on the backend too; here it's just good UX. (New sources start empty, so it's editable.)
+  const fuelTypeLocked = portions.length > 0
+
   // Build the input payload from current form state.
   function buildInput(): MealInput {
     return {
@@ -187,12 +192,15 @@ export function FuelSourceFormPage() {
 
         <label className="field" style={{ maxWidth: 220 }}>
           Fuel type
-          <select className="select" value={fuelType} disabled={readOnly}
+          <select className="select" value={fuelType} disabled={readOnly || fuelTypeLocked}
             onChange={(e) => setFuelType(e.target.value as FuelType)}>
             {(Object.entries(FUEL_TYPE_LABELS) as [FuelType, string][]).map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
             ))}
           </select>
+          {!readOnly && fuelTypeLocked && (
+            <span className="muted small">Remove all recipe portions to change the fuel type.</span>
+          )}
         </label>
 
         {profile?.isActingAsAdmin && (

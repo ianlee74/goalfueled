@@ -357,6 +357,89 @@ public class MealServiceTests
         Assert.Equal(FuelType.Hydration, reloaded.FuelType);
     }
 
+    // A recipe of the given fuel type, portioned into a meal, so the meal genuinely "has portions".
+    private async Task<(MealDto meal, RecipeService recipes)> MealWithPortionAsync(
+        GoalFueledDbContext db, AppUser admin, AppUser user, IngredientService ingredients,
+        RecipeService recipes, MealService meals, FuelType fuelType)
+    {
+        var chicken = await ingredients.CreateAsync(admin,
+            Ingredient("Chicken", UnitOfMeasure.Gram, 100, true, ("calories", 165)), default);
+        var dish = await recipes.CreateAsync(user,
+            new RecipeInput("Dish", null, null,
+                new List<RecipeItemInput> { new(chicken.Id, 100, UnitOfMeasure.Gram) }, 1, false, fuelType),
+            default);
+        var meal = await meals.CreateAsync(user,
+            new MealInput("Source", new List<MealPortionInput> { new(dish.Id, 1) }, FuelType: fuelType),
+            default);
+        return (meal, recipes);
+    }
+
+    [Fact]
+    public async Task Update_rejects_fuel_type_change_when_meal_has_portions()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, ingredients, recipes, meals) = await SetupAsync(db);
+        var (meal, _) = await MealWithPortionAsync(db, admin, user, ingredients, recipes, meals, FuelType.Food);
+
+        await Assert.ThrowsAsync<ValidationException>(() => meals.UpdateAsync(user, meal.Id,
+            new MealInput("Source", meal.Portions.Select(p => new MealPortionInput(p.RecipeId, p.Servings)).ToList(),
+                FuelType: FuelType.Hydration),
+            default));
+
+        // The stored fuel type is unchanged.
+        var reloaded = await meals.GetAsync(user, meal.Id, default);
+        Assert.Equal(FuelType.Food, reloaded.FuelType);
+    }
+
+    [Fact]
+    public async Task Update_keeps_same_fuel_type_with_portions_succeeds()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, ingredients, recipes, meals) = await SetupAsync(db);
+        var (meal, _) = await MealWithPortionAsync(db, admin, user, ingredients, recipes, meals, FuelType.Supplement);
+
+        var updated = await meals.UpdateAsync(user, meal.Id,
+            new MealInput("Renamed", meal.Portions.Select(p => new MealPortionInput(p.RecipeId, p.Servings)).ToList(),
+                FuelType: FuelType.Supplement),
+            default);
+
+        Assert.Equal("Renamed", updated.Name);
+        Assert.Equal(FuelType.Supplement, updated.FuelType);
+    }
+
+    [Fact]
+    public async Task Update_changes_fuel_type_when_meal_has_no_portions()
+    {
+        using var db = TestHelpers.NewContext();
+        var (_, user, _, _, meals) = await SetupAsync(db);
+
+        var created = await meals.CreateAsync(user,
+            new MealInput("Empty", null, FuelType: FuelType.Food), default);
+
+        var updated = await meals.UpdateAsync(user, created.Id,
+            new MealInput("Empty", null, FuelType: FuelType.Hydration), default);
+
+        Assert.Equal(FuelType.Hydration, updated.FuelType);
+    }
+
+    [Fact]
+    public async Task Removing_all_portions_then_changing_fuel_type_succeeds()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, ingredients, recipes, meals) = await SetupAsync(db);
+        var (meal, _) = await MealWithPortionAsync(db, admin, user, ingredients, recipes, meals, FuelType.Food);
+
+        // First update: drop all portions (keeping the same fuel type — still locked at this point).
+        var emptied = await meals.UpdateAsync(user, meal.Id,
+            new MealInput("Source", null, FuelType: FuelType.Food), default);
+        Assert.Empty(emptied.Portions);
+
+        // Second update: now that there are no portions, switching the fuel type is allowed.
+        var switched = await meals.UpdateAsync(user, meal.Id,
+            new MealInput("Source", null, FuelType: FuelType.Hydration), default);
+        Assert.Equal(FuelType.Hydration, switched.FuelType);
+    }
+
     [Fact]
     public async Task Validation_rejects_undefined_fuel_type()
     {

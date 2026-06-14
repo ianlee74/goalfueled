@@ -77,6 +77,15 @@ public sealed class MealService
         var meal = await _repo.GetByIdAsync(id, ct) ?? throw new NotFoundException("Meal not found.");
         EnsureCanEdit(meal, user);
 
+        // A fuel source's fuel type is locked while it holds recipe portions: the picker constrains
+        // portions to the chosen fuel type, so switching the type would orphan/mismatch them. If the
+        // persisted meal already has portions, the incoming fuel type must match its current one.
+        // Compare normalized values (a null stored type — old documents — reads back as Food).
+        var existingFuelType = meal.FuelType ?? FuelType.Food;
+        if (meal.Portions.Count > 0 && input.FuelType != existingFuelType)
+            throw new ValidationException(
+                "Cannot change the fuel type of a fuel source that has recipe portions. Remove the portions first.");
+
         meal.Name = input.Name.Trim();
         meal.Portions = NormalizePortions(input.Portions);
         meal.Servings = input.Servings;

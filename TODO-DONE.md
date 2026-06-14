@@ -6,6 +6,17 @@
 
 ## Completed Items
 
+### Lock a Fuel Source's Fuel Type once it has recipe portions — 2026-06-14 CDT
+
+- [x] **Locked the `Fuel Type` of a `Fuel Source`** once it has recipe portions; it can only change after all portions are removed.
+
+**NOTES:**
+
+- Backend (`MealService.UpdateAsync`): after loading the persisted Meal, if `meal.Portions.Count > 0 && input.FuelType != (meal.FuelType ?? Food)` → `ValidationException("Cannot change the fuel type of a fuel source that has recipe portions. Remove the portions first.")`. Compares against the EXISTING persisted portions/type (normalized for the null→Food legacy case). Create path untouched; removing all portions in one update then changing type in a later update is allowed.
+- Frontend (`FuelSourceFormPage`): `fuelTypeLocked = portions.length > 0` (live form state) disables the Fuel type select and shows "Remove all recipe portions to change the fuel type." Composes with the existing recipe-picker filter (locked type keeps the picker pinned to matching recipes).
+- 4 new MealService tests (reject change with portions; same-type-with-portions ok; change-with-zero-portions ok; remove-then-change ok).
+- Verified: `dotnet build` 0 errors; `dotnet test` 332/332 passed; `npm run build` succeeds; `npm run lint` 0 errors (3 pre-existing warnings).
+
 ### Add Fuel Type to Recipes + filter the Fuel Source recipe picker — 2026-06-14 CDT
 
 - [x] **Added a `Fuel Type` to `Recipes`** (mirroring Fuel Sources) and made the Fuel Source recipe picker offer only recipes matching the selected fuel type.
