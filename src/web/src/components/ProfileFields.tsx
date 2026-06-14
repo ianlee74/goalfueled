@@ -41,6 +41,14 @@ interface Props {
   showWeight?: boolean
 }
 
+/** Keep only digits and a single decimal point (drops any further dots), for filtered numeric text entry. */
+function sanitizeDecimal(text: string): string {
+  const cleaned = text.replace(/[^\d.]/g, '')
+  const firstDot = cleaned.indexOf('.')
+  if (firstDot === -1) return cleaned
+  return cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, '')
+}
+
 export function ProfileFields({ value, onChange, disabled, showWeight = true }: Props) {
   function set<K extends keyof ProfileFieldsValue>(key: K, v: ProfileFieldsValue[K]) {
     onChange({ ...value, [key]: v })
@@ -57,10 +65,12 @@ export function ProfileFields({ value, onChange, disabled, showWeight = true }: 
   }
 
   const ft = value.heightCm != null ? cmToFtIn(value.heightCm) : { feet: 0, inches: 0 }
-  // We collect only the year of birth (no month/day) and store it as January 1 of that year. The
-  // year input is bounded to 1900..current year (no future years); the stored dob is "{year}-01-01".
-  const currentYear = new Date().getFullYear()
-  const birthYear = value.dob ? value.dob.slice(0, 4) : ''
+  // We collect only the year of birth (no month/day) and store it as January 1 of that year
+  // (stored dob is "{year}-01-01"); the input keeps just digits, capped at 4.
+  // Read back the year segment, not a fixed-width slice: while typing, dob is "{partial}-01-01"
+  // (e.g. "1-01-01"), and slice(0,4) would yield "1-01" — a non-numeric value that a number input
+  // silently rejects, making the field impossible to type into one digit at a time.
+  const birthYear = value.dob ? value.dob.split('-')[0] : ''
 
   function setBirthYear(yearText: string) {
     set('dob', yearText ? `${yearText}-01-01` : '')
@@ -102,17 +112,18 @@ export function ProfileFields({ value, onChange, disabled, showWeight = true }: 
 
       <label className="field">
         Year of birth
+        {/* A filtered text input (not type="number"): a controlled number input blanks any invalid
+            intermediate value, which made this field impossible to type into. We keep only digits and
+            cap at 4. Range is validated on submit. */}
         <input
           className="input"
-          type="number"
+          type="text"
           inputMode="numeric"
-          min="1900"
-          max={currentYear}
-          step="1"
+          maxLength={4}
           placeholder="e.g. 1990"
           value={birthYear}
           disabled={disabled}
-          onChange={(e) => setBirthYear(e.target.value)}
+          onChange={(e) => setBirthYear(e.target.value.replace(/\D/g, '').slice(0, 4))}
         />
       </label>
 
@@ -181,16 +192,18 @@ export function ProfileFields({ value, onChange, disabled, showWeight = true }: 
         <div className="field">
           <span>Current weight</span>
           <div className="row" style={{ gap: '0.5rem' }}>
+            {/* Filtered text input (not type="number") for the same reason as the year field: a
+                controlled number input blanks invalid intermediate values, which can make the field
+                feel impossible to type into. Keep digits and a single decimal point. */}
             <input
               className="input"
-              type="number"
-              min="0"
-              step="any"
+              type="text"
+              inputMode="decimal"
               placeholder="e.g. 180"
               value={value.weight}
               disabled={disabled}
               style={{ flex: 1 }}
-              onChange={(e) => set('weight', e.target.value)}
+              onChange={(e) => set('weight', sanitizeDecimal(e.target.value))}
             />
             <select
               className="select"
