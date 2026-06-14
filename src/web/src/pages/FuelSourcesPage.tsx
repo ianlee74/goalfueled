@@ -8,7 +8,7 @@ import { EmptyState, SkeletonList } from '../components/Placeholders'
 import { FavoriteStar } from '../components/FavoriteStar'
 import { withFavorite } from '../lib/favorites'
 
-export function MealsPage() {
+export function FuelSourcesPage() {
   const { profile } = useAuth()
   const [items, setItems] = useState<Meal[]>([])
   const [search, setSearch] = useState('')
@@ -28,7 +28,7 @@ export function MealsPage() {
         const result = await mealApi.list(search.trim() || undefined, isAdmin && showAll)
         if (!cancelled) setItems(result)
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load meals.')
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load fuel sources.')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -50,13 +50,13 @@ export function MealsPage() {
   return (
     <div className="stack">
       <div className="row spread">
-        <h1>Meals</h1>
-        <Link className="btn btn-primary btn-sm" to="/meals/new">+ New</Link>
+        <h1>Fuel Sources</h1>
+        <Link className="btn btn-primary btn-sm" to="/fuel-sources/new">+ New</Link>
       </div>
 
       <input
         className="input"
-        placeholder="Search meals…"
+        placeholder="Search fuel sources…"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
@@ -71,14 +71,14 @@ export function MealsPage() {
       {error && <div className="notice error">{error}</div>}
       {loading && items.length === 0 && <SkeletonList />}
       {!loading && items.length === 0 && !error && (
-        <EmptyState icon={<IconMeal size={28} />} title="No meals found">
+        <EmptyState icon={<IconMeal size={28} />} title="No fuel sources found">
           Create your first one with <strong>+ New</strong>.
         </EmptyState>
       )}
 
       <div className="list">
         {items.map((m) => (
-          <Link key={m.id} to={`/meals/${m.id}`} className="card ingredient-item">
+          <Link key={m.id} to={`/fuel-sources/${m.id}`} className="card ingredient-item">
             <div className="ingredient-thumb"><IconMeal size={22} /></div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="row spread">

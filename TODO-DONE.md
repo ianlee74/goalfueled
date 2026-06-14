@@ -6,6 +6,17 @@
 
 ## Completed Items
 
+### Rename Meals to Fuel Sources — 2026-06-14 CDT
+
+- [x] **Renamed the `Meals` library to `Fuel Sources`** (user-facing), keeping backend/API/DB identifiers as `Meal` to avoid a data migration.
+
+**NOTES:**
+
+- User-facing rename only. All visible "Meal"/"Meals" referring to the library became "Fuel Source"/"Fuel Sources": nav/Library hub label, list + form page titles/placeholders/empty states, the Today fuel-entry source label (`CONSUMPTION_SOURCE_LABELS.Meal` value → "Fuel Source"), and the plan-builder wording where it references picking library items. "Meal Plans" terminology was deliberately left unchanged (separate feature).
+- SPA routes `/meals*` → `/fuel-sources*` (client-side), with redirects from the old paths so existing links keep working. Components renamed `MealsPage`→`FuelSourcesPage`, `MealFormPage`→`FuelSourceFormPage` (via git mv).
+- Deliberately kept internal: the `Meal` entity, API routes (`/meals`, `/mealplans`), `mealApi`/`mealPlanApi`, TS types (`Meal`, `MealInput`, etc.), the `ConsumptionSource.Meal` enum value, persisted field names, and the `kind: 'meal'` discriminant — renaming these would require a data migration and risk breaking persisted documents and consumption/plan references.
+- Verified: `dotnet build` 0 errors; `dotnet test` 313/313 passed; `npm run build` succeeds; `npm run lint` 0 errors (3 pre-existing warnings).
+
 ### Fix review-queue route shadowing (follow-up to the nutrition-lookup fix) — 2026-06-13 CDT
 
 - [x] **Fixed `ingredients/review-queue` and `recipes/review-queue` being shadowed by `{id}` routes** — the admin review queues were broken at runtime.

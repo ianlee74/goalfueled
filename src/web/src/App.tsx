@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { useAuth } from './auth/AuthContext'
 import { Layout } from './components/Layout'
 import { TodayPage } from './pages/TodayPage'
@@ -10,8 +10,8 @@ import { IngredientReviewQueuePage } from './pages/IngredientReviewQueuePage'
 import { RecipesPage } from './pages/RecipesPage'
 import { RecipeFormPage } from './pages/RecipeFormPage'
 import { RecipeReviewQueuePage } from './pages/RecipeReviewQueuePage'
-import { MealsPage } from './pages/MealsPage'
-import { MealFormPage } from './pages/MealFormPage'
+import { FuelSourcesPage } from './pages/FuelSourcesPage'
+import { FuelSourceFormPage } from './pages/FuelSourceFormPage'
 import { PlansPage } from './pages/PlansPage'
 import { PlanFormPage } from './pages/PlanFormPage'
 import { WeightPage } from './pages/WeightPage'
@@ -60,8 +60,11 @@ export default function App() {
         <Route path="/recipes" element={<RecipesPage />} />
         <Route path="/recipes/review-queue" element={<RecipeReviewQueuePage />} />
         <Route path="/recipes/:id" element={<RecipeFormPage />} />
-        <Route path="/meals" element={<MealsPage />} />
-        <Route path="/meals/:id" element={<MealFormPage />} />
+        <Route path="/fuel-sources" element={<FuelSourcesPage />} />
+        <Route path="/fuel-sources/:id" element={<FuelSourceFormPage />} />
+        {/* Old client-side routes renamed to /fuel-sources; keep redirects so existing links work. */}
+        <Route path="/meals" element={<Navigate to="/fuel-sources" replace />} />
+        <Route path="/meals/:id" element={<RedirectMealToFuelSource />} />
         <Route path="/plans" element={<PlansPage />} />
         <Route path="/plans/:id" element={<PlanFormPage />} />
         {/* The Log merged into Today; keep old links working (incl. the ?add deep link). */}
@@ -84,4 +87,10 @@ export default function App() {
 function RedirectHome() {
   const { search } = useLocation()
   return <Navigate to={{ pathname: '/', search }} replace />
+}
+
+/** Redirect the old /meals/:id route to its renamed /fuel-sources/:id equivalent. */
+function RedirectMealToFuelSource() {
+  const { id } = useParams<{ id: string }>()
+  return <Navigate to={`/fuel-sources/${id}`} replace />
 }

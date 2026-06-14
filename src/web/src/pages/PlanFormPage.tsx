@@ -479,27 +479,27 @@ export function PlanFormPage() {
           </div>
           <span className="muted small">
             {cadence === 'Daily'
-              ? 'One repeating day. Meal times are optional; days are ignored.'
-              : 'A full week. Pin meals to a day of week; untimed items apply every day.'}
+              ? 'One repeating day. Fuel source times are optional; days are ignored.'
+              : 'A full week. Pin fuel sources to a day of week; untimed items apply every day.'}
           </span>
         </div>
       </div>
 
       {cadence === 'Weekly' ? (
         <div className="card stack">
-          <h2>Weekly timeline <span className="muted small">drag meals up or down to reorder a day</span></h2>
+          <h2>Weekly timeline <span className="muted small">drag fuel sources up or down to reorder a day</span></h2>
 
           {scheduled.length === 0 && (
-            <p className="muted small" style={{ margin: 0 }}>No scheduled meals yet.</p>
+            <p className="muted small" style={{ margin: 0 }}>No scheduled fuel sources yet.</p>
           )}
 
           {!readOnly && (
             <div className="plan-multi-add stack">
-              <strong className="small">Add a meal to multiple days</strong>
+              <strong className="small">Add a fuel source to multiple days</strong>
               <div className="plan-multi-controls">
-                <select className="select" value={multiMealId} title="Meal"
+                <select className="select" value={multiMealId} title="Fuel source"
                   onChange={(e) => setMultiMealId(e.target.value)}>
-                  <option value="">Select a meal…</option>
+                  <option value="">Select a fuel source…</option>
                   {meals.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
                 </select>
                 <TimePicker value={multiTime} title="Time of day (optional)"
@@ -537,7 +537,7 @@ export function PlanFormPage() {
 
                 <div className="plan-timeline">
                   {rows.length === 0 && (
-                    <p className="muted small plan-timeline-empty">No meals on this day yet.</p>
+                    <p className="muted small plan-timeline-empty">No fuel sources on this day yet.</p>
                   )}
                   {rows.map((s) => (
                     <div
@@ -557,7 +557,7 @@ export function PlanFormPage() {
                           title="Drag to reorder"
                           role="button"
                           tabIndex={0}
-                          aria-label="Drag to reorder meal"
+                          aria-label="Drag to reorder fuel source"
                           onPointerDown={(e) => handleDragPointerDown(e, s.key, bucket)}
                           onPointerMove={handleDragPointerMove}
                           onPointerUp={handleDragPointerUp}
@@ -589,7 +589,7 @@ export function PlanFormPage() {
                 {!readOnly && (
                   <button className="btn btn-sm plan-day-add" onClick={() => addScheduledToDay(bucket)}
                     disabled={meals.length === 0}>
-                    + Add meal{bucket === '' ? ' (any day)' : ` to ${bucket}`}
+                    + Add fuel source{bucket === '' ? ' (any day)' : ` to ${bucket}`}
                   </button>
                 )}
               </div>
@@ -598,9 +598,9 @@ export function PlanFormPage() {
         </div>
       ) : (
         <div className="card stack">
-          <h2>Scheduled meals</h2>
+          <h2>Scheduled fuel sources</h2>
 
-          {scheduled.length === 0 && <p className="muted small" style={{ margin: 0 }}>No scheduled meals yet.</p>}
+          {scheduled.length === 0 && <p className="muted small" style={{ margin: 0 }}>No scheduled fuel sources yet.</p>}
 
           {scheduled.map((s) => (
             <div key={s.key} className="plan-scheduled-row">
@@ -616,7 +616,7 @@ export function PlanFormPage() {
 
           {!readOnly && (
             <button className="btn btn-sm" onClick={addScheduled} disabled={meals.length === 0}>
-              + Add scheduled meal
+              + Add scheduled fuel source
             </button>
           )}
         </div>
@@ -632,7 +632,7 @@ export function PlanFormPage() {
             <select className="select" value={u.kind} disabled={readOnly}
               onChange={(e) => updateUntimed(u.key, { kind: e.target.value as 'meal' | 'ingredient', refId: '' })}>
               <option value="ingredient">Ingredient</option>
-              <option value="meal">Meal</option>
+              <option value="meal">Fuel source</option>
             </select>
             {u.kind === 'ingredient' ? (
               <IngredientFinder
@@ -643,7 +643,7 @@ export function PlanFormPage() {
                 onSelect={(i) => updateUntimed(u.key, { refId: i.id })}
               />
             ) : (
-              <select className="select" value={u.refId} disabled={readOnly} title="Meal"
+              <select className="select" value={u.refId} disabled={readOnly} title="Fuel source"
                 onChange={(e) => updateUntimed(u.key, { refId: e.target.value })}>
                 <option value="">Select…</option>
                 {meals.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
@@ -745,9 +745,9 @@ function ScheduledMealFields({ row, meals, readOnly, showDay, onUpdate }: {
 }) {
   return (
     <>
-      <select className="select" value={row.mealId} disabled={readOnly} title="Meal"
+      <select className="select" value={row.mealId} disabled={readOnly} title="Fuel source"
         onChange={(e) => onUpdate({ mealId: e.target.value })}>
-        <option value="">Select a meal…</option>
+        <option value="">Select a fuel source…</option>
         {meals.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
       </select>
       {showDay && (

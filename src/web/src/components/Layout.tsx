@@ -24,7 +24,7 @@ interface Destination {
 const DESTINATIONS: Destination[] = [
   { to: '/', label: 'Today', Ico: IconGauge, match: ['/log'] },
   { to: '/goals', label: 'Goals', Ico: IconTarget, match: ['/weight'] },
-  { to: '/library', label: 'Library', Ico: IconLibrary, match: ['/ingredients', '/recipes', '/meals', '/plans'] },
+  { to: '/library', label: 'Library', Ico: IconLibrary, match: ['/ingredients', '/recipes', '/fuel-sources', '/plans'] },
   { to: '/you', label: 'You', Ico: IconUser, match: ['/profile', '/users'] },
 ]
 

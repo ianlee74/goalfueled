@@ -570,7 +570,7 @@ export function TodayPage() {
             <p className="muted small" style={{ margin: 0 }}>
               {plans.length === 0
                 ? 'Create a meal plan to follow it here, or just log items freely.'
-                : 'Choose a plan to see its meals for the day as tasks to check off.'}
+                : 'Choose a plan to see its fuel sources for the day as tasks to check off.'}
             </p>
           )}
         </div>
@@ -645,9 +645,9 @@ export function TodayPage() {
               </>
             ) : (
               <label className="field" style={{ flex: 1, minWidth: '8rem' }}>
-                Meal
+                Fuel Source
                 <select className="select" value={effectiveSourceId} onChange={(e) => setSourceId(e.target.value)}>
-                  <option value="">Select a {source.toLowerCase()}…</option>
+                  <option value="">Select a fuel source…</option>
                   {options.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
                 </select>
               </label>
@@ -887,7 +887,7 @@ function PlannedMealRow(
         />
         <FuelBurnIcon kind="fuel" />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <strong>{task.mealName ?? '(meal removed)'}</strong>
+          <strong>{task.mealName ?? '(fuel source removed)'}</strong>
           <div className="small muted">
             {formatTime(task.time)}
             {kcal != null && ` · ${Math.round(kcal)} kcal`}
@@ -906,7 +906,7 @@ function PlannedMealRow(
           onChange={(e) => onServingsChange(e.target.value)}
         />
       </label>
-      <button type="button" className="btn btn-sm" disabled={busy} onClick={onSkip} title="Skip this meal">
+      <button type="button" className="btn btn-sm" disabled={busy} onClick={onSkip} title="Skip this fuel source">
         Skip
       </button>
     </div>
@@ -923,7 +923,7 @@ function SkippedMealRow(
     <div className="card ingredient-item" style={{ opacity: 0.7 }}>
       <FuelBurnIcon kind="fuel" />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <strong style={{ textDecoration: 'line-through' }}>{task.mealName ?? '(meal removed)'}</strong>
+        <strong style={{ textDecoration: 'line-through' }}>{task.mealName ?? '(fuel source removed)'}</strong>
         <div className="small muted">
           {formatTime(task.time)}
           {kcal != null && ` · ${Math.round(kcal)} kcal`}
@@ -960,7 +960,7 @@ function DoneMealRow(
     <>
       <FuelBurnIcon kind="fuel" />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <strong style={{ textDecoration: 'line-through' }}>{task.mealName ?? '(meal removed)'}</strong>
+        <strong style={{ textDecoration: 'line-through' }}>{task.mealName ?? '(fuel source removed)'}</strong>
         <div className="small muted">
           {entry ? formatClock(entry.createdAt) : formatTime(task.time)}
           {' · '}{round(servings)} serving{servings === 1 ? '' : 's'}

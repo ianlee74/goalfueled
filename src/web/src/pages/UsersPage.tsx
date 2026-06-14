@@ -60,7 +60,7 @@ export function UsersPage() {
     confirm({
       title: `Delete ${u.displayName}?`,
       message: 'This permanently deletes the user and all of their personal data ' +
-        '(logs, plans, goals, weights, stats, and private ingredients/recipes/meals). ' +
+        '(logs, plans, goals, weights, stats, and private ingredients/recipes/fuel sources). ' +
         'Content they created that was accepted as public/app-owned is kept. This cannot be undone.',
       confirmLabel: 'Delete user',
       pendingLabel: 'Deleting…',

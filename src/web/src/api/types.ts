@@ -611,7 +611,7 @@ export interface Dashboard {
 }
 
 export const CONSUMPTION_SOURCE_LABELS: Record<ConsumptionSource, string> = {
-  Meal: 'Meal', Recipe: 'Recipe', FreeForm: 'Free-form',
+  Meal: 'Fuel Source', Recipe: 'Recipe', FreeForm: 'Free-form',
 }
 
 export const GOAL_METRIC_LABELS: Record<GoalMetricType, string> = {

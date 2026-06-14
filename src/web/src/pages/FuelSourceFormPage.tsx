@@ -13,7 +13,7 @@ interface PortionRow extends MealPortionInput {
 
 let nextKey = 1
 
-export function MealFormPage() {
+export function FuelSourceFormPage() {
   const { id } = useParams<{ id: string }>()
   const isNew = !id || id === 'new'
   const navigate = useNavigate()
@@ -42,7 +42,7 @@ export function MealFormPage() {
     return () => { cancelled = true }
   }, [])
 
-  // Load the meal when editing.
+  // Load the fuel source when editing.
   useEffect(() => {
     if (isNew) return
     let cancelled = false
@@ -116,13 +116,13 @@ export function MealFormPage() {
 
   async function saveAndExit() {
     const savedId = await save()
-    if (savedId) navigate('/meals', { replace: true })
+    if (savedId) navigate('/fuel-sources', { replace: true })
   }
 
   function remove() {
     if (!id || isNew) return
     confirm({
-      title: 'Delete this meal?',
+      title: 'Delete this fuel source?',
       message: 'This cannot be undone.',
       confirmLabel: 'Delete',
       pendingLabel: 'Deleting…',
@@ -130,7 +130,7 @@ export function MealFormPage() {
         setSaving(true)
         try {
           await mealApi.remove(id)
-          navigate('/meals', { replace: true })
+          navigate('/fuel-sources', { replace: true })
         } catch (e) {
           setError(e instanceof Error ? e.message : 'Delete failed.')
           setSaving(false)
@@ -148,12 +148,12 @@ export function MealFormPage() {
     <div className="stack">
       {dialog}
       <div className="row spread">
-        <h1>{isNew ? 'New meal' : readOnly ? 'Meal' : 'Edit meal'}</h1>
+        <h1>{isNew ? 'New fuel source' : readOnly ? 'Fuel source' : 'Edit fuel source'}</h1>
         <button className="btn btn-sm" onClick={() => navigate(-1)}>Back</button>
       </div>
 
       {error && <div className="notice error">{error}</div>}
-      {readOnly && <div className="notice info">This meal is read-only. You can view it but not edit it.</div>}
+      {readOnly && <div className="notice info">This fuel source is read-only. You can view it but not edit it.</div>}
 
       <div className="card stack">
         <label className="field">
@@ -172,7 +172,7 @@ export function MealFormPage() {
           <label className="toggle">
             <input type="checkbox" checked={appLevel} disabled={readOnly}
               onChange={(e) => setAppLevel(e.target.checked)} />
-            Make this an app-level meal (visible to all users)
+            Make this an app-level fuel source (visible to all users)
           </label>
         )}
       </div>
@@ -210,7 +210,7 @@ export function MealFormPage() {
       <div className="card stack">
         <h2>Nutrition</h2>
         <NutritionLabel columns={[
-          { label: 'Whole meal', amounts: total },
+          { label: 'Whole fuel source', amounts: total },
           { label: 'Per serving', amounts: perServing },
         ]} />
       </div>

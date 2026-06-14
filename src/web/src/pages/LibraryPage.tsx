@@ -10,7 +10,7 @@ import { IconIngredient, IconMeal, IconPlan, IconRecipe } from '../components/ic
 const SECTIONS: { to: string; label: string; sub: string; Ico: ComponentType<{ size?: number }> }[] = [
   { to: '/ingredients', label: 'Ingredients', sub: 'Foods and their nutrition', Ico: IconIngredient },
   { to: '/recipes', label: 'Recipes', sub: 'Ingredients composed into dishes', Ico: IconRecipe },
-  { to: '/meals', label: 'Meals', sub: 'Recipe portions you actually eat', Ico: IconMeal },
+  { to: '/fuel-sources', label: 'Fuel Sources', sub: 'Recipe portions you actually eat', Ico: IconMeal },
   { to: '/plans', label: 'Plans', sub: 'Weekly meal schedules', Ico: IconPlan },
 ]
 
