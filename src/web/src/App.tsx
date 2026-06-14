@@ -20,6 +20,7 @@ import { ReviewPage } from './pages/ReviewPage'
 import { UsersPage } from './pages/UsersPage'
 import { LibraryPage } from './pages/LibraryPage'
 import { YouPage } from './pages/YouPage'
+import { AdminPage } from './pages/AdminPage'
 
 export default function App() {
   const { devUser, profile, loading } = useAuth()
@@ -77,6 +78,7 @@ export default function App() {
         {/* The old profile route lives inside the You tab now. */}
         <Route path="/profile" element={<Navigate to="/you" replace />} />
         <Route path="/users" element={<UsersPage />} />
+        <Route path="/admin" element={<AdminPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

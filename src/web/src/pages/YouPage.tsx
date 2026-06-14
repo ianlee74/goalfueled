@@ -84,9 +84,7 @@ export function YouPage() {
           </label>
           {profile.isActingAsAdmin && (
             <div className="row wrap" style={{ gap: '0.5rem' }}>
-              <Link className="btn btn-sm" to="/users">Manage users</Link>
-              <Link className="btn btn-sm" to="/recipes/review-queue">Recipe review queue</Link>
-              <Link className="btn btn-sm" to="/ingredients/review-queue">Ingredient review queue</Link>
+              <Link className="btn btn-sm" to="/admin">Open Admin tools</Link>
             </div>
           )}
         </div>

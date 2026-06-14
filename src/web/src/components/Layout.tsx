@@ -1,10 +1,11 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import type { ComponentType } from 'react'
+import { useAuth } from '../auth/AuthContext'
 import { FuelBurnIcon } from './FuelBurnIcon'
 import { Sheet } from './Sheet'
 import {
-  IconGauge, IconLibrary, IconLogPlus, IconRocket, IconTarget, IconUser, IconWeight,
+  IconGauge, IconLibrary, IconLogPlus, IconRocket, IconTarget, IconUser, IconUsers, IconWeight,
 } from './icons'
 
 /**
@@ -25,8 +26,13 @@ const DESTINATIONS: Destination[] = [
   { to: '/', label: 'Today', Ico: IconGauge, match: ['/log'] },
   { to: '/goals', label: 'Goals', Ico: IconTarget, match: ['/weight'] },
   { to: '/library', label: 'Library', Ico: IconLibrary, match: ['/ingredients', '/recipes', '/fuel-sources', '/plans'] },
-  { to: '/you', label: 'You', Ico: IconUser, match: ['/profile', '/users'] },
+  { to: '/you', label: 'You', Ico: IconUser, match: ['/profile'] },
 ]
+
+/** Admin destination, surfaced in the sidebar only while acting as an admin. */
+const ADMIN_DESTINATION: Destination = {
+  to: '/admin', label: 'Admin', Ico: IconUsers, match: ['/users', '/ingredients/review-queue', '/recipes/review-queue'],
+}
 
 function isDestinationActive(d: Destination, pathname: string): boolean {
   if (d.to === '/') return pathname === '/' || d.match.some((m) => pathname === m || pathname.startsWith(m + '/'))
@@ -40,6 +46,11 @@ function isDestinationActive(d: Destination, pathname: string): boolean {
 export function Layout() {
   const [logOpen, setLogOpen] = useState(false)
   const { pathname } = useLocation()
+  const { profile } = useAuth()
+  // Surface the Admin destination in the sidebar only while acting as an admin.
+  const sidebarDestinations = profile?.isActingAsAdmin
+    ? [...DESTINATIONS, ADMIN_DESTINATION]
+    : DESTINATIONS
 
   // Close the sheet whenever the route changes (a pick navigated away).
   useEffect(() => { setLogOpen(false) }, [pathname])
@@ -55,7 +66,7 @@ export function Layout() {
 
       {/* Desktop sidebar: same destinations plus the LOG action as a regular entry. */}
       <aside className="sidebar" aria-label="Primary">
-        {DESTINATIONS.map((d) => (
+        {sidebarDestinations.map((d) => (
           <NavLink
             key={d.to}
             to={d.to}

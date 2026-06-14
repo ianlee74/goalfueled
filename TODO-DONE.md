@@ -6,6 +6,18 @@
 
 ## Completed Items
 
+### Move Admin functions to their own page — 2026-06-14 CDT
+
+- [x] **Created a top-level `Admin` page** and moved the admin tool entry points off `/you`, keeping the "Admin view" toggle on `/you`.
+
+**NOTES:**
+
+- New `AdminPage` at SPA route `/admin` (a client-side route — fine; the reserved "admin" prefix only affects backend Functions HTTP routes, which weren't touched). Presents the three tools as titled cards: Manage users (`/users`), Recipe review queue, Ingredient review queue. The destination pages/routes are unchanged — only the entry points moved.
+- Route gated like UsersPage: bounces non-`isActingAsAdmin` users to `/ingredients`.
+- `/you` keeps the Admin card (gated on `isAdmin`) with just the "Admin view" toggle, plus an "Open Admin tools" link to `/admin` when acting as admin (discoverability).
+- Nav: added a top-level **Admin** item (icon `IconUsers`) to the **desktop sidebar**, visible only when `isActingAsAdmin`. The mobile 5-slot tab bar was intentionally left unchanged (a 6th slot would break the layout); on mobile, Admin is reached via the You tab's "Open Admin tools" link. Admin-page route prefixes moved to the Admin nav item's active-match.
+- Frontend-only. Verified: `npm run build` succeeds; `npm run lint` 0 errors (3 pre-existing warnings).
+
 ### Add a Fuel Type attribute to Fuel Sources — 2026-06-14 CDT
 
 - [x] **Added a `Fuel Type` attribute** (food / supplement / hydration) to Fuel Sources (the `Meal` entity).

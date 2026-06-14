@@ -6,8 +6,6 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-- [] **Move the `Admin` functions to its own page**: Create a new top-level page called `Admin` and move the admin functions from the `/you` page to this page. The option to turn on/off the "Admin view" should remain on the `/you` page.
-
 ## FUTURE FEATURES
 
 >[AI Agent] skip ALL items in this section.
