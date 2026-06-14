@@ -6,8 +6,6 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-- [] **Update the description of `Fuel Sources`** on the `/library` page. Because `fuel sources` are more than just foods that you eat now, this needs to be updated appropriately. They can be foods, hydration, or supplements.
-
 - [] **Add `Fuel Type` attribute to `Recipes`** the `Fuel Type` attribute that is identical to the `Fuel Type` that we added to `Fuel Source`. If a user is adding a `Fuel Source`, then the list of recipes that they can choose from should be only those that match the `Fuel Type` of the one selected for the `Fuel Source`.
 
 ## FUTURE FEATURES

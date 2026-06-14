@@ -6,6 +6,16 @@
 
 ## Completed Items
 
+### Update the Fuel Sources description on /library — 2026-06-14 CDT
+
+- [x] **Updated the `Fuel Sources` description** on the `/library` page to convey they can be foods, hydration, or supplements.
+
+**NOTES:**
+
+- `LibraryPage.tsx`: changed the Fuel Sources section subtitle from "Recipe portions you actually eat" to "Food, hydration, and supplements you fuel with" — matching the voice/length of the sibling descriptions (Ingredients: "Foods and their nutrition", Recipes: "Ingredients composed into dishes").
+- Grepped the old string; it was only in LibraryPage.tsx (no duplicate copy elsewhere). Copy-only change.
+- Verified: `npm run build` succeeds; `npm run lint` 0 errors (3 pre-existing warnings).
+
 ### Move Admin functions to their own page — 2026-06-14 CDT
 
 - [x] **Created a top-level `Admin` page** and moved the admin tool entry points off `/you`, keeping the "Admin view" toggle on `/you`.
