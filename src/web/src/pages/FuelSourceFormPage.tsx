@@ -4,7 +4,8 @@ import { mealApi, recipeApi } from '../api/services'
 import { NutritionLabel } from '../components/NutritionLabel'
 import { useConfirm } from '../hooks/useConfirm'
 import { useAuth } from '../auth/AuthContext'
-import type { MealInput, MealPortionInput, NutrientAmount, Recipe } from '../api/types'
+import type { FuelType, MealInput, MealPortionInput, NutrientAmount, Recipe } from '../api/types'
+import { FUEL_TYPE_LABELS } from '../api/types'
 
 interface PortionRow extends MealPortionInput {
   // Local-only display field; not sent to the API.
@@ -22,6 +23,7 @@ export function FuelSourceFormPage() {
 
   const [name, setName] = useState('')
   const [servings, setServings] = useState('1')
+  const [fuelType, setFuelType] = useState<FuelType>('Food')
   const [appLevel, setAppLevel] = useState(false)
   const [portions, setPortions] = useState<PortionRow[]>([])
   const [canEdit, setCanEdit] = useState(true)
@@ -51,6 +53,7 @@ export function FuelSourceFormPage() {
         if (cancelled) return
         setName(m.name)
         setServings(String(m.servings))
+        setFuelType(m.fuelType)
         setAppLevel(m.scope === 'App')
         setPortions(m.portions.map((p) => ({ key: nextKey++, recipeId: p.recipeId, servings: p.servings })))
         setCanEdit(m.canEdit)
@@ -72,6 +75,7 @@ export function FuelSourceFormPage() {
         .map((p) => ({ recipeId: p.recipeId, servings: Number(p.servings) })),
       appLevel: appLevel && !!profile?.isActingAsAdmin,
       servings: Number(servings),
+      fuelType,
     }
   }
 
@@ -166,6 +170,16 @@ export function FuelSourceFormPage() {
           Servings
           <input className="input" type="number" min="0" step="any" value={servings}
             disabled={readOnly} onChange={(e) => setServings(e.target.value)} />
+        </label>
+
+        <label className="field" style={{ maxWidth: 220 }}>
+          Fuel type
+          <select className="select" value={fuelType} disabled={readOnly}
+            onChange={(e) => setFuelType(e.target.value as FuelType)}>
+            {(Object.entries(FUEL_TYPE_LABELS) as [FuelType, string][]).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
         </label>
 
         {profile?.isActingAsAdmin && (

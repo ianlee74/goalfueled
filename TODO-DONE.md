@@ -6,6 +6,19 @@
 
 ## Completed Items
 
+### Add a Fuel Type attribute to Fuel Sources — 2026-06-14 CDT
+
+- [x] **Added a `Fuel Type` attribute** (food / supplement / hydration) to Fuel Sources (the `Meal` entity).
+
+**NOTES:**
+
+- New `FuelType` enum (`Food=0, Supplement=1, Hydration=2`). `Meal.FuelType` is **nullable** (`FuelType?`) per the Cosmos non-nullable-value-type landmine; null is interpreted as `Food` at DTO mapping time so legacy documents read sensibly, and new fuel sources default to `Food` on create.
+- EF mapping: `e.Property(m => m.FuelType).HasConversion<string?>()` (stored by readable name, nullable), mirroring the nullable-enum precedent on AppUser. Works on in-memory and Cosmos paths.
+- DTO exposes a non-nullable `FuelType` (null→Food); `MealInput` gains optional `FuelType = Food` appended so existing positional callers compile. `MealService` sets/validates (`Enum.IsDefined`) on create/update.
+- Frontend: `FuelType` union + `FUEL_TYPE_LABELS`; a "Fuel type" select on the Fuel Source form (defaults to Food for new, loads existing on edit); a `badge fuel-type` on each list card (new `.badge.fuel-type` CSS).
+- 5+ new MealService tests (round-trip each value, default-to-Food, null-legacy→Food, update, invalid rejected).
+- Verified: `dotnet build` 0 errors; `dotnet test` 320/320 passed; `npm run build` succeeds; `npm run lint` 0 errors (3 pre-existing warnings).
+
 ### Rename Meals to Fuel Sources — 2026-06-14 CDT
 
 - [x] **Renamed the `Meals` library to `Fuel Sources`** (user-facing), keeping backend/API/DB identifiers as `Meal` to avoid a data migration.

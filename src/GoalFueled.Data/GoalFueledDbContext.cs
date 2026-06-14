@@ -102,6 +102,11 @@ public class GoalFueledDbContext : DbContext
             e.HasPartitionKey(m => m.Id);
             e.HasKey(m => m.Id);
             e.OwnsMany(m => m.Portions);
+            // Persist the fuel type by its string name (stable across reordering, readable in the
+            // document), like the onboarding enums. Nullable so meal documents written before this
+            // field existed materialize as null instead of throwing on read; the DTO mapping resolves
+            // a null read to Food. (Servings is a plain nullable scalar both providers map natively.)
+            e.Property(m => m.FuelType).HasConversion<string?>();
         });
 
         // --- Meal Plans ---

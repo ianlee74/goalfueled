@@ -169,6 +169,18 @@ public enum UnitOfMeasure
     Serving = 201
 }
 
+/// <summary>
+/// The kind of fuel a Fuel Source (internally <see cref="Entities.Meal"/>) represents. Stored as a
+/// nullable enum on the entity; a null read (old documents predating this field) is interpreted as
+/// <see cref="Food"/> in the DTO mapping.
+/// </summary>
+public enum FuelType
+{
+    Food = 0,
+    Supplement = 1,
+    Hydration = 2
+}
+
 /// <summary>The dimension a unit measures, used to validate that quantities are compatible.</summary>
 public enum UnitDimension
 {

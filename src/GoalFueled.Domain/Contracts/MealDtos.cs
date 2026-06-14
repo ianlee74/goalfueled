@@ -16,6 +16,8 @@ public sealed record MealDto(
     IReadOnlyList<MealPortionDto> Portions,
     /// <summary>How many servings the whole meal yields (null/old meals are treated as 1).</summary>
     double Servings,
+    /// <summary>What kind of fuel this source is. Never null in the DTO: a null stored value resolves to Food.</summary>
+    FuelType FuelType,
     OwnershipScope Scope,
     string? OwnerUserId,
     /// <summary>Nutrition for the whole meal (sum over portions of servings × recipe per-serving nutrition).</summary>
@@ -44,4 +46,6 @@ public sealed record MealInput(
     /// </summary>
     bool AppLevel = false,
     /// <summary>How many servings the whole meal yields; must be greater than zero. Defaults to 1.</summary>
-    double Servings = 1);
+    double Servings = 1,
+    /// <summary>What kind of fuel this source is. Optional; defaults to Food for new fuel sources.</summary>
+    FuelType FuelType = FuelType.Food);

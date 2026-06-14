@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { mealApi } from '../api/services'
 import { useAuth } from '../auth/AuthContext'
 import type { Meal } from '../api/types'
+import { FUEL_TYPE_LABELS } from '../api/types'
 import { IconMeal } from '../components/icons'
 import { EmptyState, SkeletonList } from '../components/Placeholders'
 import { FavoriteStar } from '../components/FavoriteStar'
@@ -83,9 +84,12 @@ export function FuelSourcesPage() {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="row spread">
                 <strong>{m.name}</strong>
-                <span className={`badge ${m.scope === 'App' ? 'app' : 'mine'}`}>
-                  {m.scope === 'App' ? 'App' : 'Mine'}
-                </span>
+                <div className="row" style={{ gap: '0.35rem' }}>
+                  <span className="badge fuel-type">{FUEL_TYPE_LABELS[m.fuelType]}</span>
+                  <span className={`badge ${m.scope === 'App' ? 'app' : 'mine'}`}>
+                    {m.scope === 'App' ? 'App' : 'Mine'}
+                  </span>
+                </div>
               </div>
               <div className="small muted">
                 {m.portions.length} recipe{m.portions.length === 1 ? '' : 's'}

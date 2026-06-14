@@ -525,6 +525,7 @@ label.field .hint, div.field .hint { font-weight: 400; color: var(--muted); font
 }
 .badge.app { background: var(--primary-soft); color: var(--primary-dark); }
 .badge.mine { background: var(--badge-mine-bg); color: var(--badge-mine-text); }
+.badge.fuel-type { background: var(--badge-bg); color: var(--muted); }
 
 /* ---- Finder (type-ahead combobox) ----
    A searchable combobox replacing plain <select>s / native <datalist>s: the ingredient finder

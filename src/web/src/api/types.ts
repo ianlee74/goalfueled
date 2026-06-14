@@ -231,6 +231,10 @@ export interface RecipeInput {
   appLevel: boolean
 }
 
+// What kind of fuel a Fuel Source represents. Never null in API output (a null stored value
+// resolves to 'Food' server-side).
+export type FuelType = 'Food' | 'Supplement' | 'Hydration'
+
 export interface MealPortion {
   recipeId: string
   servings: number
@@ -243,6 +247,8 @@ export interface Meal {
   portions: MealPortion[]
   // How many servings the whole meal yields (old meals default to 1).
   servings: number
+  // What kind of fuel this source is (old meals default to 'Food').
+  fuelType: FuelType
   scope: OwnershipScope
   ownerUserId?: string
   totalNutrition: NutrientAmount[]
@@ -266,6 +272,8 @@ export interface MealInput {
   appLevel: boolean
   // How many servings the whole meal yields; must be greater than zero.
   servings: number
+  // What kind of fuel this source is; defaults to 'Food' for new fuel sources.
+  fuelType: FuelType
 }
 
 export type MealPlanCadence = 'Daily' | 'Weekly'
@@ -674,6 +682,13 @@ export const MEAL_PLAN_CADENCE_LABELS: Record<MealPlanCadence, string> = {
 
 export const WEIGHT_UNIT_LABELS: Record<WeightUnit, string> = {
   Pound: 'lb', Kilogram: 'kg',
+}
+
+// Friendly labels for the fuel-type selector and list badge.
+export const FUEL_TYPE_LABELS: Record<FuelType, string> = {
+  Food: 'Food',
+  Supplement: 'Supplement',
+  Hydration: 'Hydration',
 }
 
 export const WEIGHT_SCHEDULE_CADENCE_LABELS: Record<WeightScheduleCadence, string> = {

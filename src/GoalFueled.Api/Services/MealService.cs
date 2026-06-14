@@ -62,6 +62,7 @@ public sealed class MealService
             Name = input.Name.Trim(),
             Portions = NormalizePortions(input.Portions),
             Servings = input.Servings,
+            FuelType = input.FuelType,
             Scope = appLevel ? OwnershipScope.App : OwnershipScope.User,
             OwnerUserId = appLevel ? null : user.Id,
         };
@@ -79,6 +80,7 @@ public sealed class MealService
         meal.Name = input.Name.Trim();
         meal.Portions = NormalizePortions(input.Portions);
         meal.Servings = input.Servings;
+        meal.FuelType = input.FuelType;
         meal.UpdatedAt = DateTimeOffset.UtcNow;
 
         // Admins may move a meal to/from app level via the AppLevel flag.
@@ -126,6 +128,8 @@ public sealed class MealService
         InputLimits.RequireText(input.Name, InputLimits.NameMaxLength, "Name");
         if (input.Servings <= 0)
             throw new ValidationException("Servings must be greater than zero.");
+        if (!Enum.IsDefined(input.FuelType))
+            throw new ValidationException("Fuel type is not valid.");
         InputLimits.LimitCount(input.Portions?.Count ?? 0, InputLimits.MealPortionsMax, "meal portions");
 
         foreach (var portion in input.Portions ?? Array.Empty<MealPortionInput>())
@@ -196,7 +200,10 @@ public sealed class MealService
             .ToList();
 
         return new MealDto(
-            m.Id, m.Name, portions, m.Servings ?? 1, m.Scope, m.OwnerUserId,
+            m.Id, m.Name, portions, m.Servings ?? 1,
+            // A null stored fuel type (old documents predating the field) reads back as Food.
+            m.FuelType ?? FuelType.Food,
+            m.Scope, m.OwnerUserId,
             total, perServing, m.CreatedAt, m.UpdatedAt, CanEdit(m, user),
             user.IsFavoriteMeal(m.Id));
     }

@@ -16,6 +16,15 @@ public class Meal
     /// </summary>
     public double? Servings { get; set; } = 1;
 
+    /// <summary>
+    /// What kind of fuel this source is (food / supplement / hydration). Nullable so meals persisted
+    /// before this field existed still load — a non-nullable value-type field throws "Nullable object
+    /// must have a value" on read for old Cosmos documents. A null read is treated as
+    /// <see cref="FuelType.Food"/> (the sensible default) when mapped to the DTO; new fuel sources
+    /// default to <see cref="FuelType.Food"/> on the create path.
+    /// </summary>
+    public FuelType? FuelType { get; set; } = Domain.FuelType.Food;
+
     public OwnershipScope Scope { get; set; } = OwnershipScope.User;
 
     public string? OwnerUserId { get; set; }
