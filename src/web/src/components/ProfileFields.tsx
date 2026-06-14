@@ -207,6 +207,7 @@ export function ProfileFields({ value, onChange, disabled, showWeight = true }: 
             />
             <select
               className="select"
+              style={{ width: 'auto' }}
               value={value.weightUnit}
               disabled={disabled}
               onChange={(e) => set('weightUnit', e.target.value as WeightUnit)}
