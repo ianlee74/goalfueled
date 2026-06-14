@@ -64,6 +64,14 @@ public class RecipeRepository : IRecipeRepository
         return result.OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
+    public async Task<IReadOnlyList<Recipe>> ListByOwnerAsync(string ownerUserId, CancellationToken ct = default)
+    {
+        // Owner-scoped equality is translatable; the (small) set is materialized as-is.
+        return await _db.Recipes
+            .Where(r => r.Scope == OwnershipScope.User && r.OwnerUserId == ownerUserId)
+            .ToListAsync(ct);
+    }
+
     public Task<Recipe?> GetByIdAsync(string id, CancellationToken ct = default) =>
         _db.Recipes.FirstOrDefaultAsync(r => r.Id == id, ct);
 

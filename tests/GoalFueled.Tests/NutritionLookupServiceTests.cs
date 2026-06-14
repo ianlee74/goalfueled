@@ -47,6 +47,7 @@ public class NutritionLookupServiceTests
             return Task.FromResult(hits);
         }
         public Task<IReadOnlyList<Ingredient>> ListAllAsync(string? search = null, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<IReadOnlyList<Ingredient>> ListByOwnerAsync(string ownerUserId, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<IReadOnlyList<Ingredient>> ListPendingReviewAsync(CancellationToken ct = default) => throw new NotImplementedException();
         public Task<int> CountPendingReviewByOwnerAsync(string ownerUserId, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<Ingredient?> GetByIdAsync(string id, CancellationToken ct = default) => throw new NotImplementedException();

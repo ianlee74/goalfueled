@@ -5,11 +5,13 @@ import { useAuth } from '../auth/AuthContext'
 import type { AdminUser } from '../api/types'
 import { IconUser, IconUsers } from '../components/icons'
 import { EmptyState, SkeletonList } from '../components/Placeholders'
+import { useConfirm } from '../hooks/useConfirm'
 
 /** Admin-only screen: list users and promote/demote the App Admin role. */
 export function UsersPage() {
   const { profile } = useAuth()
   const navigate = useNavigate()
+  const { confirm, dialog } = useConfirm()
   const [items, setItems] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -54,8 +56,33 @@ export function UsersPage() {
     }
   }
 
+  function askDelete(u: AdminUser) {
+    confirm({
+      title: `Delete ${u.displayName}?`,
+      message: 'This permanently deletes the user and all of their personal data ' +
+        '(logs, plans, goals, weights, stats, and private ingredients/recipes/meals). ' +
+        'Content they created that was accepted as public/app-owned is kept. This cannot be undone.',
+      confirmLabel: 'Delete user',
+      pendingLabel: 'Deleting…',
+      onConfirm: async () => {
+        setBusyId(u.id)
+        setError(null)
+        try {
+          await adminApi.deleteUser(u.id)
+          await load()
+        } catch (e) {
+          setError(e instanceof Error ? e.message : 'Delete failed.')
+          throw e // keep the dialog open so the admin sees it didn't complete
+        } finally {
+          setBusyId(null)
+        }
+      },
+    })
+  }
+
   return (
     <div className="stack">
+      {dialog}
       <div className="row spread">
         <h1>Users</h1>
       </div>
@@ -83,11 +110,15 @@ export function UsersPage() {
             </div>
             <div className="row" style={{ gap: '0.5rem' }}>
               {u.isAdmin ? (
-                <button className="btn btn-danger btn-sm" disabled={busyId === u.id}
+                <button type="button" className="btn btn-danger btn-sm" disabled={busyId === u.id}
                   onClick={() => setAdmin(u.id, false)}>Demote</button>
               ) : (
-                <button className="btn btn-primary btn-sm" disabled={busyId === u.id}
+                <button type="button" className="btn btn-primary btn-sm" disabled={busyId === u.id}
                   onClick={() => setAdmin(u.id, true)}>Promote</button>
+              )}
+              {!u.isSelf && (
+                <button type="button" className="btn btn-danger btn-sm" disabled={busyId === u.id}
+                  onClick={() => askDelete(u)}>Delete</button>
               )}
             </div>
           </div>

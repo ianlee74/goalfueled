@@ -14,6 +14,9 @@ public interface IConsumptionEntryRepository
     Task<IReadOnlyList<ConsumptionEntry>> ListForUserInRangeAsync(
         string userId, DateOnly from, DateOnly to, CancellationToken ct = default);
 
+    /// <summary>All of the user's consumption entries (used when cascade-deleting a user).</summary>
+    Task<IReadOnlyList<ConsumptionEntry>> ListForUserAsync(string userId, CancellationToken ct = default);
+
     /// <summary>A single entry by id, or null if it does not exist.</summary>
     Task<ConsumptionEntry?> GetByIdAsync(string id, CancellationToken ct = default);
 

@@ -21,8 +21,21 @@ public class UserAdminServiceTests
             new AuthenticatedIdentity("dev", "user", "user@dev.local", "User"))
             .GetCurrentUserAsync(TestHelpers.BlankRequest());
         var repo = new UserRepository(db);
-        return (admin!, user!, repo, new UserAdminService(repo));
+        return (admin!, user!, repo, NewService(db, repo));
     }
+
+    // Builds the service wired to every repository over the same context (the cascade needs them all).
+    private static UserAdminService NewService(GoalFueledDbContext db, UserRepository repo) => new(
+        repo,
+        new IngredientRepository(db),
+        new RecipeRepository(db),
+        new MealRepository(db),
+        new MealPlanRepository(db),
+        new ConsumptionEntryRepository(db),
+        new BurnActivityRepository(db),
+        new WeightEntryRepository(db),
+        new GoalRepository(db),
+        new UserStatsRepository(db));
 
     [Fact]
     public async Task Acting_admin_lists_all_users()
@@ -104,5 +117,133 @@ public class UserAdminServiceTests
         var (admin, user, _, svc) = await SetupAsync(db);
 
         await Assert.ThrowsAsync<ForbiddenException>(() => svc.SetAdminRoleAsync(user, admin.Id, false, default));
+    }
+
+    [Fact]
+    public async Task Delete_removes_all_of_the_users_personal_data_and_the_user_doc()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, repo, svc) = await SetupAsync(db);
+
+        // Seed a spread of the user's personal/private data.
+        var privateIngredient = new Ingredient { Name = "Private", Scope = OwnershipScope.User, OwnerUserId = user.Id };
+        var pendingRecipe = new Recipe { Name = "Pending", Scope = OwnershipScope.User, OwnerUserId = user.Id, Visibility = RecipeVisibility.PendingReview };
+        var privateMeal = new Meal { Name = "Private meal", Scope = OwnershipScope.User, OwnerUserId = user.Id };
+        await new IngredientRepository(db).AddAsync(privateIngredient);
+        await new RecipeRepository(db).AddAsync(pendingRecipe);
+        await new MealRepository(db).AddAsync(privateMeal);
+        await new MealPlanRepository(db).AddAsync(new MealPlan { Name = "Plan", OwnerUserId = user.Id });
+        await new ConsumptionEntryRepository(db).AddAsync(new ConsumptionEntry { OwnerUserId = user.Id, Name = "Lunch" });
+        await new BurnActivityRepository(db).AddAsync(new BurnActivity { OwnerUserId = user.Id, Name = "Run", CaloriesBurned = 300 });
+        await new WeightEntryRepository(db).AddAsync(new WeightEntry { OwnerUserId = user.Id, Value = 180 });
+        await new GoalRepository(db).AddAsync(new Goal { OwnerUserId = user.Id, Name = "Cut" });
+        await new UserStatsRepository(db).AddAsync(new UserStats { OwnerUserId = user.Id, FuelPoints = 50 });
+
+        await svc.DeleteAsync(admin, user.Id, default);
+
+        Assert.Null(await repo.GetByIdAsync(user.Id));
+        Assert.Empty(await new IngredientRepository(db).ListByOwnerAsync(user.Id));
+        Assert.Empty(await new RecipeRepository(db).ListByOwnerAsync(user.Id));
+        Assert.Empty(await new MealRepository(db).ListByOwnerAsync(user.Id));
+        Assert.Empty(await new MealPlanRepository(db).ListByOwnerAsync(user.Id));
+        Assert.Empty(await new ConsumptionEntryRepository(db).ListForUserAsync(user.Id));
+        Assert.Empty(await new BurnActivityRepository(db).ListForUserAsync(user.Id));
+        Assert.Empty(await new WeightEntryRepository(db).ListForUserAsync(user.Id));
+        Assert.Empty(await new GoalRepository(db).ListForUserAsync(user.Id));
+        Assert.Null(await new UserStatsRepository(db).GetForUserAsync(user.Id));
+    }
+
+    [Fact]
+    public async Task Delete_preserves_and_rehomes_public_ingredients_and_recipes_to_the_app()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, _, svc) = await SetupAsync(db);
+
+        var publicIngredient = new Ingredient
+        {
+            Name = "Approved ingredient", Scope = OwnershipScope.User, OwnerUserId = user.Id,
+            Visibility = IngredientVisibility.Public,
+        };
+        var publicRecipe = new Recipe
+        {
+            Name = "Approved recipe", Scope = OwnershipScope.User, OwnerUserId = user.Id,
+            Visibility = RecipeVisibility.Public,
+        };
+        await new IngredientRepository(db).AddAsync(publicIngredient);
+        await new RecipeRepository(db).AddAsync(publicRecipe);
+
+        await svc.DeleteAsync(admin, user.Id, default);
+
+        var keptIngredient = await new IngredientRepository(db).GetByIdAsync(publicIngredient.Id);
+        Assert.NotNull(keptIngredient);
+        Assert.Equal(OwnershipScope.App, keptIngredient!.Scope);
+        Assert.Null(keptIngredient.OwnerUserId);
+        Assert.Equal(user.Id, keptIngredient.OriginalCreatorUserId);
+        Assert.Equal(IngredientVisibility.Public, keptIngredient.EffectiveVisibility);
+
+        var keptRecipe = await new RecipeRepository(db).GetByIdAsync(publicRecipe.Id);
+        Assert.NotNull(keptRecipe);
+        Assert.Equal(OwnershipScope.App, keptRecipe!.Scope);
+        Assert.Null(keptRecipe.OwnerUserId);
+        Assert.Equal(user.Id, keptRecipe.OriginalCreatorUserId);
+        Assert.Equal(RecipeVisibility.Public, keptRecipe.Visibility);
+    }
+
+    [Fact]
+    public async Task Delete_keeps_existing_original_creator_credit_when_rehoming()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, _, svc) = await SetupAsync(db);
+
+        var ingredient = new Ingredient
+        {
+            Name = "Approved", Scope = OwnershipScope.User, OwnerUserId = user.Id,
+            Visibility = IngredientVisibility.Public, OriginalCreatorUserId = "someone-else",
+        };
+        await new IngredientRepository(db).AddAsync(ingredient);
+
+        await svc.DeleteAsync(admin, user.Id, default);
+
+        var kept = await new IngredientRepository(db).GetByIdAsync(ingredient.Id);
+        Assert.Equal("someone-else", kept!.OriginalCreatorUserId);
+    }
+
+    [Fact]
+    public async Task Cannot_delete_self()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, _, _, svc) = await SetupAsync(db);
+
+        await Assert.ThrowsAsync<ValidationException>(() => svc.DeleteAsync(admin, admin.Id, default));
+    }
+
+    [Fact]
+    public async Task Cannot_delete_the_last_remaining_admin()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, _, _, svc) = await SetupAsync(db);
+
+        // 'admin' is the only admin in the DB. A separate (non-persisted) acting-admin actor attempts to
+        // delete them — passes the authorization and self checks, but the last-admin guard must block it.
+        var actor = new AppUser { Id = "other-actor", Roles = { AppRole.AppAdmin }, AdminViewEnabled = true };
+        await Assert.ThrowsAsync<ValidationException>(() => svc.DeleteAsync(actor, admin.Id, default));
+    }
+
+    [Fact]
+    public async Task Delete_missing_user_returns_not_found()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, _, _, svc) = await SetupAsync(db);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => svc.DeleteAsync(admin, "does-not-exist", default));
+    }
+
+    [Fact]
+    public async Task Non_admin_cannot_delete_users()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, _, svc) = await SetupAsync(db);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => svc.DeleteAsync(user, admin.Id, default));
     }
 }

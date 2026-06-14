@@ -13,4 +13,6 @@ public interface IWeightEntryRepository
     Task<WeightEntry> AddAsync(WeightEntry entry, CancellationToken ct = default);
 
     Task UpdateAsync(WeightEntry entry, CancellationToken ct = default);
+
+    Task DeleteAsync(WeightEntry entry, CancellationToken ct = default);
 }

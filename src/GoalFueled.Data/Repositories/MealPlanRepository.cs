@@ -38,6 +38,9 @@ public class MealPlanRepository : IMealPlanRepository
         return result.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
+    public async Task<IReadOnlyList<MealPlan>> ListByOwnerAsync(string ownerUserId, CancellationToken ct = default) =>
+        await _db.MealPlans.Where(p => p.OwnerUserId == ownerUserId).ToListAsync(ct);
+
     public Task<MealPlan?> GetByIdAsync(string id, CancellationToken ct = default) =>
         _db.MealPlans.FirstOrDefaultAsync(p => p.Id == id, ct);
 

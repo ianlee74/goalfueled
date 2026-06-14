@@ -29,6 +29,8 @@ export const adminApi = {
   listUsers: () => api.get<AdminUser[]>('/manage-users'),
   setAdminRole: (id: string, isAdmin: boolean) =>
     api.post<AdminUser>(`/manage-users/${id}/admin-role`, { isAdmin }),
+  // Permanently deletes a user and all their personal data. Content accepted as public/app-owned is kept.
+  deleteUser: (id: string) => api.del(`/manage-users/${id}`),
 }
 
 // Builds a `?search=…&all=…` query string. `all` is honored server-side only for acting admins.

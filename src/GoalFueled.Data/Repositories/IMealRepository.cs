@@ -16,6 +16,12 @@ public interface IMealRepository
     /// </summary>
     Task<IReadOnlyList<Meal>> ListAllAsync(string? search = null, CancellationToken ct = default);
 
+    /// <summary>
+    /// Returns every meal owned by the given user (user-scoped only). Used when cascade-deleting a user:
+    /// their private meals are deleted (meals have no public-review workflow — app-scoped meals are kept).
+    /// </summary>
+    Task<IReadOnlyList<Meal>> ListByOwnerAsync(string ownerUserId, CancellationToken ct = default);
+
     Task<Meal?> GetByIdAsync(string id, CancellationToken ct = default);
 
     Task<Meal> AddAsync(Meal meal, CancellationToken ct = default);

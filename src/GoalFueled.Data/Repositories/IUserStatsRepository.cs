@@ -10,4 +10,6 @@ public interface IUserStatsRepository
     Task<UserStats> AddAsync(UserStats stats, CancellationToken ct = default);
 
     Task UpdateAsync(UserStats stats, CancellationToken ct = default);
+
+    Task DeleteAsync(UserStats stats, CancellationToken ct = default);
 }

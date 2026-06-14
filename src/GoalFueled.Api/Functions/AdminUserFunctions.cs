@@ -42,4 +42,14 @@ public sealed class AdminUserFunctions
             var updated = await _admin.SetAdminRoleAsync(user, id, input.IsAdmin, req.HttpContext.RequestAborted);
             return HttpResults.Ok(updated);
         });
+
+    [Function("DeleteUser")]
+    public Task<IActionResult> Delete(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "manage-users/{id}")] HttpRequest req,
+        string id) =>
+        ApiEndpoint.RunAuthenticated(req, _auth, async user =>
+        {
+            await _admin.DeleteAsync(user, id, req.HttpContext.RequestAborted);
+            return HttpResults.NoContent();
+        });
 }

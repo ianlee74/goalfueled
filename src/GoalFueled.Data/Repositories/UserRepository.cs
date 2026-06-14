@@ -35,6 +35,12 @@ public class UserRepository : IUserRepository
         await _db.SaveChangesAsync(ct);
     }
 
+    public async Task DeleteAsync(AppUser user, CancellationToken ct = default)
+    {
+        _db.Users.Remove(user);
+        await _db.SaveChangesAsync(ct);
+    }
+
     // The Cosmos provider can't translate a bare Any(); a Take(1) read is the portable existence check.
     public async Task<bool> AnyAsync(CancellationToken ct = default) =>
         (await _db.Users.Take(1).ToListAsync(ct)).Count != 0;

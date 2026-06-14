@@ -16,6 +16,9 @@ public interface IMealPlanRepository
     /// </summary>
     Task<IReadOnlyList<MealPlan>> ListAllAsync(string? search = null, CancellationToken ct = default);
 
+    /// <summary>Returns every meal plan owned by the given user. Used when cascade-deleting a user.</summary>
+    Task<IReadOnlyList<MealPlan>> ListByOwnerAsync(string ownerUserId, CancellationToken ct = default);
+
     Task<MealPlan?> GetByIdAsync(string id, CancellationToken ct = default);
 
     Task<MealPlan> AddAsync(MealPlan plan, CancellationToken ct = default);

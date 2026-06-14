@@ -28,6 +28,12 @@ public interface IIngredientRepository
     /// </summary>
     Task<int> CountPendingReviewByOwnerAsync(string ownerUserId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Returns every ingredient owned by the given user (user-scoped only). Used when cascade-deleting
+    /// a user: their private ingredients are deleted and their approved/public ones are re-homed to the app.
+    /// </summary>
+    Task<IReadOnlyList<Ingredient>> ListByOwnerAsync(string ownerUserId, CancellationToken ct = default);
+
     Task<Ingredient?> GetByIdAsync(string id, CancellationToken ct = default);
 
     Task<Ingredient> AddAsync(Ingredient ingredient, CancellationToken ct = default);

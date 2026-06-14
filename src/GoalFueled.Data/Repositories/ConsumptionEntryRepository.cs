@@ -37,6 +37,9 @@ public class ConsumptionEntryRepository : IConsumptionEntryRepository
             .ToList();
     }
 
+    public async Task<IReadOnlyList<ConsumptionEntry>> ListForUserAsync(string userId, CancellationToken ct = default) =>
+        await _db.ConsumptionEntries.Where(c => c.OwnerUserId == userId).ToListAsync(ct);
+
     public Task<ConsumptionEntry?> GetByIdAsync(string id, CancellationToken ct = default) =>
         _db.ConsumptionEntries.FirstOrDefaultAsync(c => c.Id == id, ct);
 

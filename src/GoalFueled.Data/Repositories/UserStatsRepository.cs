@@ -31,4 +31,10 @@ public class UserStatsRepository : IUserStatsRepository
         _db.UserStats.Update(stats);
         await _db.SaveChangesAsync(ct);
     }
+
+    public async Task DeleteAsync(UserStats stats, CancellationToken ct = default)
+    {
+        _db.UserStats.Remove(stats);
+        await _db.SaveChangesAsync(ct);
+    }
 }

@@ -39,4 +39,10 @@ public class WeightEntryRepository : IWeightEntryRepository
         _db.WeightEntries.Update(entry);
         await _db.SaveChangesAsync(ct);
     }
+
+    public async Task DeleteAsync(WeightEntry entry, CancellationToken ct = default)
+    {
+        _db.WeightEntries.Remove(entry);
+        await _db.SaveChangesAsync(ct);
+    }
 }

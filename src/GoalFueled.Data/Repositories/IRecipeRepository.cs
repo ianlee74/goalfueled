@@ -27,6 +27,12 @@ public interface IRecipeRepository
     /// </summary>
     Task<int> CountPendingReviewByOwnerAsync(string ownerUserId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Returns every recipe owned by the given user (user-scoped only). Used when cascade-deleting a
+    /// user: their private recipes are deleted and their approved/public ones are re-homed to the app.
+    /// </summary>
+    Task<IReadOnlyList<Recipe>> ListByOwnerAsync(string ownerUserId, CancellationToken ct = default);
+
     Task<Recipe?> GetByIdAsync(string id, CancellationToken ct = default);
 
     Task<Recipe> AddAsync(Recipe recipe, CancellationToken ct = default);

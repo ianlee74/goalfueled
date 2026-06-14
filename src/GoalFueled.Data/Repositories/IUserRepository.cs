@@ -13,6 +13,9 @@ public interface IUserRepository
 
     Task UpdateAsync(AppUser user, CancellationToken ct = default);
 
+    /// <summary>Permanently removes the user document (used by the admin cascade-delete).</summary>
+    Task DeleteAsync(AppUser user, CancellationToken ct = default);
+
     /// <summary>True if there are no users yet; used to grant the first user the App Admin role.</summary>
     Task<bool> AnyAsync(CancellationToken ct = default);
 

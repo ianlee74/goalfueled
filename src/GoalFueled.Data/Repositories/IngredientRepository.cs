@@ -68,6 +68,14 @@ public class IngredientRepository : IIngredientRepository
         return result.OrderBy(i => i.Name, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
+    public async Task<IReadOnlyList<Ingredient>> ListByOwnerAsync(string ownerUserId, CancellationToken ct = default)
+    {
+        // Owner-scoped equality is translatable; the (small) set is materialized as-is.
+        return await _db.Ingredients
+            .Where(i => i.Scope == OwnershipScope.User && i.OwnerUserId == ownerUserId)
+            .ToListAsync(ct);
+    }
+
     public Task<Ingredient?> GetByIdAsync(string id, CancellationToken ct = default) =>
         _db.Ingredients.FirstOrDefaultAsync(i => i.Id == id, ct);
 
