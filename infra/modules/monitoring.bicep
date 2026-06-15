@@ -1,10 +1,12 @@
-@description('Base name for monitoring resources.')
-param name string
+@description('Log Analytics workspace name.')
+param logAnalyticsName string
+@description('Application Insights component name.')
+param appInsightsName string
 param location string
 param tags object
 
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
-  name: 'log-${name}'
+  name: logAnalyticsName
   location: location
   tags: tags
   properties: {
@@ -14,7 +16,7 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
 }
 
 resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
-  name: 'appi-${name}'
+  name: appInsightsName
   location: location
   tags: tags
   kind: 'web'

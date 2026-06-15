@@ -14,8 +14,8 @@ param namePrefix string = 'goalfueled'
 @allowed([ 'dev', 'test', 'prod' ])
 param environment string = 'dev'
 
-@description('Azure region for all resources.')
-param location string = resourceGroup().location
+@description('Azure region for all resources. Defaults to Central US; override to deploy elsewhere.')
+param location string = 'centralus'
 
 // A short, deterministic suffix to keep globally-unique names (storage, cosmos, function app) collision-free.
 var suffix = uniqueString(resourceGroup().id, namePrefix, environment)
@@ -27,7 +27,8 @@ var tags = {
 module monitoring 'modules/monitoring.bicep' = {
   name: 'monitoring'
   params: {
-    name: '${namePrefix}-${environment}'
+    logAnalyticsName: '${namePrefix}-log-${environment}'
+    appInsightsName: '${namePrefix}-appi-${environment}'
     location: location
     tags: tags
   }
@@ -57,6 +58,7 @@ module functionApp 'modules/functionApp.bicep' = {
   name: 'functionApp'
   params: {
     name: '${namePrefix}-api-${environment}-${take(suffix, 6)}'
+    planName: '${namePrefix}-plan-${environment}-${take(suffix, 6)}'
     location: location
     tags: tags
     storageAccountName: storage.outputs.name

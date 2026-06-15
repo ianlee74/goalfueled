@@ -41,8 +41,8 @@ Provisioned resources (all defined under `infra/`):
 
 | Resource | Bicep module | Notes |
 |----------|--------------|-------|
-| Log Analytics workspace | `infra/modules/monitoring.bicep` | `log-<prefix>-<env>`, 30-day retention |
-| Application Insights | `infra/modules/monitoring.bicep` | `appi-<prefix>-<env>`, workspace-based |
+| Log Analytics workspace | `infra/modules/monitoring.bicep` | `goalfueled-log-<env>`, 30-day retention |
+| Application Insights | `infra/modules/monitoring.bicep` | `goalfueled-appi-<env>`, workspace-based |
 | Storage account (StorageV2) | `infra/modules/storage.bicep` | Functions backend + public-read `images` container |
 | Cosmos DB account (SQL API, serverless) | `infra/modules/cosmos.bicep` | DB `goalfueled`; containers `Users`, `Ingredients`, `Recipes`, `Meals`, `MealPlans`, each partitioned by `/id` |
 | Function App + Consumption plan (Linux, Y1 Dynamic) | `infra/modules/functionApp.bicep` | `DOTNET-ISOLATED\|8.0`, system-assigned managed identity, HTTPS-only |
@@ -57,10 +57,14 @@ Names derive from two parameters — `namePrefix` (default `goalfueled`) and `en
 unique names collision-free:
 
 - Function App: `goalfueled-api-<env>-<6-char-suffix>`
+- App Service (Consumption) plan: `goalfueled-plan-<env>-<6-char-suffix>`
 - Static Web App: `goalfueled-web-<env>`
 - Cosmos account: `goalfueled-<env>-<6-char-suffix>` (lowercased)
 - Storage account: `goalfueled<11-char-suffix>` (lowercase alphanumeric, ≤24 chars)
-- App Insights / Log Analytics: `appi-goalfueled-<env>` / `log-goalfueled-<env>`
+- App Insights / Log Analytics: `goalfueled-appi-<env>` / `goalfueled-log-<env>`
+
+All resources lead with the `goalfueled` prefix (`<prefix>-<role>-<env>`); the role segment
+(`api`, `plan`, `web`, `log`, `appi`) sits in the middle.
 
 The actual generated names are emitted as deployment outputs (`functionAppName`,
 `functionAppHostname`, `staticWebAppName`, `staticWebAppHostname`, `cosmosAccountName`) — capture
@@ -107,8 +111,8 @@ az account set --subscription <YOUR_SUBSCRIPTION_ID>
 resource group first, then deploy with `az deployment group create`.
 
 ```bash
-# 1. Create the resource group (pick your region).
-az group create -n rg-goalfueled-dev -l eastus
+# 1. Create the resource group (defaults to Central US; pick another region if you prefer).
+az group create -n rg-goalfueled-dev -l centralus
 
 # 2. (Recommended) Preview the changes.
 az deployment group what-if \
@@ -131,7 +135,7 @@ Parameters (`infra/main.parameters.json` + overridable on the command line):
 |-------|---------|---------|
 | `namePrefix` | `goalfueled` | any short prefix |
 | `environment` | `dev` | `dev` \| `test` \| `prod` |
-| `location` | `resourceGroup().location` | any region (Static Web App is hard-pinned to `eastus2` inside the module) |
+| `location` | `centralus` | any region (Static Web App is hard-pinned to `eastus2` inside the module) |
 
 Capture the outputs (you will need the Function App and Static Web App names below):
 
@@ -381,7 +385,7 @@ rg-goalfueled-dev -n <STATIC_WEB_APP_NAME> --query properties.apiKey -o tsv`). M
      --query "[?name=='GoalFueled__Auth__EnableDevAuth'].value" -o tsv  # → false
    ```
 
-5. **Telemetry** — confirm requests appear in Application Insights (`appi-goalfueled-<env>`).
+5. **Telemetry** — confirm requests appear in Application Insights (`goalfueled-appi-<env>`).
 
 ---
 

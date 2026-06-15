@@ -1,5 +1,7 @@
 @description('Function App name.')
 param name string
+@description('App Service (Consumption) plan name.')
+param planName string
 param location string
 param tags object
 param storageAccountName string
@@ -16,7 +18,7 @@ var storageConnectionString = 'DefaultEndpointsProtocol=https;AccountName=${stor
 
 // Linux Consumption (dynamic) plan.
 resource plan 'Microsoft.Web/serverfarms@2023-12-01' = {
-  name: 'plan-${name}'
+  name: planName
   location: location
   tags: tags
   sku: { name: 'Y1', tier: 'Dynamic' }
