@@ -6,6 +6,16 @@
 
 ## Completed Items
 
+### Write Deployment.md (Azure deployment guide) — 2026-06-14 CDT
+
+- [x] **Created `Deployment.md`** documenting the full steps to deploy GoalFueled to Azure. (The other "Prepare to deploy to Azure" sub-items require live Azure credentials/operations and remain open in TODO.md.)
+
+**NOTES:**
+
+- Documentation only — no infra/provisioning/deploy commands were run. Written from the repo's actual infra and workflows.
+- Covers: architecture (Static Web App + Function App + Cosmos + Storage + App Insights/Log Analytics), prerequisites, provisioning `infra/main.bicep` (resource-group scoped, 5 modules; Cosmos serverless w/ 5 containers, Linux Consumption dotnet-isolated 8.0 Function App w/ managed identity, Free SWA), production app settings (`GoalFueled__UseInMemoryStore=false`, Cosmos settings, `GoalFueled__Auth__EnableDevAuth=false`, `:`↔`__` mapping), secrets/Key Vault hardening, CI/CD (GitHub Actions `ci.yml`/`deploy-infra.yml`/`deploy.yml` + Azure DevOps `azure-pipelines.yml`), manual deploy fallback, post-deploy verification (`/api/health`), the Entra External ID auth note, and rollback/teardown.
+- **Gaps flagged for the user** (real, in-repo): CORS placeholder `['https://portal.azure.com']` in `functionApp.bicep`; inline Cosmos/storage connection strings (no Key Vault yet, though the managed identity exists); the DevOps pipeline deploys API only (no SWA step); `EntraExternalIdProvider` is an inert stub so there is no working production login until it's implemented (dev auth must be off in prod); no `global.json` pinning the SDK.
+
 ### Add an About page — 2026-06-14 CDT
 
 - [x] **Added an `About` page** explaining the app's purpose, with a build-time "Last updated" date.

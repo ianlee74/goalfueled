@@ -14,7 +14,7 @@ Ignore all files in the `Future Features` section.
   - Switch the API to the Cosmos provider in cloud envs (`GoalFueled:UseInMemoryStore=false`) and verify against a real Cosmos account.
   - Tighten the Function App **CORS** to the Static Web App hostname (currently a placeholder).
   - Move secrets to **Key Vault + managed identity** (replace inline connection strings in `functionApp.bicep`).
-  - Create a `Deployment.md` file that documents the steps necessary to deploy the app Azure
+  - [x] Create a `Deployment.md` file that documents the steps necessary to deploy the app to Azure — DONE (see `Deployment.md`)
 
 ## FUTURE FEATURES
 
