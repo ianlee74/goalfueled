@@ -111,7 +111,8 @@ az account set --subscription <YOUR_SUBSCRIPTION_ID>
 resource group first, then deploy with `az deployment group create`.
 
 ```bash
-# 1. Create the resource group (defaults to Central US; pick another region if you prefer).
+# 1. Create the resource group. Resources default to the group's region (override with
+#    -p location=<region>), so pick the region here — e.g. Central US.
 az group create -n rg-goalfueled-dev -l centralus
 
 # 2. (Recommended) Preview the changes.
@@ -135,7 +136,7 @@ Parameters (`infra/main.parameters.json` + overridable on the command line):
 |-------|---------|---------|
 | `namePrefix` | `goalfueled` | any short prefix |
 | `environment` | `dev` | `dev` \| `test` \| `prod` |
-| `location` | `centralus` | any region (Static Web App is hard-pinned to `eastus2` inside the module) |
+| `location` | `resourceGroup().location` (inherits the resource group region) | any region (Static Web App is hard-pinned to `eastus2` inside the module) |
 
 Capture the outputs (you will need the Function App and Static Web App names below):
 
