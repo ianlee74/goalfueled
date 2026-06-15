@@ -6,6 +6,11 @@ import react from '@vitejs/plugin-react'
 // matching the deployed Static Web Apps topology where /api is co-located.
 export default defineConfig({
   plugins: [react()],
+  // Inject the build timestamp so the About page can show an always-accurate
+  // "last updated" date. `new Date()` runs in Node at build time.
+  define: {
+    __BUILD_DATE__: JSON.stringify(new Date().toISOString()),
+  },
   server: {
     port: 5173,
     proxy: {

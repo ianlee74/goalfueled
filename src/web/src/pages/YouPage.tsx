@@ -69,6 +69,15 @@ export function YouPage() {
 
       <WeightScheduleEditor />
 
+      {/* General info: what the app is + when it was last updated. */}
+      <Link className="card ingredient-item" to="/about">
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <strong>About</strong>
+          <div className="small muted">What GoalFueled is and when it was last updated</div>
+        </div>
+        <span className="muted" aria-hidden="true">→</span>
+      </Link>
+
       {/* Admin tools, only while acting as an admin (plus the toggle for admins). */}
       {profile?.isAdmin && (
         <div className="card stack">

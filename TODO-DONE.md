@@ -6,6 +6,17 @@
 
 ## Completed Items
 
+### Add an About page — 2026-06-14 CDT
+
+- [x] **Added an `About` page** explaining the app's purpose, with a build-time "Last updated" date.
+
+**NOTES:**
+
+- New `AboutPage` at SPA route `/about` (signed-in, not admin-gated). On-brand copy from DESIGN.md: a short intro plus a "What you can do" list (log fuel & burn, track weight/goals, build fuel sources/recipes/plans, earn Fuel Points). Reuses existing card/stack/typography classes.
+- "Last updated" is a **build-time** date: `vite.config.ts` `define: { __BUILD_DATE__: JSON.stringify(new Date().toISOString()) }`, an ambient `declare const __BUILD_DATE__: string` in new `src/web/src/globals.d.ts`, formatted on the page via `toLocaleDateString` (e.g. "Last updated: June 14, 2026"). Auto-updates each build rather than being hand-maintained.
+- Discoverability: an "About" link row on the You page (styled like the Library rows); primary nav / mobile tab bar untouched.
+- Frontend-only. Verified: `npm run build` succeeds (ISO date baked into the bundle); `npm run lint` 0 errors (3 pre-existing warnings).
+
 ### Add a Fuel Type filter to the Fuel Sources page — 2026-06-14 CDT
 
 - [x] **Added a `Fuel Type` filter** to the Fuel Sources page (`/fuel-sources`).
