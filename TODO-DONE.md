@@ -6,6 +6,17 @@
 
 ## Completed Items
 
+### Add a Fuel Type filter to the Fuel Sources page — 2026-06-14 CDT
+
+- [x] **Added a `Fuel Type` filter** to the Fuel Sources page (`/fuel-sources`).
+
+**NOTES:**
+
+- A row of toggleable filter chips below the search box: All (default) + Food / Supplement / Hydration, reusing the existing `.finder-tags`/`.finder-tag` chip classes (same pattern as the Ingredient finder) — no new CSS. Chips are `<button>`s with `aria-pressed`; clicking the active type or "All" clears the filter.
+- Client-side filter over the already-loaded list (`fuelType ? items.filter(...) : items`), combined with the existing server-side debounced search (both apply together). Favorites-first ordering preserved within the filtered subset.
+- Empty states: no items at all → existing empty state; items exist but filter yields none → "No {Type} fuel sources" with a clear-the-filter hint.
+- Frontend-only (`FuelSourcesPage.tsx`). Verified: `npm run build` succeeds; `npm run lint` 0 errors (3 pre-existing warnings).
+
 ### Lock a Fuel Source's Fuel Type once it has recipe portions — 2026-06-14 CDT
 
 - [x] **Locked the `Fuel Type` of a `Fuel Source`** once it has recipe portions; it can only change after all portions are removed.

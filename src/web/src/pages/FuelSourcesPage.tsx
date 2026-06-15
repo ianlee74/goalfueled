@@ -2,8 +2,11 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { mealApi } from '../api/services'
 import { useAuth } from '../auth/AuthContext'
-import type { Meal } from '../api/types'
+import type { FuelType, Meal } from '../api/types'
 import { FUEL_TYPE_LABELS } from '../api/types'
+
+// The fuel types offered as filter chips, in the order they appear on the chip row.
+const FUEL_TYPES: FuelType[] = ['Food', 'Supplement', 'Hydration']
 import { IconMeal } from '../components/icons'
 import { EmptyState, SkeletonList } from '../components/Placeholders'
 import { FavoriteStar } from '../components/FavoriteStar'
@@ -13,6 +16,9 @@ export function FuelSourcesPage() {
   const { profile } = useAuth()
   const [items, setItems] = useState<Meal[]>([])
   const [search, setSearch] = useState('')
+  // Client-side narrowing by fuel type; null = "All" (no filter). The server already returns the
+  // full (search-matched) set, so this is applied over the loaded items without a re-fetch.
+  const [fuelType, setFuelType] = useState<FuelType | null>(null)
   const [showAll, setShowAll] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -48,6 +54,10 @@ export function FuelSourcesPage() {
     }
   }
 
+  // Apply the fuel-type chip filter over the already-loaded (search-matched) items. The server
+  // returns favorites first, so filtering in place preserves that ordering within the subset.
+  const visible = fuelType ? items.filter((m) => m.fuelType === fuelType) : items
+
   return (
     <div className="stack">
       <div className="row spread">
@@ -61,6 +71,28 @@ export function FuelSourcesPage() {
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
+
+      <div className="finder-tags" aria-label="Filter by fuel type">
+        <button
+          type="button"
+          className={`finder-tag ${fuelType === null ? 'on' : ''}`}
+          aria-pressed={fuelType === null}
+          onClick={() => setFuelType(null)}
+        >
+          All
+        </button>
+        {FUEL_TYPES.map((ft) => (
+          <button
+            key={ft}
+            type="button"
+            className={`finder-tag ${fuelType === ft ? 'on' : ''}`}
+            aria-pressed={fuelType === ft}
+            onClick={() => setFuelType(fuelType === ft ? null : ft)}
+          >
+            {FUEL_TYPE_LABELS[ft]}
+          </button>
+        ))}
+      </div>
 
       {isAdmin && (
         <label className="toggle" title="Show items owned by all users">
@@ -76,9 +108,14 @@ export function FuelSourcesPage() {
           Create your first one with <strong>+ New</strong>.
         </EmptyState>
       )}
+      {!loading && items.length > 0 && visible.length === 0 && fuelType && !error && (
+        <EmptyState icon={<IconMeal size={28} />} title={`No ${FUEL_TYPE_LABELS[fuelType]} fuel sources`}>
+          Try a different fuel type or clear the filter.
+        </EmptyState>
+      )}
 
       <div className="list">
-        {items.map((m) => (
+        {visible.map((m) => (
           <Link key={m.id} to={`/fuel-sources/${m.id}`} className="card ingredient-item">
             <div className="ingredient-thumb"><IconMeal size={22} /></div>
             <div style={{ flex: 1, minWidth: 0 }}>

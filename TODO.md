@@ -6,8 +6,6 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-- [] **Add a `Fuel Type` filter to the `Fuel Sources` page** at '/fuel-sources`.
-
 - [] **Add an `About` page** that explains the purpose of the app and shows the date that it was last updated.
 
 ## FUTURE FEATURES
@@ -38,3 +36,4 @@ Ignore all files in the `Future Features` section.
 - [ ] Switch the API to the Cosmos provider in cloud envs (`GoalFueled:UseInMemoryStore=false`) and verify against a real Cosmos account.
 - [ ] Tighten the Function App **CORS** to the Static Web App hostname (currently a placeholder).
 - [ ] Move secrets to **Key Vault + managed identity** (replace inline connection strings in `functionApp.bicep`).
+- 
