@@ -13,28 +13,20 @@ followed top to bottom by a developer with an Azure subscription.
 
 GoalFueled deploys as a small, serverless Azure topology:
 
-```
-                 ┌──────────────────────────────┐
-  Browser  ───▶  │  Azure Static Web App         │   (SPA: Vite/React, built to dist/)
-                 │  goalfueled-web-<env>          │
-                 │   /api/*  ─────────────────────┼──┐
-                 └──────────────────────────────┘  │
-                                                    ▼
-                 ┌──────────────────────────────┐  proxied / called as /api
-                 │  Azure Function App (Linux)   │   (API: .NET 8 isolated worker)
-                 │  goalfueled-api-<env>-<sfx>    │
-                 └───────┬───────────────┬───────┘
-                         │               │
-            ┌────────────▼───┐   ┌───────▼────────────────┐
-            │ Azure Cosmos DB │   │ Azure Storage (V2)      │
-            │ (SQL API,       │   │ - AzureWebJobsStorage   │
-            │  serverless)    │   │ - "images" blob (public)│
-            │ db: goalfueled  │   └─────────────────────────┘
-            └─────────────────┘
-                         ▲
-            ┌────────────┴────────────────┐
-            │ App Insights + Log Analytics │  (OpenTelemetry export from the API)
-            └──────────────────────────────┘
+```mermaid
+flowchart TD
+    Browser([Browser])
+    SWA["Azure Static Web App<br/>goalfueled-web-&lt;env&gt;<br/><em>SPA: Vite/React, built to dist/</em>"]
+    API["Azure Function App (Linux)<br/>goalfueled-api-&lt;env&gt;-&lt;sfx&gt;<br/><em>API: .NET 8 isolated worker</em>"]
+    Cosmos[("Azure Cosmos DB<br/>SQL API, serverless<br/>db: goalfueled")]
+    Storage[("Azure Storage (V2)<br/>AzureWebJobsStorage<br/>&quot;images&quot; blob (public)")]
+    Monitor["App Insights + Log Analytics"]
+
+    Browser --> SWA
+    SWA -->|"/api/* (same-origin, proxied)"| API
+    API --> Cosmos
+    API --> Storage
+    API -. "OpenTelemetry export" .-> Monitor
 ```
 
 Provisioned resources (all defined under `infra/`):
