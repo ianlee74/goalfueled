@@ -2,6 +2,14 @@ using GoalFueled.Domain.Nutrition;
 
 namespace GoalFueled.Domain.Contracts;
 
+/// <summary>One selectable meal option for a scheduled slot (the default plus any alternatives).</summary>
+public sealed record MealOptionDto(
+    string MealId,
+    /// <summary>Resolved meal name (null if the meal is no longer visible/exists).</summary>
+    string? MealName,
+    /// <summary>The option meal's total nutrition (same roll-up the plan summary uses).</summary>
+    IReadOnlyList<NutrientAmount> Nutrition);
+
 /// <summary>A meal scheduled within a plan, as returned to clients (with the resolved meal name).</summary>
 public sealed record ScheduledMealDto(
     string MealId,
@@ -9,8 +17,14 @@ public sealed record ScheduledMealDto(
     DayOfWeek? DayOfWeek,
     /// <summary>Time of day to consume the meal, "HH:mm:ss"; null if unspecified.</summary>
     TimeOnly? Time,
-    /// <summary>Resolved meal name (null if the meal is no longer visible/exists).</summary>
-    string? MealName);
+    /// <summary>Resolved name of the default meal (null if the meal is no longer visible/exists).</summary>
+    string? MealName,
+    /// <summary>
+    /// Alternative meals the user may pick instead of the default when consuming this slot; empty for a
+    /// single-meal slot. Excludes the default (<see cref="MealId"/>/<see cref="MealName"/>). Trailing
+    /// optional so existing positional constructions keep working.
+    /// </summary>
+    IReadOnlyList<MealOptionDto>? Alternatives = null);
 
 /// <summary>An untimed item (a meal or a standalone ingredient) as returned to clients.</summary>
 public sealed record UntimedItemDto(
@@ -61,7 +75,12 @@ public sealed record MealPlanDto(
 public sealed record ScheduledMealInput(
     string MealId,
     DayOfWeek? DayOfWeek = null,
-    TimeOnly? Time = null);
+    TimeOnly? Time = null,
+    /// <summary>
+    /// Alternative meal ids the user may pick instead of <see cref="MealId"/> when consuming this slot.
+    /// The default itself, blanks and duplicates are dropped on save. Null/empty for a single-meal slot.
+    /// </summary>
+    IReadOnlyList<string>? AlternativeMealIds = null);
 
 /// <summary>One untimed-item line in a create/update payload (a meal OR an ingredient).</summary>
 public sealed record UntimedItemInput(

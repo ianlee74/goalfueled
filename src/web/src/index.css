@@ -752,6 +752,28 @@ label.field .hint, div.field .hint { font-weight: 400; color: var(--muted); font
 .plan-scheduled-row > *,
 .plan-untimed-row > * { min-width: 0; }
 
+/* Meal options sub-editor: alternatives the user may pick instead of the slot's default. Sits on its own
+   full-width line under a scheduled row (the row is a grid; this child spans all columns via grid-column). */
+.plan-options {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.15rem 0 0.1rem;
+  padding: 0.5rem 0 0.1rem 0.75rem;
+  border-left: 2px dashed var(--border);
+}
+.plan-options-head { line-height: 1.2; }
+.plan-options-hint { opacity: 0.75; }
+.plan-option-row { display: flex; align-items: center; gap: 0.4rem; min-width: 0; }
+.plan-option-row > .select { flex: 1; min-width: 0; }
+.plan-option-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plan-option-badge { font-size: 0.78rem; color: var(--primary); white-space: nowrap; }
+.plan-option-add { align-self: flex-start; }
+
+/* The "change which option you ate" select on a completed planned-meal row in The Log. */
+.plan-done-option { margin-top: 0.35rem; max-width: 12rem; height: auto; padding: 0.2rem 0.4rem; font-size: 0.85rem; }
+
 /* ---- Narrow-screen collapse for the multi-column editor rows ----
    On phones the fixed px columns don't fit. Reflow each row so its controls stack/wrap to two
    columns with the remove (✕) button pinned to a slim trailing track. */

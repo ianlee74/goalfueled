@@ -286,12 +286,22 @@ export type MealPlanCadence = 'Daily' | 'Weekly'
 export type DayOfWeek =
   | 'Sunday' | 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday'
 
+// One selectable meal option for a scheduled slot (the default plus any alternatives).
+export interface MealOption {
+  mealId: string
+  mealName?: string
+  nutrition: NutrientAmount[]
+}
+
 export interface ScheduledMeal {
   mealId: string
   dayOfWeek?: DayOfWeek
   // Serialized as "HH:mm:ss" by the API.
   time?: string
   mealName?: string
+  // Alternative meals the user may pick instead of the default when consuming this slot; absent/empty
+  // for a single-meal slot. Excludes the default (mealId/mealName).
+  alternatives?: MealOption[]
 }
 
 export interface UntimedItem {
@@ -331,6 +341,9 @@ export interface ScheduledMealInput {
   mealId: string
   dayOfWeek?: DayOfWeek
   time?: string
+  // Alternative meal ids the user may pick instead of the default; blanks, the default itself and
+  // duplicates are dropped on save. Absent/empty for a single-meal slot.
+  alternativeMealIds?: string[]
 }
 
 export interface UntimedItemInput {
@@ -461,6 +474,9 @@ export interface PlannedMealTask {
   completedEntryId?: string
   // True when the user has skipped this planned meal: it's dropped from "still to do" and adds no nutrition.
   skipped?: boolean
+  // The meals the user may choose between when completing this task (default first, then alternatives).
+  // A single-meal task has one entry. Completing without a choice logs the default.
+  options?: MealOption[]
 }
 
 /** The recurring "Log your weight" task, present only on days a measurement is due. */
@@ -490,6 +506,9 @@ export interface CompletePlannedMealInput {
   // Servings actually eaten (more/less than the planned single serving). Defaults to 1 server-side when
   // omitted. When a completion already exists, supplying a value updates it in place (no duplicate).
   servings?: number
+  // Which option meal was actually eaten, when the slot offers options. Must be one of the task's options;
+  // omitted logs the slot's default. On an existing completion, a new value re-points it at the chosen meal.
+  chosenMealId?: string
 }
 
 export interface ConsumptionDay {

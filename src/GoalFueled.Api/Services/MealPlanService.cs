@@ -128,27 +128,39 @@ public sealed class MealPlanService
         var tasks = new List<PlannedMealTaskDto>();
         foreach (var s in scheduledForDay)
         {
-            tasks.Add(BuildTask(plan.Id, s.MealId, s.DayOfWeek, s.Time, ctx));
+            tasks.Add(BuildTask(plan.Id, s.MealId, s.AlternativeMealIds, s.DayOfWeek, s.Time, ctx));
         }
 
-        // Untimed meal items are "anytime" tasks (no day pin, no time).
+        // Untimed meal items are "anytime" tasks (no day pin, no time, no options).
         foreach (var item in plan.UntimedItems.Where(i => i.MealId is not null))
         {
-            tasks.Add(BuildTask(plan.Id, item.MealId!, null, null, ctx));
+            tasks.Add(BuildTask(plan.Id, item.MealId!, null, null, null, ctx));
         }
 
         return tasks;
     }
 
     private static PlannedMealTaskDto BuildTask(
-        string planId, string mealId, DayOfWeek? day, TimeOnly? time, ResolveContext ctx)
+        string planId, string mealId, IReadOnlyList<string>? alternativeMealIds,
+        DayOfWeek? day, TimeOnly? time, ResolveContext ctx)
     {
         var nutrition = ItemNutrition(mealId, null, ctx);
         var name = ctx.MealsById.TryGetValue(mealId, out var m) ? m.Name : null;
+        // Options the user may pick from: the default first, then any alternatives. A single-meal slot
+        // still carries its one option so the client can render uniformly.
+        var options = new List<MealOptionDto> { new(mealId, name, nutrition) };
+        foreach (var altId in alternativeMealIds ?? Array.Empty<string>())
+            options.Add(BuildOption(altId, ctx));
+
         return new PlannedMealTaskDto(
             PlannedMealRef(planId, mealId, day, time), mealId, name, time, nutrition,
-            Done: false, CompletedEntryId: null);
+            Done: false, CompletedEntryId: null, Options: options);
     }
+
+    /// <summary>A meal option DTO (id, resolved name, total nutrition) from the resolve context.</summary>
+    private static MealOptionDto BuildOption(string mealId, ResolveContext ctx) =>
+        new(mealId, ctx.MealsById.TryGetValue(mealId, out var m) ? m.Name : null,
+            ItemNutrition(mealId, null, ctx));
 
     /// <summary>
     /// A stable key correlating a planned-meal task with a completion <see cref="ConsumptionEntry"/> for a
@@ -203,6 +215,19 @@ public sealed class MealPlanService
                 ?? throw new ValidationException($"Meal '{scheduled.MealId}' was not found.");
             if (!CanUseMeal(meal, user))
                 throw new ValidationException($"Meal '{meal.Name}' is not available to you.");
+
+            // Alternatives the user may pick instead of the default: each must exist and be usable. Blanks,
+            // the default itself and duplicates are tolerated here (dropped on normalize), so only real,
+            // distinct alternative ids are checked.
+            foreach (var altId in (scheduled.AlternativeMealIds ?? Array.Empty<string>())
+                .Where(a => !string.IsNullOrWhiteSpace(a) && a != scheduled.MealId)
+                .Distinct())
+            {
+                var alt = await _meals.GetByIdAsync(altId, ct)
+                    ?? throw new ValidationException($"Meal option '{altId}' was not found.");
+                if (!CanUseMeal(alt, user))
+                    throw new ValidationException($"Meal option '{alt.Name}' is not available to you.");
+            }
         }
 
         foreach (var item in input.UntimedItems ?? Array.Empty<UntimedItemInput>())
@@ -248,10 +273,28 @@ public sealed class MealPlanService
             .Select(s => new ScheduledMeal
             {
                 MealId = s.MealId,
+                AlternativeMealIds = NormalizeAlternatives(s.MealId, s.AlternativeMealIds),
                 DayOfWeek = cadence == MealPlanCadence.Daily ? null : s.DayOfWeek,
                 Time = s.Time,
             })
             .ToList();
+    }
+
+    /// <summary>
+    /// Cleans a slot's alternative meal ids: drops blanks, the default itself, and duplicates while
+    /// preserving order. The default is the slot's identity and never an alternative of itself.
+    /// </summary>
+    private static List<string> NormalizeAlternatives(string defaultMealId, IReadOnlyList<string>? alternatives)
+    {
+        if (alternatives is null || alternatives.Count == 0) return new();
+        var seen = new HashSet<string> { defaultMealId };
+        var result = new List<string>();
+        foreach (var id in alternatives)
+        {
+            if (string.IsNullOrWhiteSpace(id)) continue;
+            if (seen.Add(id)) result.Add(id);
+        }
+        return result;
     }
 
     /// <summary>Drops items that reference neither a meal nor an ingredient.</summary>
@@ -306,9 +349,9 @@ public sealed class MealPlanService
     /// </summary>
     private async Task<ResolveContext> ResolveAsync(IReadOnlyCollection<MealPlan> plans, CancellationToken ct)
     {
-        // Every meal referenced by a scheduled meal or an untimed meal item.
+        // Every meal referenced by a scheduled meal (its default and any alternatives) or an untimed meal item.
         var mealIds = plans
-            .SelectMany(p => p.ScheduledMeals.Select(s => s.MealId)
+            .SelectMany(p => p.ScheduledMeals.SelectMany(s => s.AlternativeMealIds.Prepend(s.MealId))
                 .Concat(p.UntimedItems.Where(i => i.MealId is not null).Select(i => i.MealId!)))
             .Distinct();
 
@@ -344,7 +387,10 @@ public sealed class MealPlanService
         var scheduled = p.ScheduledMeals
             .Select(s => new ScheduledMealDto(
                 s.MealId, s.DayOfWeek, s.Time,
-                ctx.MealsById.TryGetValue(s.MealId, out var m) ? m.Name : null))
+                ctx.MealsById.TryGetValue(s.MealId, out var m) ? m.Name : null,
+                s.AlternativeMealIds.Count == 0
+                    ? null
+                    : s.AlternativeMealIds.Select(id => BuildOption(id, ctx)).ToList()))
             .ToList();
 
         var untimed = p.UntimedItems

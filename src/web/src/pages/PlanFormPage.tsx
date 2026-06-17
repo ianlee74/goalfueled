@@ -16,6 +16,9 @@ import {
 interface ScheduledRow {
   key: number
   mealId: string
+  // Alternative meals the user may pick instead of mealId when the slot is consumed. The full option set
+  // is [mealId, ...alternativeMealIds]; mealId is always the default. Empty for a single-meal slot.
+  alternativeMealIds: string[]
   dayOfWeek: DayOfWeek | ''
   time: string // "HH:mm" from the time input, or empty
 }
@@ -73,6 +76,9 @@ export function PlanFormPage() {
   // "Add meal to multiple days" form (Weekly only): pick a meal + optional time once, check the
   // days to add it to, then create one independent scheduled-meal row per checked day.
   const [multiMealId, setMultiMealId] = useState('')
+  // Alternatives composed alongside the default (multiMealId) before assigning to days. Each created
+  // day-row gets its own copy of these as its options. Reset after a successful add.
+  const [multiAltIds, setMultiAltIds] = useState<string[]>([])
   const [multiTime, setMultiTime] = useState('')
   const [multiDays, setMultiDays] = useState<Set<DayOfWeek>>(new Set())
 
@@ -124,6 +130,7 @@ export function PlanFormPage() {
         setScheduled(p.scheduledMeals.map((s) => ({
           key: nextKey++,
           mealId: s.mealId,
+          alternativeMealIds: s.alternatives?.map((a) => a.mealId) ?? [],
           dayOfWeek: s.dayOfWeek ?? '',
           time: s.time ? s.time.slice(0, 5) : '', // "HH:mm:ss" → "HH:mm"
         })))
@@ -160,11 +167,16 @@ export function PlanFormPage() {
       cadence,
       scheduledMeals: scheduled
         .filter((s) => s.mealId)
-        .map((s) => ({
-          mealId: s.mealId,
-          dayOfWeek: cadence === 'Weekly' && s.dayOfWeek ? s.dayOfWeek : undefined,
-          time: s.time ? `${s.time}:00` : undefined,
-        })),
+        .map((s) => {
+          // Keep only real, distinct alternatives that aren't the default itself (the server re-normalizes too).
+          const alts = s.alternativeMealIds.filter((a) => a && a !== s.mealId)
+          return {
+            mealId: s.mealId,
+            dayOfWeek: cadence === 'Weekly' && s.dayOfWeek ? s.dayOfWeek : undefined,
+            time: s.time ? `${s.time}:00` : undefined,
+            alternativeMealIds: alts.length > 0 ? alts : undefined,
+          }
+        }),
       untimedItems: untimed
         .filter((u) => u.refId)
         .map((u) => u.kind === 'ingredient'
@@ -180,7 +192,7 @@ export function PlanFormPage() {
   // ---- row editing ----
   function addScheduled() {
     setScheduled((prev) => [...prev, {
-      key: nextKey++, mealId: meals[0]?.id ?? '', dayOfWeek: '', time: '',
+      key: nextKey++, mealId: meals[0]?.id ?? '', alternativeMealIds: [], dayOfWeek: '', time: '',
     }])
   }
   function updateScheduled(key: number, patch: Partial<ScheduledRow>) {
@@ -194,7 +206,7 @@ export function PlanFormPage() {
   // where "+ Add meal" sits under each day). bucket '' is the day-less "Any day" group.
   function addScheduledToDay(bucket: DayBucket) {
     setScheduled((prev) => [...prev, {
-      key: nextKey++, mealId: meals[0]?.id ?? '', dayOfWeek: bucket, time: '',
+      key: nextKey++, mealId: meals[0]?.id ?? '', alternativeMealIds: [], dayOfWeek: bucket, time: '',
     }])
   }
 
@@ -203,13 +215,17 @@ export function PlanFormPage() {
   // one day's row later never affects the others. Resets the form on success.
   function addScheduledToMultipleDays() {
     if (!multiMealId || multiDays.size === 0) return
+    // Clean the composed options once; each day-row gets its own copy so later edits stay independent.
+    const alts = multiAltIds.filter((a) => a && a !== multiMealId)
     setScheduled((prev) => [
       ...prev,
       ...DAYS_OF_WEEK.filter((d) => multiDays.has(d)).map((d) => ({
-        key: nextKey++, mealId: multiMealId, dayOfWeek: d as DayOfWeek | '', time: multiTime,
+        key: nextKey++, mealId: multiMealId, alternativeMealIds: [...alts],
+        dayOfWeek: d as DayOfWeek | '', time: multiTime,
       })),
     ])
     setMultiDays(new Set())
+    setMultiAltIds([])
   }
 
   function toggleMultiDay(day: DayOfWeek) {
@@ -497,7 +513,7 @@ export function PlanFormPage() {
             <div className="plan-multi-add stack">
               <strong className="small">Add a fuel source to multiple days</strong>
               <div className="plan-multi-controls">
-                <select className="select" value={multiMealId} title="Fuel source"
+                <select className="select" value={multiMealId} title="Fuel source (default option)"
                   onChange={(e) => setMultiMealId(e.target.value)}>
                   <option value="">Select a fuel source…</option>
                   {meals.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
@@ -510,6 +526,22 @@ export function PlanFormPage() {
                   Add to {multiDays.size || 'selected'} day{multiDays.size === 1 ? '' : 's'}
                 </button>
               </div>
+              {/* Compose options up front: the selected fuel source above is the default; add alternatives
+                  here and every day you assign below gets the same set (editable per day afterward). */}
+              <div className="plan-options">
+                <div className="plan-options-head">
+                  <span className="small muted">
+                    Options <span className="plan-options-hint">add alternatives the user can pick instead of the default</span>
+                  </span>
+                </div>
+                <AlternativesList
+                  defaultMealId={multiMealId} alternativeMealIds={multiAltIds}
+                  meals={meals} readOnly={false}
+                  onChange={(mealId, alternativeMealIds) => {
+                    setMultiMealId(mealId)
+                    setMultiAltIds(alternativeMealIds)
+                  }} />
+              </div>
               <div className="plan-multi-days">
                 {DAYS_OF_WEEK.map((d) => (
                   <label key={d} className={`plan-day-chip ${multiDays.has(d) ? 'on' : ''}`}>
@@ -520,7 +552,8 @@ export function PlanFormPage() {
                 ))}
               </div>
               <span className="muted small">
-                Adds one entry per selected day. Each can be moved or re-timed independently afterward.
+                Adds one entry per selected day, each with these options. Every entry can be moved, re-timed,
+                or have its options edited independently afterward.
               </span>
             </div>
           )}
@@ -573,6 +606,9 @@ export function PlanFormPage() {
                         <button className="btn btn-sm btn-danger" title="Remove"
                           onClick={() => removeScheduled(s.key)}>✕</button>
                       )}
+                      <ScheduledOptions
+                        row={s} meals={meals} readOnly={readOnly}
+                        onUpdate={(patch) => updateScheduled(s.key, patch)} />
                     </div>
                   ))}
 
@@ -611,6 +647,9 @@ export function PlanFormPage() {
                 <button className="btn btn-sm btn-danger" title="Remove"
                   onClick={() => removeScheduled(s.key)}>✕</button>
               )}
+              <ScheduledOptions
+                row={s} meals={meals} readOnly={readOnly}
+                onUpdate={(patch) => updateScheduled(s.key, patch)} />
             </div>
           ))}
 
@@ -760,6 +799,104 @@ function ScheduledMealFields({ row, meals, readOnly, showDay, onUpdate }: {
       <TimePicker value={row.time} disabled={readOnly} title="Time of day"
         onChange={(time) => onUpdate({ time })} />
     </>
+  )
+}
+
+function mealNameOf(id: string, meals: Meal[]): string {
+  return meals.find((m) => m.id === id)?.name ?? '(removed)'
+}
+
+// The editable list of alternative meals for one fuel source: the rows of options the user can pick
+// instead of the default, plus "+ Add option". The default lives outside this component (a row's main
+// meal select, or the multi-add form's fuel-source select); ★ promotes an alternative to default and
+// demotes the old default into its place, so the caller is told the new default via onChange.
+function AlternativesList({ defaultMealId, alternativeMealIds, meals, readOnly, onChange }: {
+  defaultMealId: string
+  alternativeMealIds: string[]
+  meals: Meal[]
+  readOnly: boolean
+  onChange: (defaultMealId: string, alternativeMealIds: string[]) => void
+}) {
+  const alts = alternativeMealIds
+
+  function addOption() {
+    // Default the new option to the first meal not already used here, else blank (user picks).
+    const used = new Set([defaultMealId, ...alts])
+    const next = meals.find((m) => !used.has(m.id))?.id ?? ''
+    onChange(defaultMealId, [...alts, next])
+  }
+  function updateOption(index: number, mealId: string) {
+    onChange(defaultMealId, alts.map((a, i) => (i === index ? mealId : a)))
+  }
+  function removeOption(index: number) {
+    onChange(defaultMealId, alts.filter((_, i) => i !== index))
+  }
+  function makeDefault(index: number) {
+    const promoted = alts[index]
+    if (!promoted) return
+    onChange(promoted, alts.map((a, i) => (i === index ? defaultMealId : a)))
+  }
+
+  return (
+    <>
+      {alts.map((altId, i) => (
+        <div key={i} className="plan-option-row">
+          {readOnly ? (
+            <span className="plan-option-name">{mealNameOf(altId, meals)}</span>
+          ) : (
+            <>
+              <select className="select" value={altId} title="Option meal"
+                onChange={(e) => updateOption(i, e.target.value)}>
+                <option value="">Select a fuel source…</option>
+                {meals.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+              <button type="button" className="btn btn-sm" title="Make this the default"
+                disabled={!altId} onClick={() => makeDefault(i)}>★</button>
+              <button type="button" className="btn btn-sm btn-danger" title="Remove option"
+                onClick={() => removeOption(i)}>✕</button>
+            </>
+          )}
+        </div>
+      ))}
+      {!readOnly && (
+        <button type="button" className="btn btn-sm plan-option-add"
+          onClick={addOption} disabled={meals.length === 0}>
+          + Add option
+        </button>
+      )}
+    </>
+  )
+}
+
+// The "meal options" editor for one already-added scheduled slot: the meal chosen above is the default;
+// here the user can tweak the alternatives they may pick instead at log time. Spans the full width of its
+// grid row (it is the last child of the row container) and drops onto its own line. The default's
+// nutrition is what the plan summary uses, so promoting a different default (★) is what shifts the preview.
+function ScheduledOptions({ row, meals, readOnly, onUpdate }: {
+  row: ScheduledRow
+  meals: Meal[]
+  readOnly: boolean
+  onUpdate: (patch: Partial<ScheduledRow>) => void
+}) {
+  // Nothing to show (and nothing to add) for a read-only slot with no options.
+  if (readOnly && row.alternativeMealIds.length === 0) return null
+
+  return (
+    <div className="plan-options">
+      <div className="plan-options-head">
+        <span className="small muted">
+          Options <span className="plan-options-hint">pick one when logging · default counts toward the plan</span>
+        </span>
+      </div>
+      <div className="plan-option-row">
+        <span className="plan-option-badge" title="The default — used for the plan's nutrition and one-tap logging">★ Default</span>
+        <span className="plan-option-name">{mealNameOf(row.mealId, meals)}</span>
+      </div>
+      <AlternativesList
+        defaultMealId={row.mealId} alternativeMealIds={row.alternativeMealIds}
+        meals={meals} readOnly={readOnly}
+        onChange={(mealId, alternativeMealIds) => onUpdate({ mealId, alternativeMealIds })} />
+    </div>
   )
 }
 

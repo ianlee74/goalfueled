@@ -567,6 +567,192 @@ public class PlannedLogTests
             c.Consumption.SkipPlannedMealAsync(c.User, new CompletePlannedMealInput("bogus:ref::"), default));
     }
 
+    // ---- meal options (a slot offering several meals to choose between) ----
+
+    [Fact]
+    public void ScheduledMeal_AlternativeMealIds_reads_empty_not_null_for_legacy_docs()
+    {
+        // Plan documents written before AlternativeMealIds existed materialize the property as null on
+        // read (the Cosmos provider skips the field initializer for an absent JSON property). The getter
+        // must coalesce so the summary/task-building code never dereferences null. See the entity comment.
+        var s = new ScheduledMeal { MealId = "m1", AlternativeMealIds = null! };
+        Assert.NotNull(s.AlternativeMealIds);
+        Assert.Empty(s.AlternativeMealIds);
+    }
+
+    [Fact]
+    public async Task A_slot_with_options_exposes_them_default_first_and_the_summary_uses_the_default()
+    {
+        using var db = TestHelpers.NewContext();
+        var c = await SetupAsync(db);
+        var eggs = await CaloricMealAsync(c, "eggs", 300);
+        var oats = await CaloricMealAsync(c, "oats", 450);
+        var plan = await c.Plans.CreateAsync(c.User,
+            new MealPlanInput("Daily Plan", MealPlanCadence.Daily,
+                new List<ScheduledMealInput> { new(eggs.Id, AlternativeMealIds: new[] { oats.Id }) }), default);
+        await c.Profile.SetActiveMealPlanAsync(c.User, new ActiveMealPlanInput(plan.Id), default);
+
+        var task = (await c.Consumption.GetPlannedDayAsync(c.User, Today, default)).Tasks.Single();
+        Assert.NotNull(task.Options);
+        Assert.Equal(new[] { eggs.Id, oats.Id }, task.Options!.Select(o => o.MealId)); // default first
+        Assert.Equal(300, Kcal(task.Nutrition), 1); // the task's nutrition is the default's
+
+        // The plan's nutrition summary is driven by the default option only.
+        var reloaded = await c.Plans.GetAsync(c.User, plan.Id, default);
+        Assert.Equal(300, Kcal(reloaded.Summary.DailyAverage), 1);
+        var scheduled = reloaded.ScheduledMeals.Single();
+        Assert.Equal(eggs.Id, scheduled.MealId);
+        Assert.Equal(new[] { oats.Id }, scheduled.Alternatives!.Select(a => a.MealId));
+    }
+
+    [Fact]
+    public async Task Completing_without_a_choice_logs_the_default_option()
+    {
+        using var db = TestHelpers.NewContext();
+        var c = await SetupAsync(db);
+        var eggs = await CaloricMealAsync(c, "eggs", 300);
+        var oats = await CaloricMealAsync(c, "oats", 450);
+        var plan = await c.Plans.CreateAsync(c.User,
+            new MealPlanInput("Daily Plan", MealPlanCadence.Daily,
+                new List<ScheduledMealInput> { new(eggs.Id, AlternativeMealIds: new[] { oats.Id }) }), default);
+        await c.Profile.SetActiveMealPlanAsync(c.User, new ActiveMealPlanInput(plan.Id), default);
+
+        var task = (await c.Consumption.GetPlannedDayAsync(c.User, Today, default)).Tasks.Single();
+        var entry = await c.Consumption.CompletePlannedMealAsync(
+            c.User, new CompletePlannedMealInput(task.Ref, Today), default);
+
+        Assert.Equal(eggs.Id, entry.SourceId);
+        Assert.Equal(300, Kcal(entry.Nutrition), 1);
+    }
+
+    [Fact]
+    public async Task Completing_with_a_chosen_alternative_logs_that_option_not_the_default()
+    {
+        using var db = TestHelpers.NewContext();
+        var c = await SetupAsync(db);
+        var eggs = await CaloricMealAsync(c, "eggs", 300);
+        var oats = await CaloricMealAsync(c, "oats", 450);
+        var plan = await c.Plans.CreateAsync(c.User,
+            new MealPlanInput("Daily Plan", MealPlanCadence.Daily,
+                new List<ScheduledMealInput> { new(eggs.Id, AlternativeMealIds: new[] { oats.Id }) }), default);
+        await c.Profile.SetActiveMealPlanAsync(c.User, new ActiveMealPlanInput(plan.Id), default);
+
+        var task = (await c.Consumption.GetPlannedDayAsync(c.User, Today, default)).Tasks.Single();
+        var entry = await c.Consumption.CompletePlannedMealAsync(
+            c.User, new CompletePlannedMealInput(task.Ref, Today, ChosenMealId: oats.Id), default);
+
+        Assert.Equal(oats.Id, entry.SourceId);
+        Assert.Equal(oats.Name, entry.Name);
+        Assert.Equal(450, Kcal(entry.Nutrition), 1);
+        // The task still correlates as done via the slot's (default-based) ref.
+        var refreshed = (await c.Consumption.GetPlannedDayAsync(c.User, Today, default)).Tasks.Single();
+        Assert.True(refreshed.Done);
+        Assert.Equal(entry.Id, refreshed.CompletedEntryId);
+    }
+
+    [Fact]
+    public async Task Swapping_the_chosen_option_repoints_the_existing_entry_no_duplicate()
+    {
+        using var db = TestHelpers.NewContext();
+        var c = await SetupAsync(db);
+        var eggs = await CaloricMealAsync(c, "eggs", 300);
+        var oats = await CaloricMealAsync(c, "oats", 450);
+        var plan = await c.Plans.CreateAsync(c.User,
+            new MealPlanInput("Daily Plan", MealPlanCadence.Daily,
+                new List<ScheduledMealInput> { new(eggs.Id, AlternativeMealIds: new[] { oats.Id }) }), default);
+        await c.Profile.SetActiveMealPlanAsync(c.User, new ActiveMealPlanInput(plan.Id), default);
+
+        var task = (await c.Consumption.GetPlannedDayAsync(c.User, Today, default)).Tasks.Single();
+        var first = await c.Consumption.CompletePlannedMealAsync(
+            c.User, new CompletePlannedMealInput(task.Ref, Today, Servings: 2), default);
+        var swapped = await c.Consumption.CompletePlannedMealAsync(
+            c.User, new CompletePlannedMealInput(task.Ref, Today, ChosenMealId: oats.Id), default);
+
+        Assert.Equal(first.Id, swapped.Id); // same entry, re-pointed
+        Assert.Equal(oats.Id, swapped.SourceId);
+        Assert.Equal(2, swapped.Servings); // servings preserved across the swap
+        Assert.Equal(900, Kcal(swapped.Nutrition), 1); // 2 × 450
+        var day = await c.Consumption.GetDayAsync(c.User, Today, default);
+        Assert.Single(day.Entries);
+    }
+
+    [Fact]
+    public async Task Adjusting_servings_after_choosing_an_alternative_does_not_reset_to_the_default()
+    {
+        using var db = TestHelpers.NewContext();
+        var c = await SetupAsync(db);
+        var eggs = await CaloricMealAsync(c, "eggs", 300);
+        var oats = await CaloricMealAsync(c, "oats", 450);
+        var plan = await c.Plans.CreateAsync(c.User,
+            new MealPlanInput("Daily Plan", MealPlanCadence.Daily,
+                new List<ScheduledMealInput> { new(eggs.Id, AlternativeMealIds: new[] { oats.Id }) }), default);
+        await c.Profile.SetActiveMealPlanAsync(c.User, new ActiveMealPlanInput(plan.Id), default);
+
+        var task = (await c.Consumption.GetPlannedDayAsync(c.User, Today, default)).Tasks.Single();
+        await c.Consumption.CompletePlannedMealAsync(
+            c.User, new CompletePlannedMealInput(task.Ref, Today, ChosenMealId: oats.Id), default);
+        // A later servings-only re-complete (no choice) must keep the chosen alternative.
+        var updated = await c.Consumption.CompletePlannedMealAsync(
+            c.User, new CompletePlannedMealInput(task.Ref, Today, Servings: 3), default);
+
+        Assert.Equal(oats.Id, updated.SourceId);
+        Assert.Equal(3, updated.Servings);
+    }
+
+    [Fact]
+    public async Task Completing_with_a_meal_that_is_not_one_of_the_slots_options_is_rejected()
+    {
+        using var db = TestHelpers.NewContext();
+        var c = await SetupAsync(db);
+        var eggs = await CaloricMealAsync(c, "eggs", 300);
+        var oats = await CaloricMealAsync(c, "oats", 450);
+        var notAnOption = await CaloricMealAsync(c, "burger", 800);
+        var plan = await c.Plans.CreateAsync(c.User,
+            new MealPlanInput("Daily Plan", MealPlanCadence.Daily,
+                new List<ScheduledMealInput> { new(eggs.Id, AlternativeMealIds: new[] { oats.Id }) }), default);
+        await c.Profile.SetActiveMealPlanAsync(c.User, new ActiveMealPlanInput(plan.Id), default);
+
+        var task = (await c.Consumption.GetPlannedDayAsync(c.User, Today, default)).Tasks.Single();
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            c.Consumption.CompletePlannedMealAsync(
+                c.User, new CompletePlannedMealInput(task.Ref, Today, ChosenMealId: notAnOption.Id), default));
+    }
+
+    [Fact]
+    public async Task Alternatives_are_normalized_dropping_the_default_and_duplicates()
+    {
+        using var db = TestHelpers.NewContext();
+        var c = await SetupAsync(db);
+        var eggs = await CaloricMealAsync(c, "eggs", 300);
+        var oats = await CaloricMealAsync(c, "oats", 450);
+        var plan = await c.Plans.CreateAsync(c.User,
+            new MealPlanInput("Daily Plan", MealPlanCadence.Daily,
+                // Default repeated, an alternative duplicated, and a blank — all should be cleaned out.
+                new List<ScheduledMealInput>
+                {
+                    new(eggs.Id, AlternativeMealIds: new[] { eggs.Id, oats.Id, oats.Id, "" }),
+                }), default);
+
+        var scheduled = (await c.Plans.GetAsync(c.User, plan.Id, default)).ScheduledMeals.Single();
+        Assert.Equal(new[] { oats.Id }, scheduled.Alternatives!.Select(a => a.MealId));
+    }
+
+    [Fact]
+    public async Task An_alternative_meal_not_available_to_the_user_is_rejected()
+    {
+        using var db = TestHelpers.NewContext();
+        var c = await SetupAsync(db);
+        var eggs = await CaloricMealAsync(c, "eggs", 300);
+        // A meal owned by the admin (User scope) is not usable by the regular user.
+        var theirs = await c.Meals.CreateAsync(c.Admin,
+            new MealInput("theirs", new List<MealPortionInput>(), false, 1, FuelType.Food), default);
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            c.Plans.CreateAsync(c.User,
+                new MealPlanInput("Daily Plan", MealPlanCadence.Daily,
+                    new List<ScheduledMealInput> { new(eggs.Id, AlternativeMealIds: new[] { theirs.Id }) }), default));
+    }
+
     // ---- recurring "Log your weight" task ----
 
     [Fact]

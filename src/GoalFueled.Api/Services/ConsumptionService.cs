@@ -201,25 +201,50 @@ public sealed class ConsumptionService
             .FirstOrDefault(t => t.Ref == input.Ref)
             ?? throw new NotFoundException("That planned meal is not part of your active plan for this day.");
 
-        // Create-or-update for this ref+date so the user can adjust servings after completing, without
-        // logging a duplicate (totals never double-count). A skip entry is treated as no completion here —
-        // checking the box turns it into a real completion below (mirrors how a skip replaces a completion).
+        // When the slot offers options, the user may name which one they actually ate. An explicit choice
+        // must be one of the slot's options (its default or an alternative); omitting it logs the default.
+        var explicitChoice = string.IsNullOrWhiteSpace(input.ChosenMealId) ? null : input.ChosenMealId;
+        if (explicitChoice is not null &&
+            !(task.Options?.Any(o => o.MealId == explicitChoice) ?? explicitChoice == task.MealId))
+            throw new ValidationException("That meal is not one of this planned slot's options.");
+
+        // Create-or-update for this ref+date so the user can adjust servings or swap the chosen option after
+        // completing, without logging a duplicate (totals never double-count). A skip entry is treated as no
+        // completion here — checking the box turns it into a real completion below (mirrors a skip replacing
+        // a completion).
         var existing = (await _repo.ListForUserAndDateAsync(user.Id, day, ct))
             .FirstOrDefault(e => e.PlannedMealRef == input.Ref && e.Skipped != true);
         if (existing is not null)
         {
-            // Omitting servings keeps the existing entry as-is (idempotent re-complete); supplying a value
-            // updates the amount eaten in place.
+            // Omitting both servings and a choice keeps the existing entry as-is (idempotent re-complete);
+            // supplying either updates that aspect in place — note a choice is only ever applied when given,
+            // so adjusting servings never resets a previously chosen alternative back to the default.
+            var changed = false;
             if (input.Servings is { } servings && servings != existing.Servings)
             {
                 existing.Servings = servings;
+                changed = true;
+            }
+            if (explicitChoice is not null && existing.SourceId != explicitChoice)
+            {
+                var chosen = await _meals.GetByIdAsync(explicitChoice, ct)
+                    ?? throw new ValidationException("The planned meal was not found.");
+                if (!CanUseMeal(chosen, user))
+                    throw new ValidationException("That meal is not available to you.");
+                existing.Source = ConsumptionSource.Meal;
+                existing.SourceId = chosen.Id;
+                existing.Name = chosen.Name;
+                changed = true;
+            }
+            if (changed)
+            {
                 existing.UpdatedAt = DateTimeOffset.UtcNow;
                 await _repo.UpdateAsync(existing, ct);
             }
             return await ToDtoAsync(existing, user, ct);
         }
 
-        var meal = await _meals.GetByIdAsync(task.MealId, ct)
+        var meal = await _meals.GetByIdAsync(explicitChoice ?? task.MealId, ct)
             ?? throw new ValidationException("The planned meal was not found.");
         if (!CanUseMeal(meal, user))
             throw new ValidationException("That meal is not available to you.");

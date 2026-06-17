@@ -29,7 +29,28 @@ public class MealPlan
 /// <summary>A meal scheduled within a plan, optionally pinned to a day of week and time of day.</summary>
 public class ScheduledMeal
 {
+    /// <summary>
+    /// The slot's default meal. When the slot offers options (see <see cref="AlternativeMealIds"/>)
+    /// this is the one the plan's nutrition summary uses and the one logged when the user completes the
+    /// task without choosing an alternative. It is also the slot's stable identity in a planned-meal ref.
+    /// </summary>
     public string MealId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Alternative meals the user may pick instead of <see cref="MealId"/> when this slot is consumed.
+    /// Empty for a single-meal slot. The full option set a user chooses from is
+    /// <c>[MealId, ..AlternativeMealIds]</c>; the default never appears in this list.
+    /// <para>Coalesces to an empty list on read: plan documents written before this field existed
+    /// materialize the property as null (the Cosmos provider does not run the field initializer for an
+    /// absent JSON property), so a null read must never surface to callers — mirroring how the nullable
+    /// <c>FuelType</c> read resolves to a default rather than throwing.</para>
+    /// </summary>
+    private List<string>? _alternativeMealIds;
+    public List<string> AlternativeMealIds
+    {
+        get => _alternativeMealIds ??= new();
+        set => _alternativeMealIds = value;
+    }
 
     /// <summary>Day of week for weekly plans; null for daily plans (applies every day).</summary>
     public DayOfWeek? DayOfWeek { get; set; }

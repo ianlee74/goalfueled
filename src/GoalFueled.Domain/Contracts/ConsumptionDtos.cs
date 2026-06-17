@@ -64,7 +64,14 @@ public sealed record PlannedMealTaskDto(
     /// nutrition. Mutually exclusive with <see cref="Done"/> in practice (one entry per ref). Trailing optional
     /// so existing positional constructions keep working.
     /// </summary>
-    bool Skipped = false);
+    bool Skipped = false,
+    /// <summary>
+    /// The meals the user may choose between when completing this task: the default (<see cref="MealId"/>)
+    /// first, then any alternatives. A single-meal task has one entry. The client uses this to offer a "pick
+    /// which one you ate" choice; completing without a choice logs the default. Trailing optional so existing
+    /// positional constructions keep working.
+    /// </summary>
+    IReadOnlyList<MealOptionDto>? Options = null);
 
 /// <summary>
 /// The active plan's tasks for a single day, surfaced in The Log. Empty <see cref="Tasks"/> with a null
@@ -110,7 +117,13 @@ public sealed record CompletePlannedMealInput(
     /// <see cref="GoalFueled.Domain"/> consumption limits. When a completion already exists for the
     /// ref+date and a value is supplied, the existing entry's servings are updated to it.
     /// </summary>
-    double? Servings = null);
+    double? Servings = null,
+    /// <summary>
+    /// Which option meal the user actually ate, when the slot offers options. Must be one of the task's
+    /// options (its default or an alternative). Omitted/null logs the slot's default. When a completion
+    /// already exists for the ref+date, supplying a different value re-points it at the chosen meal.
+    /// </summary>
+    string? ChosenMealId = null);
 
 /// <summary>
 /// Payload for logging a consumed item. Either reference the catalog (set <see cref="Source"/> to

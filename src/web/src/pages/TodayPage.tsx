@@ -117,6 +117,9 @@ export function TodayPage() {
   // Servings the user intends to log for each pending planned meal (keyed by ref). Defaults to "1" per row;
   // checking the box logs that many. Cleared on reload so a fresh day starts at the default again.
   const [plannedServings, setPlannedServings] = useState<Record<string, string>>({})
+  // The option meal the user intends to log for each pending planned meal that offers options (keyed by ref).
+  // Defaults to the slot's default; checking the box logs whichever is selected. Cleared on reload.
+  const [plannedChoice, setPlannedChoice] = useState<Record<string, string>>({})
 
   // Catalog picker (the user's own + app-level) for the ad-hoc log. Only meals are loggable —
   // recipes define a meal, they are not consumed directly (historical recipe entries still render).
@@ -255,17 +258,33 @@ export function TodayPage() {
     }
   }
 
-  // Complete (logging `servings`), re-submit a new serving count for an already-completed meal, or
-  // un-complete. `servings` defaults to 1 when omitted; ignored when un-completing.
-  async function toggleTask(ref: string, done: boolean, servings?: number) {
+  // Complete (logging `servings`, optionally of a chosen option meal), re-submit a new serving count for an
+  // already-completed meal, or un-complete. `servings` defaults to 1 when omitted; `chosenMealId` defaults to
+  // the slot's default. Both are ignored when un-completing.
+  async function toggleTask(ref: string, done: boolean, servings?: number, chosenMealId?: string) {
     setError(null)
     setTogglingRef(ref)
     try {
       if (done) await consumptionApi.uncompletePlanned({ ref, date })
-      else await consumptionApi.completePlanned({ ref, date, servings })
+      else await consumptionApi.completePlanned({ ref, date, servings, chosenMealId })
       await reload()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to update the task.')
+    } finally {
+      setTogglingRef(null)
+    }
+  }
+
+  // Re-point an already-completed planned meal at a different option the user actually ate (updates the
+  // existing entry in place — servings are preserved).
+  async function editChoice(ref: string, chosenMealId: string) {
+    setError(null)
+    setTogglingRef(ref)
+    try {
+      await consumptionApi.completePlanned({ ref, date, chosenMealId })
+      await reload()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to update the choice.')
     } finally {
       setTogglingRef(null)
     }
@@ -422,6 +441,7 @@ export function TodayPage() {
             entry={entry}
             busy={togglingRef === t.ref}
             onEditServings={(qty) => editServings(t.ref, qty)}
+            onEditChoice={(mealId) => editChoice(t.ref, mealId)}
           />
         ),
       })
@@ -736,14 +756,17 @@ export function TodayPage() {
               {pendingTasks.map((t) => {
                 const raw = plannedServings[t.ref] ?? '1'
                 const qty = Number(raw)
+                const choice = plannedChoice[t.ref] ?? t.mealId
                 return (
                   <PlannedMealRow
                     key={t.ref}
                     task={t}
                     servings={raw}
+                    choice={choice}
                     busy={togglingRef === t.ref || skippingRef === t.ref}
                     onServingsChange={(v) => setPlannedServings((s) => ({ ...s, [t.ref]: v }))}
-                    onToggle={() => toggleTask(t.ref, t.done, qty > 0 ? qty : 1)}
+                    onChoiceChange={(v) => setPlannedChoice((s) => ({ ...s, [t.ref]: v }))}
+                    onToggle={() => toggleTask(t.ref, t.done, qty > 0 ? qty : 1, choice)}
                     onSkip={() => skipTask(t.ref, false)}
                   />
                 )
@@ -866,13 +889,19 @@ function Total(
 // + meal text live in a <label> (so tapping the text completes it); the servings input and Skip button sit
 // outside that label so they don't also toggle the checkbox. The shown kcal scales with the chosen servings.
 function PlannedMealRow(
-  { task, servings, busy, onServingsChange, onToggle, onSkip }:
+  { task, servings, choice, busy, onServingsChange, onChoiceChange, onToggle, onSkip }:
   {
-    task: PlannedMealTask; servings: string; busy: boolean;
-    onServingsChange: (value: string) => void; onToggle: () => void; onSkip: () => void;
+    task: PlannedMealTask; servings: string; choice: string; busy: boolean;
+    onServingsChange: (value: string) => void; onChoiceChange: (value: string) => void;
+    onToggle: () => void; onSkip: () => void;
   },
 ) {
-  const perServingKcal = task.nutrition.find((n) => n.nutrientId === 'calories')?.value
+  const options = task.options ?? []
+  const hasOptions = options.length > 1
+  // When the slot offers options, the chosen option drives the name + kcal shown (and what's logged).
+  const selected = options.find((o) => o.mealId === choice) ?? options[0]
+  const displayName = (hasOptions ? selected?.mealName : task.mealName) ?? task.mealName
+  const perServingKcal = (selected?.nutrition ?? task.nutrition).find((n) => n.nutrientId === 'calories')?.value
   const qty = Number(servings)
   const kcal = perServingKcal != null ? perServingKcal * (qty > 0 ? qty : 1) : undefined
   return (
@@ -887,13 +916,29 @@ function PlannedMealRow(
         />
         <FuelBurnIcon kind="fuel" />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <strong>{task.mealName ?? '(fuel source removed)'}</strong>
+          <strong>{displayName ?? '(fuel source removed)'}</strong>
           <div className="small muted">
             {formatTime(task.time)}
             {kcal != null && ` · ${Math.round(kcal)} kcal`}
+            {hasOptions && ` · ${options.length} options`}
           </div>
         </div>
       </label>
+      {hasOptions && (
+        <label className="field" style={{ maxWidth: '9rem' }} title="Which option you're eating">
+          <span className="small muted">Option</span>
+          <select
+            className="select"
+            value={selected?.mealId ?? ''}
+            disabled={busy}
+            onChange={(e) => onChoiceChange(e.target.value)}
+          >
+            {options.map((o) => (
+              <option key={o.mealId} value={o.mealId}>{o.mealName ?? '(removed)'}</option>
+            ))}
+          </select>
+        </label>
+      )}
       <label className="field" style={{ maxWidth: '4.5rem' }} title="Servings to log">
         <span className="small muted">Servings</span>
         <input
@@ -942,13 +987,22 @@ function SkippedMealRow(
 // it re-submits the completion (updating the entry in place). The kcal reflects the entry's actual computed
 // nutrition (already scaled by servings), falling back to the task's per-serving total × the entry servings.
 function DoneMealRow(
-  { task, entry, busy, onEditServings }:
-  { task: PlannedMealTask; entry?: ConsumptionEntry; busy: boolean; onEditServings: (servings: number) => void },
+  { task, entry, busy, onEditServings, onEditChoice }:
+  {
+    task: PlannedMealTask; entry?: ConsumptionEntry; busy: boolean;
+    onEditServings: (servings: number) => void; onEditChoice: (mealId: string) => void;
+  },
 ) {
   const servings = entry?.servings ?? 1
   const kcal = entry
     ? entry.nutrition.find((n) => n.nutrientId === 'calories')?.value
     : task.nutrition.find((n) => n.nutrientId === 'calories')?.value
+
+  const options = task.options ?? []
+  const hasOptions = options.length > 1
+  // Which option was actually eaten: the completing entry's source (snapshot name shown), else the default.
+  const eatenId = entry?.sourceId ?? task.mealId
+  const eatenName = entry?.name ?? task.mealName
 
   // Commit a new serving count only when it's a valid, changed value (avoids no-op re-submits / clobbering).
   function commit(raw: string) {
@@ -960,13 +1014,29 @@ function DoneMealRow(
     <>
       <FuelBurnIcon kind="fuel" />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <strong style={{ textDecoration: 'line-through' }}>{task.mealName ?? '(fuel source removed)'}</strong>
+        <strong style={{ textDecoration: 'line-through' }}>{eatenName ?? '(fuel source removed)'}</strong>
         <div className="small muted">
           {entry ? formatClock(entry.createdAt) : formatTime(task.time)}
           {' · '}{round(servings)} serving{servings === 1 ? '' : 's'}
           {kcal != null && ` · ${Math.round(kcal)} kcal`}
           {' · planned'}
         </div>
+        {/* Swap which option was eaten (kept from bubbling to the wrapping checkbox label so it doesn't
+            un-complete the task). Only meaningful once a completing entry exists and the slot has options. */}
+        {entry && hasOptions && (
+          <select
+            className="select plan-done-option"
+            value={eatenId}
+            disabled={busy}
+            title="Change which option you ate"
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => { e.stopPropagation(); onEditChoice(e.target.value) }}
+          >
+            {options.map((o) => (
+              <option key={o.mealId} value={o.mealId}>{o.mealName ?? '(removed)'}</option>
+            ))}
+          </select>
+        )}
       </div>
       {/* Inline servings editor (only meaningful once a completing entry exists). Clicks/changes are kept
           from bubbling to the wrapping checkbox <label> so editing doesn't un-complete the task. */}
