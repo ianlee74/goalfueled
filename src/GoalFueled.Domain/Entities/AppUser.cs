@@ -127,6 +127,12 @@ public class AppUser
     /// (the person actually signed in). Transient — set per request by the authenticator from the active
     /// share grant, never persisted. Null when the signed-in user is operating as themselves.
     /// </summary>
+    /// <remarks>
+    /// <c>[NotMapped]</c> is required (not just <c>[JsonIgnore]</c>): EF Core maps any read/write property
+    /// regardless of the System.Text.Json attribute, so without this the field would be written to — and read
+    /// back from — the Cosmos document, and a non-nullable sibling below would throw on existing docs.
+    /// </remarks>
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     [System.Text.Json.Serialization.JsonIgnore]
     public string? ActingViaShareGuestUserId { get; set; }
 
@@ -135,6 +141,13 @@ public class AppUser
     /// request alongside <see cref="ActingViaShareGuestUserId"/>, never persisted. Defaults to the full
     /// owner set; only narrowed when a guest is acting via a limited share.
     /// </summary>
+    /// <remarks>
+    /// <c>[NotMapped]</c> is essential: this is a non-nullable value-type field, so if EF mapped it to the
+    /// Cosmos container it would throw on read for every user document persisted before this field existed
+    /// (the project's documented "Cosmos non-nullable field" landmine). Being transient request state, it
+    /// must never touch the document at all.
+    /// </remarks>
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     [System.Text.Json.Serialization.JsonIgnore]
     public SharePermission ActingSharePermissions { get; set; } =
         SharePermission.ViewLog | SharePermission.ManageMealPlans;
