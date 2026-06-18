@@ -21,7 +21,14 @@ public sealed record CurrentUserDto(
     /// <summary>The user's recurring weight-measurement schedule, or null when none is configured.</summary>
     WeightScheduleDto? WeightSchedule,
     /// <summary>The user's preferred weight/height unit system (Metric = kg/cm, UsImperial = lb/ft-in).</summary>
-    UnitsPreference UnitsPreference = UnitsPreference.UsImperial);
+    UnitsPreference UnitsPreference = UnitsPreference.UsImperial,
+    /// <summary>
+    /// True when this profile is being viewed by a GUEST acting via a share (the id/name/email are the
+    /// shared account's, not the signed-in person's). The client uses this to surface an "acting as" banner.
+    /// </summary>
+    bool IsActingViaShare = false,
+    /// <summary>The permissions the acting guest holds over this account; empty when not acting via a share.</summary>
+    IReadOnlyList<SharePermission>? ActingPermissions = null);
 
 /// <summary>
 /// A user's recurring weight-measurement schedule as returned to clients. Drives the recurring

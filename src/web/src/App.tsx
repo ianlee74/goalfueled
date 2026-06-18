@@ -22,6 +22,9 @@ import { LibraryPage } from './pages/LibraryPage'
 import { YouPage } from './pages/YouPage'
 import { AdminPage } from './pages/AdminPage'
 import { AboutPage } from './pages/AboutPage'
+import { HowItWorksPage } from './pages/HowItWorksPage'
+import { SharingPage } from './pages/SharingPage'
+import { InvitePage } from './pages/InvitePage'
 
 export default function App() {
   const { devUser, profile, loading } = useAuth()
@@ -41,10 +44,12 @@ export default function App() {
     return <div className="center-screen"><p className="muted">Loading…</p></div>
   }
 
-  // Signed in but hasn't finished the welcome flow → onboarding.
+  // Signed in but hasn't finished the welcome flow → onboarding. A shared-invitation link still works here
+  // so a brand-new recipient can accept/reject it before (or instead of) completing their own onboarding.
   if (!profile.hasCompletedOnboarding) {
     return (
       <Routes>
+        <Route path="/invite/:token" element={<InvitePage />} />
         <Route path="/welcome" element={<WelcomePage />} />
         <Route path="*" element={<Navigate to="/welcome" replace />} />
       </Routes>
@@ -76,11 +81,15 @@ export default function App() {
         <Route path="/review" element={<ReviewPage />} />
         <Route path="/library" element={<LibraryPage />} />
         <Route path="/you" element={<YouPage />} />
+        <Route path="/sharing" element={<SharingPage />} />
+        <Route path="/how-it-works" element={<HowItWorksPage />} />
         <Route path="/about" element={<AboutPage />} />
         {/* The old profile route lives inside the You tab now. */}
         <Route path="/profile" element={<Navigate to="/you" replace />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/admin" element={<AdminPage />} />
+        {/* Opening a shared-invitation link as an already-onboarded user. */}
+        <Route path="/invite/:token" element={<InvitePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

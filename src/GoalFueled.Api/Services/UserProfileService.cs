@@ -33,6 +33,7 @@ public sealed class UserProfileService
     /// </summary>
     public async Task<AppUser> CompleteOnboardingAsync(AppUser user, OnboardingInput input, CancellationToken ct)
     {
+        EnsureOwnAccount(user);
         ValidateGoal(input.PrimaryGoal);
         ValidateSex(input.SexAtBirth);
         ValidateHeight(input.HeightCm);
@@ -61,6 +62,7 @@ public sealed class UserProfileService
     /// </summary>
     public async Task<AppUser> UpdateProfileAsync(AppUser user, ProfileInput input, CancellationToken ct)
     {
+        EnsureOwnAccount(user);
         ValidateGoal(input.PrimaryGoal);
         ValidateSex(input.SexAtBirth);
         ValidateHeight(input.HeightCm);
@@ -89,6 +91,10 @@ public sealed class UserProfileService
     /// </summary>
     public async Task<AppUser> SetActiveMealPlanAsync(AppUser user, ActiveMealPlanInput input, CancellationToken ct)
     {
+        // Choosing the followed plan is meal-plan management: a guest may do it only with that grant.
+        if (!user.CanManageMealPlans)
+            throw new ForbiddenException("This shared account hasn't granted you meal-plan management.");
+
         if (string.IsNullOrWhiteSpace(input.MealPlanId))
         {
             user.ActiveMealPlanId = null;
@@ -113,6 +119,7 @@ public sealed class UserProfileService
     /// </summary>
     public async Task<AppUser> SetAdminViewAsync(AppUser user, AdminViewInput input, CancellationToken ct)
     {
+        EnsureOwnAccount(user);
         if (!user.IsAdmin)
             throw new ForbiddenException("Only admins can change the admin view.");
 
@@ -128,6 +135,7 @@ public sealed class UserProfileService
     /// </summary>
     public async Task<AppUser> SetWeightScheduleAsync(AppUser user, WeightScheduleInput input, CancellationToken ct)
     {
+        EnsureOwnAccount(user);
         if (input.Cadence is not { } cadence)
         {
             user.WeightScheduleCadence = null;
@@ -156,6 +164,17 @@ public sealed class UserProfileService
         user.WeightScheduleStartDate = input.StartDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
         await _users.UpdateAsync(user, ct);
         return user;
+    }
+
+    /// <summary>
+    /// Profile/identity changes only ever apply to the signed-in person's own account. A guest operating as
+    /// someone else via a share manages that account's log and (with the grant) meal plans, never its
+    /// profile, onboarding, weight schedule or admin view.
+    /// </summary>
+    private static void EnsureOwnAccount(AppUser user)
+    {
+        if (user.IsActingViaShare)
+            throw new ForbiddenException("Switch back to your own account to change profile settings.");
     }
 
     private static void ValidateGoal(GoalType goal)

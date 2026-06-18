@@ -1,18 +1,24 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { userApi } from '../api/services'
 import type { CurrentUser } from '../api/types'
+import { setActiveAccountId } from '../lib/activeAccount'
 import { getStoredDevUser, setStoredDevUser, type DevUser } from './devUsers'
 
 interface AuthState {
   /** The selected dev identity (null = signed out). */
   devUser: DevUser | null
-  /** The persisted profile returned by the API for the current dev identity. */
+  /** The persisted profile returned by the API for the current dev identity (or the account being acted as). */
   profile: CurrentUser | null
   loading: boolean
   signIn: (user: DevUser) => Promise<void>
   signOut: () => void
   /** Re-fetch the profile (after onboarding or admin-view toggle). */
   refresh: () => Promise<void>
+  /**
+   * Switch which account the app is viewed as. Pass an owner's user id to act as an account shared with
+   * you, or null to return to your own account. Persists the choice and reloads the profile.
+   */
+  switchAccount: (userId: string | null) => Promise<void>
 }
 
 const AuthCtx = createContext<AuthState | undefined>(undefined)
@@ -45,6 +51,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signIn = useCallback(async (user: DevUser) => {
+    // A fresh sign-in always starts on the user's own account (clear any prior account-switch).
+    setActiveAccountId(null)
     setStoredDevUser(user)
     setDevUser(user)
     setLoading(true)
@@ -56,6 +64,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadProfile])
 
   const signOut = useCallback(() => {
+    // Signing out also drops any account-switch so the next sign-in starts on their own account.
+    setActiveAccountId(null)
     setStoredDevUser(null)
     setDevUser(null)
     setProfile(null)
@@ -65,8 +75,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await loadProfile()
   }, [loadProfile])
 
+  const switchAccount = useCallback(async (userId: string | null) => {
+    // null (or our own id resolved by the caller) returns to self. Persist first so the reload's profile
+    // fetch already carries the act-as header.
+    setActiveAccountId(userId)
+    setLoading(true)
+    try {
+      await loadProfile()
+    } finally {
+      setLoading(false)
+    }
+  }, [loadProfile])
+
   return (
-    <AuthCtx.Provider value={{ devUser, profile, loading, signIn, signOut, refresh }}>
+    <AuthCtx.Provider value={{ devUser, profile, loading, signIn, signOut, refresh, switchAccount }}>
       {children}
     </AuthCtx.Provider>
   )

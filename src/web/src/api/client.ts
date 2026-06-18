@@ -1,4 +1,5 @@
 import { getStoredDevUser } from '../auth/devUsers'
+import { getActiveAccountId } from '../lib/activeAccount'
 
 export class ApiError extends Error {
   status: number
@@ -22,6 +23,10 @@ function authHeaders(): Record<string, string> {
     'X-Dev-Name': user.name,
   }
   if (user.avatar) headers['X-Dev-Avatar'] = user.avatar
+  // Account switching: when viewing an account shared with us, ask the API to act as that owner. It only
+  // honors this if we hold an active grant, so an unauthorized value safely falls back to our own account.
+  const actAs = getActiveAccountId()
+  if (actAs) headers['X-Act-As-User'] = actAs
   return headers
 }
 

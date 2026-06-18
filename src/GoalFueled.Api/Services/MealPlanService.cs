@@ -183,13 +183,16 @@ public sealed class MealPlanService
 
     private static void EnsureCanEdit(MealPlan p, AppUser user)
     {
-        if (user.IsActingAsAdmin) return; // admins can modify all data
-        if (p.OwnerUserId == user.Id) return;
+        if (CanEdit(p, user)) return;
+        // A guest viewing this account via a share that doesn't grant meal-plan management lands here.
+        if (p.OwnerUserId == user.Id && user.IsActingViaShare)
+            throw new ForbiddenException("This shared account hasn't granted you meal-plan management.");
         throw new ForbiddenException("You can only modify your own meal plans.");
     }
 
+    // Editing requires both ownership/admin AND (when acting via a share) the ManageMealPlans grant.
     private static bool CanEdit(MealPlan p, AppUser user) =>
-        user.IsActingAsAdmin || p.OwnerUserId == user.Id;
+        (user.IsActingAsAdmin || p.OwnerUserId == user.Id) && user.CanManageMealPlans;
 
     private static bool CanView(MealPlan p, AppUser user) =>
         user.IsActingAsAdmin || p.OwnerUserId == user.Id;

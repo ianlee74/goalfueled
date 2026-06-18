@@ -6,6 +6,23 @@
 
 ## Completed Items
 
+### Add sharing (share your log with a doctor/trainer via single-use invitation links) — 2026-06-18 CDT
+
+- [x] **Added end-to-end account sharing**: an owner creates single-use invitation links, the recipient accepts/rejects after signing in, the owner manages invitations, guests switch into shared accounts, and per-link permissions gate what a guest can do.
+
+**NOTES:**
+
+- **Invitation links**: an owner creates a single-use link carrying an opaque token. The recipient opens `/invite/{token}`, signs in, and accepts or rejects — either choice spends the link permanently; revoking a pending link also deactivates it. A used/deleted link cannot be re-used.
+- **Managing invitations**: a `/sharing` screen lists the owner's invitations with status (Pending/Accepted/Rejected/Deleted), lets them copy a still-pending link, and revoke a pending link or an accepted grant.
+- **Account switching**: an `X-Act-As-User` request header (set from a stored "active account") makes the API resolve the owner as the effective user — but only when the caller holds an active share grant, so a forged value safely falls back to self. A switcher dropdown (shown only when more than one account is available) plus a persistent "Viewing X's account — Switch back" banner drive the UX.
+- **Permissions**: `ViewLog` (always) and `ManageMealPlans` (optional). A guest without `ManageMealPlans` is blocked from creating/editing/deleting/assigning the owner's plans (enforced in `MealPlanService` + `SetActiveMealPlan`); guests can never edit the owner's profile/onboarding/weight-schedule/admin-view, create shares, or accept shares as the shared account.
+- **Landmines respected**: new `ShareInvitation` value-type fields (`Permissions`, `Status` flags/enums) are mapped via string converters; the transient acting-as fields on `AppUser` are `[JsonIgnore]` so old documents read back fine. Recipient token endpoints use distinct top-level paths (`share-invitation-preview/{token}`, `share-invitation-respond/{token}`) so a `{token}` route can't shadow the `share-invitations` collection. All routes avoid the reserved `admin` prefix.
+- **Files created** — Backend: `Domain/Entities/ShareInvitation.cs`, `Domain/Contracts/SharingDtos.cs`, `Data/Repositories/IShareInvitationRepository.cs` + `ShareInvitationRepository.cs`, `Api/Services/SharingService.cs`, `Api/Functions/ShareFunctions.cs`. Frontend: `web/src/lib/activeAccount.ts`, `web/src/components/AccountSwitcher.tsx`, `web/src/pages/InvitePage.tsx`, `web/src/pages/SharingPage.tsx`.
+- **Files modified** — Backend: `Domain/Enums.cs`, `Domain/Entities/AppUser.cs` (acting-as fields + `CanManageMealPlans`/`IsActingViaShare`), `Domain/Contracts/UserDtos.cs`, `Data/GoalFueledDbContext.cs` (DbSet + container + converters), `Data/DataServiceCollectionExtensions.cs`, `Api/Program.cs`, `Api/Auth/Authenticator.cs` (act-as resolution; constructor gained `IShareInvitationRepository` + `ILogger`), `Api/Services/MealPlanService.cs`, `Api/Services/UserProfileService.cs`, `Api/Services/UserAdminService.cs` (cascade-delete shares; constructor gained `IShareInvitationRepository`), `Api/Functions/UserFunctions.cs`. Frontend: `web/src/api/types.ts`, `services.ts`, `client.ts` (act-as header), `auth/AuthContext.tsx` (`switchAccount`), `App.tsx`, `components/Layout.tsx` (banner), `pages/YouPage.tsx`, `pages/PlansPage.tsx`.
+- **Endpoints added**: `POST/GET /share-invitations`, `DELETE /share-invitations/{id}`, `GET /share-invitation-preview/{token}`, `POST /share-invitation-respond/{token}`, `GET /shared-accounts`.
+- **Conductor fix-up**: the implementing subagent verified the API/web builds but not the test project; the two changed service constructors (`Authenticator`, `UserAdminService`) broke `TestHelpers.cs` and `UserAdminServiceTests.cs`. Updated both test call sites to pass a `ShareInvitationRepository`. (`MealPlanService`/`UserProfileService` constructors were unchanged — permission enforcement reads `AppUser.CanManageMealPlans`.)
+- Verified: `dotnet build` 0 errors; `dotnet test` **341/341 passed**; `npm run build` succeeds; `npm run lint` 0 errors (3 pre-existing `set-state-in-effect` warnings).
+
 ### Write Deployment.md (Azure deployment guide) — 2026-06-14 CDT
 
 - [x] **Created `Deployment.md`** documenting the full steps to deploy GoalFueled to Azure. (The other "Prepare to deploy to Azure" sub-items require live Azure credentials/operations and remain open in TODO.md.)

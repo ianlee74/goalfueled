@@ -15,6 +15,8 @@ export function PlansPage() {
   const [error, setError] = useState<string | null>(null)
 
   const isAdmin = !!profile?.isActingAsAdmin
+  // While acting via a share, only show plan-editing affordances when the grant includes ManageMealPlans.
+  const canManagePlans = !profile?.isActingViaShare || !!profile?.actingPermissions?.includes('ManageMealPlans')
 
   // Debounced search. The admin "show all" flag is only sent when acting as an admin.
   useEffect(() => {
@@ -38,7 +40,7 @@ export function PlansPage() {
     <div className="stack">
       <div className="row spread">
         <h1>Meal plans</h1>
-        <Link className="btn btn-primary btn-sm" to="/plans/new">+ New</Link>
+        {canManagePlans && <Link className="btn btn-primary btn-sm" to="/plans/new">+ New</Link>}
       </div>
 
       <input

@@ -22,7 +22,9 @@ internal static class TestHelpers
     public static Authenticator NewAuthenticator(GoalFueledDbContext db, AuthenticatedIdentity identity)
     {
         var providers = new IIdentityProvider[] { new StubIdentityProvider(identity) };
-        return new Authenticator(providers, new UserRepository(db), NullLogger<Authenticator>.Instance);
+        return new Authenticator(
+            providers, new UserRepository(db), new ShareInvitationRepository(db),
+            NullLogger<Authenticator>.Instance);
     }
 
     public static HttpRequest BlankRequest() => new DefaultHttpContext().Request;

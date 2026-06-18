@@ -62,6 +62,76 @@ export interface CurrentUser {
   weightSchedule?: WeightSchedule
   // Preferred unit system for body weight + height (kg/cm vs lb/ft-in). Defaults to UsImperial server-side.
   unitsPreference: UnitsPreference
+  // True when this profile is the SHARED account a guest is currently viewing (not the signed-in person).
+  isActingViaShare: boolean
+  // The permissions the acting guest holds over this account; absent/empty when not acting via a share.
+  actingPermissions?: SharePermission[]
+}
+
+// ---- Account sharing ----
+
+/** What a guest may do with a shared account. ViewLog is implied by every share. */
+export type SharePermission = 'ViewLog' | 'ManageMealPlans'
+
+/** Lifecycle of a sharing invitation link. */
+export type ShareInvitationStatus = 'Pending' | 'Accepted' | 'Rejected' | 'Deleted'
+
+/** An invitation as shown to its owner on the sharing-management screen. */
+export interface ShareInvitation {
+  id: string
+  status: ShareInvitationStatus
+  permissions: SharePermission[]
+  label?: string
+  // The link token, present only while pending (and thus usable).
+  token?: string
+  // App-relative invite path "/invite/{token}", present only while pending.
+  invitePath?: string
+  // The guest who accepted, when accepted.
+  guestUserId?: string
+  guestDisplayName?: string
+  guestEmail?: string
+  createdAt: string
+  respondedAt?: string
+}
+
+/** Payload for creating a sharing invitation. */
+export interface CreateShareInvitationInput {
+  label?: string
+  permissions: SharePermission[]
+}
+
+/** What the recipient sees when they open an invitation link. */
+export interface ShareInvitationPreview {
+  status: ShareInvitationStatus
+  permissions: SharePermission[]
+  ownerUserId: string
+  ownerDisplayName: string
+  ownerEmail?: string
+  // False when the link is already spent, or the viewer is the owner.
+  canRespond: boolean
+  isOwner: boolean
+}
+
+/** An account the signed-in user can switch into (their own, or one shared with them). */
+export interface SharedAccount {
+  userId: string
+  displayName: string
+  email?: string
+  avatarUrl?: string
+  isSelf: boolean
+  permissions: SharePermission[]
+}
+
+export const SHARE_PERMISSION_LABELS: Record<SharePermission, string> = {
+  ViewLog: 'View the log',
+  ManageMealPlans: 'Manage meal plans',
+}
+
+export const SHARE_STATUS_LABELS: Record<ShareInvitationStatus, string> = {
+  Pending: 'Pending',
+  Accepted: 'Accepted',
+  Rejected: 'Rejected',
+  Deleted: 'Deleted',
 }
 
 export type WeightScheduleCadence = 'Daily' | 'Weekly' | 'EveryNDays' | 'EveryNWeeks'

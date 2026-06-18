@@ -5,7 +5,8 @@ import { gamificationApi, userApi } from '../api/services'
 import type { GamificationSummary } from '../api/types'
 import { ProfileFields, type ProfileFieldsValue } from '../components/ProfileFields'
 import { WeightScheduleEditor } from '../components/WeightScheduleEditor'
-import { IconLevel } from '../components/icons'
+import { AccountSwitcher } from '../components/AccountSwitcher'
+import { IconLevel, IconUsers } from '../components/icons'
 import { ThemePicker } from '../theme/ThemePicker'
 import { formatHeight, heightUnitFor } from '../lib/height'
 import { weightUnitFor } from '../lib/weight'
@@ -44,6 +45,18 @@ export function YouPage() {
       {/* Level & Fuel Points header (DESIGN.md §3.4). */}
       {summary && <LevelCard summary={summary} />}
 
+      {/* How the level is earned: the full ladder + FP economy. */}
+      <Link className="card ingredient-item" to="/how-it-works?returnTo=/you">
+        <span style={{ color: 'var(--primary)', display: 'inline-flex' }} aria-hidden="true">
+          <IconLevel size={24} />
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <strong>How the game is played</strong>
+          <div className="small muted">Your progress, the levels, and how to earn Fuel Points</div>
+        </div>
+        <span className="muted" aria-hidden="true">→</span>
+      </Link>
+
       {/* Account: who's signed in + the way out. */}
       <div className="card stack">
         <h2>Account</h2>
@@ -54,7 +67,24 @@ export function YouPage() {
           </div>
           <button type="button" className="btn btn-sm" onClick={signOut}>Sign out</button>
         </div>
+        {/* Switch between your own account and any shared with you (renders only when there's a choice). */}
+        <AccountSwitcher />
       </div>
+
+      {/* Sharing: create/manage links that let others view your log or manage your plans. Only on your
+          own account — managing sharing while acting as someone else's account makes no sense. */}
+      {!profile?.isActingViaShare && (
+        <Link className="card ingredient-item" to="/sharing">
+          <span style={{ color: 'var(--primary)', display: 'inline-flex' }} aria-hidden="true">
+            <IconUsers size={24} />
+          </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <strong>Sharing</strong>
+            <div className="small muted">Share your log with a doctor, trainer, or family member</div>
+          </div>
+          <span className="muted" aria-hidden="true">→</span>
+        </Link>
+      )}
 
       {/* Appearance. */}
       <div className="card stack">

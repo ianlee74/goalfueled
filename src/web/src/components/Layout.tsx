@@ -46,7 +46,7 @@ function isDestinationActive(d: Destination, pathname: string): boolean {
 export function Layout() {
   const [logOpen, setLogOpen] = useState(false)
   const { pathname } = useLocation()
-  const { profile } = useAuth()
+  const { profile, switchAccount } = useAuth()
   // Surface the Admin destination in the sidebar only while acting as an admin.
   const sidebarDestinations = profile?.isActingAsAdmin
     ? [...DESTINATIONS, ADMIN_DESTINATION]
@@ -84,6 +84,16 @@ export function Layout() {
       </aside>
 
       <main className="app-main">
+        {/* "Acting as" banner: when viewing an account someone shared with us, make whose account this is
+            obvious and offer a one-tap way back to our own. */}
+        {profile?.isActingViaShare && (
+          <div className="notice info row spread" style={{ alignItems: 'center' }}>
+            <span>Viewing <strong>{profile.displayName}</strong>'s account</span>
+            <button type="button" className="btn btn-sm" onClick={() => switchAccount(null)}>
+              Switch back
+            </button>
+          </div>
+        )}
         <Outlet />
       </main>
 

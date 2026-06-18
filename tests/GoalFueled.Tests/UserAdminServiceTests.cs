@@ -35,7 +35,8 @@ public class UserAdminServiceTests
         new BurnActivityRepository(db),
         new WeightEntryRepository(db),
         new GoalRepository(db),
-        new UserStatsRepository(db));
+        new UserStatsRepository(db),
+        new ShareInvitationRepository(db));
 
     [Fact]
     public async Task Acting_admin_lists_all_users()

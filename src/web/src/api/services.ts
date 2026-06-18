@@ -2,9 +2,10 @@ import { api } from './client'
 import type {
   AdminUser, BurnActivity, BurnActivityInput, BurnDay, BurnSuggestion,
   CompletePlannedMealInput, ConsumptionDay, ConsumptionEntry, ConsumptionEntryInput,
-  CurrentUser, Dashboard, FavoriteState, GamificationSummary, Goal, GoalInput, Ingredient, IngredientInput,
-  Meal, MealInput, MealPlan, MealPlanInput, NutrientDefinition, NutritionLookupResult,
-  OnboardingInput, PlannedDay, ProfileInput, Recipe, RecipeInput, WeeklyReview, WeightEntry,
+  CreateShareInvitationInput, CurrentUser, Dashboard, FavoriteState, GamificationSummary, Goal, GoalInput,
+  Ingredient, IngredientInput, Meal, MealInput, MealPlan, MealPlanInput, NutrientDefinition,
+  NutritionLookupResult, OnboardingInput, PlannedDay, ProfileInput, Recipe, RecipeInput, SharedAccount,
+  ShareInvitation, ShareInvitationPreview, WeeklyReview, WeightEntry,
   WeightEntryInput, WeightScheduleInput,
 } from './types'
 
@@ -31,6 +32,26 @@ export const adminApi = {
     api.post<AdminUser>(`/manage-users/${id}/admin-role`, { isAdmin }),
   // Permanently deletes a user and all their personal data. Content accepted as public/app-owned is kept.
   deleteUser: (id: string) => api.del(`/manage-users/${id}`),
+}
+
+// Account sharing: create/manage invitation links, respond to one as a recipient, and list the accounts
+// (own + shared) the signed-in user can switch into.
+export const sharingApi = {
+  // The signed-in user's own invitations (pending + resolved), most recent first.
+  listInvitations: () => api.get<ShareInvitation[]>('/share-invitations'),
+  createInvitation: (input: CreateShareInvitationInput) =>
+    api.post<ShareInvitation>('/share-invitations', input),
+  // Revokes a pending link (deactivates it) or an accepted grant (cuts off the guest's access).
+  deleteInvitation: (id: string) => api.del(`/share-invitations/${id}`),
+  // Recipient view of a link: enough to decide whether to accept. Distinct top-level path so it can't be
+  // shadowed by the /share-invitations collection route.
+  preview: (token: string) =>
+    api.get<ShareInvitationPreview>(`/share-invitation-preview/${token}`),
+  // Accept (true) or reject (false) a pending invitation, spending the link.
+  respond: (token: string, accept: boolean) =>
+    api.post<ShareInvitationPreview>(`/share-invitation-respond/${token}`, { accept }),
+  // The accounts the user can act as (their own first, then accounts shared with them).
+  accounts: () => api.get<SharedAccount[]>('/shared-accounts'),
 }
 
 // Builds a `?search=…&all=…` query string. `all` is honored server-side only for acting admins.

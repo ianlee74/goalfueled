@@ -188,3 +188,40 @@ public enum UnitDimension
     Volume = 1,
     Count = 2
 }
+
+/// <summary>
+/// Lifecycle of a sharing invitation (a link one user sends to give another access to their account).
+/// A pending invitation can be accepted or rejected by the recipient, or revoked (deleted) by the sender;
+/// once it leaves <see cref="Pending"/> the link is spent and can never be used again.
+/// </summary>
+public enum ShareInvitationStatus
+{
+    /// <summary>The link has been created but not yet acted on; it can still be accepted/rejected/revoked.</summary>
+    Pending = 0,
+
+    /// <summary>The recipient accepted; an access grant now exists and the link is spent.</summary>
+    Accepted = 1,
+
+    /// <summary>The recipient declined; the link is spent.</summary>
+    Rejected = 2,
+
+    /// <summary>The sender revoked the link (or revoked a previously accepted grant); it is now inactive.</summary>
+    Deleted = 3
+}
+
+/// <summary>
+/// What a guest may do with a shared account. Stored as a flags set on the invitation/grant so a single
+/// share can carry any combination. <see cref="ViewLog"/> is the baseline every share implies.
+/// </summary>
+[Flags]
+public enum SharePermission
+{
+    /// <summary>No access.</summary>
+    None = 0,
+
+    /// <summary>View the owner's log (consumption, burn, weight, dashboard, goals).</summary>
+    ViewLog = 1,
+
+    /// <summary>Create, edit and assign the owner's meal plans (e.g. a trainer planning the week).</summary>
+    ManageMealPlans = 2
+}

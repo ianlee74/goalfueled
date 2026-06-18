@@ -92,10 +92,23 @@ public sealed class UserFunctions
         var scheduleDto = schedule is null
             ? null
             : new WeightScheduleDto(schedule.Cadence, schedule.StartDate, schedule.Interval, schedule.StartDayOfWeek);
+        var actingPermissions = u.IsActingViaShare
+            ? ToPermissionList(u.ActingSharePermissions)
+            : null;
         return new(
             u.Id, u.Email, u.DisplayName, u.AvatarUrl, u.Roles, u.IsAdmin,
             u.AdminViewEnabled, u.IsActingAsAdmin, u.PrimaryGoal, u.SexAtBirth, u.HeightCm,
             u.DateOfBirth, u.HasCompletedOnboarding, u.ActiveMealPlanId, scheduleDto,
-            u.UnitsPreference ?? UnitsPreference.UsImperial);
+            u.UnitsPreference ?? UnitsPreference.UsImperial,
+            u.IsActingViaShare, actingPermissions);
+    }
+
+    /// <summary>Expands the acting guest's permission flags into the list the client shows.</summary>
+    private static IReadOnlyList<SharePermission> ToPermissionList(SharePermission permissions)
+    {
+        var list = new List<SharePermission>();
+        if (permissions.HasFlag(SharePermission.ViewLog)) list.Add(SharePermission.ViewLog);
+        if (permissions.HasFlag(SharePermission.ManageMealPlans)) list.Add(SharePermission.ManageMealPlans);
+        return list;
     }
 }

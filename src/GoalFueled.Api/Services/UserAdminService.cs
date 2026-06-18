@@ -22,6 +22,7 @@ public sealed class UserAdminService
     private readonly IWeightEntryRepository _weights;
     private readonly IGoalRepository _goals;
     private readonly IUserStatsRepository _stats;
+    private readonly IShareInvitationRepository _shares;
 
     public UserAdminService(
         IUserRepository users,
@@ -33,7 +34,8 @@ public sealed class UserAdminService
         IBurnActivityRepository burns,
         IWeightEntryRepository weights,
         IGoalRepository goals,
-        IUserStatsRepository stats)
+        IUserStatsRepository stats,
+        IShareInvitationRepository shares)
     {
         _users = users;
         _ingredients = ingredients;
@@ -45,6 +47,7 @@ public sealed class UserAdminService
         _weights = weights;
         _goals = goals;
         _stats = stats;
+        _shares = shares;
     }
 
     /// <summary>Lists all users for the admin user-management screen. Acting-admin only.</summary>
@@ -158,6 +161,11 @@ public sealed class UserAdminService
         var stats = await _stats.GetForUserAsync(target.Id, ct);
         if (stats is not null)
             await _stats.DeleteAsync(stats, ct);
+
+        // Sharing: remove every invitation/grant where the user is the owner OR the accepted guest, so no
+        // dangling links (that could be opened) or active grants (that could act as a deleted account) remain.
+        foreach (var share in await _shares.ListTouchingUserAsync(target.Id, ct))
+            await _shares.DeleteAsync(share, ct);
 
         // Finally remove the user document itself (which also removes their favorites).
         await _users.DeleteAsync(target, ct);

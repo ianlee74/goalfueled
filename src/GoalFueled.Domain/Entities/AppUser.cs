@@ -122,8 +122,40 @@ public class AppUser
 
     public bool IsAdmin => Roles.Contains(AppRole.AppAdmin);
 
-    /// <summary>True if the user is an admin AND currently has the admin view enabled.</summary>
-    public bool IsActingAsAdmin => IsAdmin && AdminViewEnabled;
+    /// <summary>
+    /// When a guest is "acting as" this account through an accepted share, this is the guest's own user id
+    /// (the person actually signed in). Transient — set per request by the authenticator from the active
+    /// share grant, never persisted. Null when the signed-in user is operating as themselves.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? ActingViaShareGuestUserId { get; set; }
+
+    /// <summary>
+    /// The permissions the acting guest holds over this account (from the share grant). Transient — set per
+    /// request alongside <see cref="ActingViaShareGuestUserId"/>, never persisted. Defaults to the full
+    /// owner set; only narrowed when a guest is acting via a limited share.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public SharePermission ActingSharePermissions { get; set; } =
+        SharePermission.ViewLog | SharePermission.ManageMealPlans;
+
+    /// <summary>True when the current request is a guest acting on this account through a share grant.</summary>
+    public bool IsActingViaShare => ActingViaShareGuestUserId is not null;
+
+    /// <summary>
+    /// True if the user is an admin AND currently has the admin view enabled. An admin operating as another
+    /// account via a share is NOT acting as an admin over it — share grants confer only the share's
+    /// permissions, never app-admin powers.
+    /// </summary>
+    public bool IsActingAsAdmin => IsAdmin && AdminViewEnabled && !IsActingViaShare;
+
+    /// <summary>
+    /// Whether the current actor may manage (create/edit/delete/assign) this account's meal plans. Always
+    /// true when operating as oneself; when acting via a share, only when the grant includes
+    /// <see cref="SharePermission.ManageMealPlans"/>.
+    /// </summary>
+    public bool CanManageMealPlans =>
+        !IsActingViaShare || ActingSharePermissions.HasFlag(SharePermission.ManageMealPlans);
 
     /// <summary>Canonical lookup key for an external login.</summary>
     public static string LoginKey(string provider, string subject) => $"{provider}:{subject}";

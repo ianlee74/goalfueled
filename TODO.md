@@ -6,16 +6,6 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-### Deployment & infrastructure activation (infra authored, not yet deployed)
-
-- [ ] Prepare to deploy to Azure
-  - Provision Azure resources via `infra/main.bicep` (Cosmos, Storage, Functions, Static Web App, monitoring).
-  - Configure CI/CD secrets/variables and run the deploy workflows (GitHub Actions + Azure DevOps).
-  - Switch the API to the Cosmos provider in cloud envs (`GoalFueled:UseInMemoryStore=false`) and verify against a real Cosmos account.
-  - Tighten the Function App **CORS** to the Static Web App hostname (currently a placeholder).
-  - Move secrets to **Key Vault + managed identity** (replace inline connection strings in `functionApp.bicep`).
-  - [x] Create a `Deployment.md` file that documents the steps necessary to deploy the app to Azure — DONE (see `Deployment.md`)
-
 ## FUTURE FEATURES
 
 >[AI Agent] skip ALL items in this section.
@@ -26,7 +16,15 @@ Ignore all files in the `Future Features` section.
 
 - [] **Integrate with Google Health**: synchronize weight data with Google Health. What else can we sync with it?
 
-- [] **Add log sharing**: create a way for users to view their log with their doctor/trainer/etc.
+### Deployment & infrastructure activation (infra authored, not yet deployed)
+
+- [ ] Prepare to deploy to Azure
+  - Provision Azure resources via `infra/main.bicep` (Cosmos, Storage, Functions, Static Web App, monitoring).
+  - Configure CI/CD secrets/variables and run the deploy workflows (GitHub Actions + Azure DevOps).
+  - Switch the API to the Cosmos provider in cloud envs (`GoalFueled:UseInMemoryStore=false`) and verify against a real Cosmos account.
+  - Tighten the Function App **CORS** to the Static Web App hostname (currently a placeholder).
+  - Move secrets to **Key Vault + managed identity** (replace inline connection strings in `functionApp.bicep`).
+  - [x] Create a `Deployment.md` file that documents the steps necessary to deploy the app to Azure — DONE (see `Deployment.md`)
 
 ### Real authentication (Microsoft Entra External ID)
 
