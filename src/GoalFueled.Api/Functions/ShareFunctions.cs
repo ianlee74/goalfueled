@@ -55,18 +55,21 @@ public sealed class ShareFunctions
             return HttpResults.NoContent();
         });
 
+    // Preview/respond use OPTIONAL auth: a recipient may open the link before signing in. The link token is
+    // the capability, so an anonymous viewer can see who invited them and decline; accepting still requires
+    // signing in (enforced in SharingService).
     [Function("PreviewShareInvitation")]
     public Task<IActionResult> Preview(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "share-invitation-preview/{token}")] HttpRequest req,
         string token) =>
-        ApiEndpoint.RunAuthenticated(req, _auth, async user =>
+        ApiEndpoint.RunOptionalAuth(req, _auth, async user =>
             HttpResults.Ok(await _sharing.PreviewAsync(user, token, req.HttpContext.RequestAborted)));
 
     [Function("RespondShareInvitation")]
     public Task<IActionResult> Respond(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "share-invitation-respond/{token}")] HttpRequest req,
         string token) =>
-        ApiEndpoint.RunAuthenticated(req, _auth, async user =>
+        ApiEndpoint.RunOptionalAuth(req, _auth, async user =>
         {
             var input = await HttpResults.ReadJsonAsync<RespondInput>(req, req.HttpContext.RequestAborted);
             var result = await _sharing.RespondAsync(user, token, input.Accept, req.HttpContext.RequestAborted);

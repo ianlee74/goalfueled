@@ -84,15 +84,22 @@ public sealed class SharingService
 
     // ---- recipient: preview & respond ----
 
-    /// <summary>What the recipient sees before deciding. Throws 404 for an unknown token.</summary>
-    public async Task<ShareInvitationPreviewDto> PreviewAsync(AppUser viewer, string token, CancellationToken ct)
+    /// <summary>
+    /// What the recipient sees before deciding. Throws 404 for an unknown token. The viewer may be
+    /// <c>null</c> when the link is opened by someone who has not signed in yet — the link token is itself
+    /// the capability, so an anonymous viewer can still see who is inviting them and what they'd be granted
+    /// (and decline). <see cref="ShareInvitationPreviewDto.CanRespond"/> is only true for a signed-in,
+    /// eligible viewer (anonymous viewers must sign in before they can <em>accept</em>).
+    /// </summary>
+    public async Task<ShareInvitationPreviewDto> PreviewAsync(AppUser? viewer, string token, CancellationToken ct)
     {
         var invitation = await _shares.GetByTokenAsync(token, ct)
             ?? throw new NotFoundException("Invitation not found.");
         var owner = await _users.GetByIdAsync(invitation.OwnerUserId, ct);
 
-        var isOwner = invitation.OwnerUserId == viewer.Id;
-        var canRespond = invitation.IsPending && !isOwner && !viewer.IsActingViaShare;
+        var isOwner = viewer is not null && invitation.OwnerUserId == viewer.Id;
+        var canRespond = invitation.IsPending && !isOwner
+            && viewer is not null && !viewer.IsActingViaShare;
 
         return new ShareInvitationPreviewDto(
             invitation.Status,
@@ -106,23 +113,28 @@ public sealed class SharingService
 
     /// <summary>
     /// Accepts or rejects a pending invitation, spending the link. On accept the invitation becomes the
-    /// guest's durable access grant. The owner can't respond to their own invite; an already-spent link
-    /// can't be reused; a guest currently acting via another share can't respond as that account.
+    /// guest's durable access grant — accepting therefore requires a signed-in viewer. Rejecting is allowed
+    /// anonymously (a recipient may decline a link without ever creating an account; the token is the
+    /// capability). The owner can't respond to their own invite; an already-spent link can't be reused; a
+    /// guest currently acting via another share can't respond as that account.
     /// </summary>
-    public async Task<ShareInvitationPreviewDto> RespondAsync(AppUser viewer, string token, bool accept, CancellationToken ct)
+    public async Task<ShareInvitationPreviewDto> RespondAsync(AppUser? viewer, string token, bool accept, CancellationToken ct)
     {
-        EnsureNotActingViaShare(viewer);
+        if (viewer is not null) EnsureNotActingViaShare(viewer);
+        if (accept && viewer is null)
+            throw new UnauthorizedException("Sign in to accept an invitation.");
+
         var invitation = await _shares.GetByTokenAsync(token, ct)
             ?? throw new NotFoundException("Invitation not found.");
 
-        if (invitation.OwnerUserId == viewer.Id)
+        if (viewer is not null && invitation.OwnerUserId == viewer.Id)
             throw new ValidationException("You can't accept your own invitation.");
         if (!invitation.IsPending)
             throw new ValidationException("This invitation has already been used.");
 
         invitation.Status = accept ? ShareInvitationStatus.Accepted : ShareInvitationStatus.Rejected;
         invitation.RespondedAt = DateTimeOffset.UtcNow;
-        if (accept) invitation.GuestUserId = viewer.Id;
+        if (accept) invitation.GuestUserId = viewer!.Id;
 
         await _shares.UpdateAsync(invitation, ct);
 

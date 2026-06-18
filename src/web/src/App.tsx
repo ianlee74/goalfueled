@@ -29,11 +29,14 @@ import { InvitePage } from './pages/InvitePage'
 export default function App() {
   const { devUser, profile, loading } = useAuth()
 
-  // Not signed in → login.
+  // Not signed in → login. A shared-invitation link is still reachable so a recipient who isn't signed in
+  // yet lands on the invitation (where they can sign in, create an account, or decline) instead of a bare
+  // login page that has lost the link.
   if (!devUser) {
     return (
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/invite/:token" element={<InvitePage />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     )

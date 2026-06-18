@@ -9,14 +9,23 @@ import {
 import { IconUsers } from '../components/icons'
 
 /**
- * The invitation landing page (/invite/:token). A signed-in user who opens a shared link decides here
- * whether to accept (gaining access to the owner's account) or reject it. Either choice spends the link;
- * an already-used link shows its resolved state. On accept we switch straight into the shared account.
+ * The invitation landing page (/invite/:token), reachable whether or not the visitor is signed in.
+ *
+ * - Signed OUT: the recipient is greeted with the invitation itself (who's sharing, what they'd be granted)
+ *   and three choices — create a new login, sign in with an existing login, or decline. The link token is
+ *   the capability, so declining works without an account; accepting routes through sign-in first.
+ * - Signed IN: the recipient decides whether to accept (gaining access to the owner's account) or reject.
+ *
+ * Either choice spends the link; an already-used link shows its resolved state. On accept we switch
+ * straight into the shared account.
  */
 export function InvitePage() {
   const { token } = useParams<{ token: string }>()
   const navigate = useNavigate()
-  const { switchAccount } = useAuth()
+  const { devUser, switchAccount } = useAuth()
+  const signedIn = devUser !== null
+  // Where sign-in should return to so the recipient lands back on this invitation, now authenticated.
+  const returnHere = encodeURIComponent(`/invite/${token ?? ''}`)
   const [preview, setPreview] = useState<ShareInvitationPreview | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -98,7 +107,8 @@ export function InvitePage() {
               <div className="notice info">
                 This invitation is no longer available ({SHARE_STATUS_LABELS[shown.status].toLowerCase()}).
               </div>
-            ) : (
+            ) : signedIn ? (
+              // Already signed in: decide directly.
               <div className="row" style={{ gap: '0.5rem' }}>
                 <button type="button" className="btn btn-primary" disabled={busy}
                   onClick={() => respond(true)}>
@@ -109,13 +119,35 @@ export function InvitePage() {
                   Reject
                 </button>
               </div>
+            ) : (
+              // Signed out: offer to create a login, sign in with an existing one, or decline outright.
+              // Accepting needs an account, so those two routes go through sign-in and return here; declining
+              // spends the link without requiring one.
+              <div className="stack" style={{ gap: '0.5rem' }}>
+                <button type="button" className="btn btn-primary btn-block" disabled={busy}
+                  onClick={() => navigate(`/login?mode=signup&returnTo=${returnHere}`)}>
+                  Create a new login
+                </button>
+                <button type="button" className="btn btn-block" disabled={busy}
+                  onClick={() => navigate(`/login?returnTo=${returnHere}`)}>
+                  Log in with an existing login
+                </button>
+                <button type="button" className="btn btn-danger btn-block" disabled={busy}
+                  onClick={() => respond(false)}>
+                  {busy ? 'Working…' : 'Refuse the invitation'}
+                </button>
+              </div>
             )}
           </>
         )}
 
-        <button type="button" className="btn btn-sm btn-block" onClick={() => navigate('/', { replace: true })}>
-          Go to the app
-        </button>
+        {/* Escape hatch — once a choice is made, or for a signed-in user, offer a way into the app. While a
+            signed-out recipient is still deciding, the three options above are the only actions they need. */}
+        {(signedIn || resolved) && (
+          <button type="button" className="btn btn-sm btn-block" onClick={() => navigate('/', { replace: true })}>
+            Go to the app
+          </button>
+        )}
       </div>
     </div>
   )
