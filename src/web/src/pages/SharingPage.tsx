@@ -24,6 +24,8 @@ export function SharingPage() {
   const [error, setError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  // Transient success line shown after creating a link (whether or not the auto-copy succeeded).
+  const [notice, setNotice] = useState<string | null>(null)
 
   // New-invitation form state.
   const [label, setLabel] = useState('')
@@ -60,12 +62,26 @@ export function SharingPage() {
   async function create() {
     setCreating(true)
     setError(null)
+    setNotice(null)
     try {
       const permissions: SharePermission[] = ['ViewLog']
       if (canManagePlans) permissions.push('ManageMealPlans')
-      await sharingApi.createInvitation({ label: label.trim() || undefined, permissions })
+      const created = await sharingApi.createInvitation({ label: label.trim() || undefined, permissions })
       setLabel('')
       setCanManagePlans(false)
+      // Auto-copy the new link so the owner can paste it straight to whoever they're sharing with, and tell
+      // them what happened. Clipboard access can be denied (e.g. an insecure context or a stricter browser),
+      // so fall back to a message pointing at the per-row "Copy link" button rather than failing silently.
+      const url = inviteUrl(created)
+      const copied = url ? await writeClipboard(url) : false
+      if (copied) {
+        setCopiedId(created.id)
+        setTimeout(() => setCopiedId((c) => (c === created.id ? null : c)), 2000)
+      }
+      setNotice(copied
+        ? 'Invitation link created and copied to your clipboard — paste it to whoever you’re sharing with.'
+        : 'Invitation link created. Use “Copy link” on it below to copy the link.')
+      setTimeout(() => setNotice(null), 6000)
       await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not create the invitation.')
@@ -74,15 +90,29 @@ export function SharingPage() {
     }
   }
 
-  async function copyLink(inv: ShareInvitation) {
-    if (!inv.invitePath) return
-    const url = `${window.location.origin}${inv.invitePath}`
+  /** Absolute URL for an invitation's link, or null when it has no shareable path (already spent). */
+  function inviteUrl(inv: ShareInvitation): string | null {
+    return inv.invitePath ? `${window.location.origin}${inv.invitePath}` : null
+  }
+
+  /** Writes text to the clipboard, returning whether it succeeded (it can be blocked by the browser). */
+  async function writeClipboard(text: string): Promise<boolean> {
     try {
-      await navigator.clipboard.writeText(url)
+      await navigator.clipboard.writeText(text)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  async function copyLink(inv: ShareInvitation) {
+    const url = inviteUrl(inv)
+    if (!url) return
+    if (await writeClipboard(url)) {
       setCopiedId(inv.id)
       setTimeout(() => setCopiedId((c) => (c === inv.id ? null : c)), 2000)
-    } catch {
-      // Clipboard may be unavailable (insecure context); surface the URL so the user can copy it manually.
+    } else {
+      // Clipboard unavailable (insecure context); surface the URL so the user can copy it manually.
       window.prompt('Copy this invitation link:', url)
     }
   }
@@ -173,6 +203,7 @@ export function SharingPage() {
         </button>
       </div>
 
+      {notice && <div className="notice info" role="status">{notice}</div>}
       {error && <div className="notice error">{error}</div>}
       {loading && items.length === 0 && <SkeletonList />}
       {!loading && items.length === 0 && !error && (
