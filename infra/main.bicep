@@ -1,7 +1,7 @@
 // GoalFueled — main infrastructure composition (resource-group scoped).
 //
-//   az group create -n rg-goalfueled-dev -l eastus2
-//   az deployment group create -g rg-goalfueled-dev -f infra/main.bicep -p infra/main.parameters.json
+//   az group create -n goalfueled-rg-dev -l eastus2
+//   az deployment group create -g goalfueled-rg-dev -f infra/main.bicep -p infra/main.parameters.json
 //
 // All resources inherit the resource group's region (eastus2), co-locating them with the
 // region-pinned Static Web App. Authored for review/commit; not deployed in this session.

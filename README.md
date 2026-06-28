@@ -206,8 +206,8 @@ app-level visibility, validation, search, and a DI-graph resolution check that m
 the Function App, a Static Web App, and App Insights / Log Analytics.
 
 ```bash
-az group create -n rg-goalfueled-dev -l eastus
-az deployment group create -g rg-goalfueled-dev -f infra/main.bicep -p infra/main.parameters.json
+az group create -n goalfueled-rg-dev -l eastus2
+az deployment group create -g goalfueled-rg-dev -f infra/main.bicep -p infra/main.parameters.json
 ```
 
 CI (`.github/workflows/ci.yml` and `azure-pipelines.yml`) builds and tests the API and web on every

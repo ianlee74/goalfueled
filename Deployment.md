@@ -106,18 +106,18 @@ resource group first, then deploy with `az deployment group create`.
 # 1. Create the resource group. Resources default to the group's region (override with
 #    -p location=<region>), so pick the region here. Use eastus2 to co-locate with the
 #    region-pinned Static Web App.
-az group create -n rg-goalfueled-dev -l eastus2
+az group create -n goalfueled-rg-dev -l eastus2
 
 # 2. (Recommended) Preview the changes.
 az deployment group what-if \
-  -g rg-goalfueled-dev \
+  -g goalfueled-rg-dev \
   -f infra/main.bicep \
   -p infra/main.parameters.json \
   -p environment=dev
 
 # 3. Deploy.
 az deployment group create \
-  -g rg-goalfueled-dev \
+  -g goalfueled-rg-dev \
   -f infra/main.bicep \
   -p infra/main.parameters.json \
   -p environment=dev
@@ -134,7 +134,7 @@ Parameters (`infra/main.parameters.json` + overridable on the command line):
 Capture the outputs (you will need the Function App and Static Web App names below):
 
 ```bash
-az deployment group show -g rg-goalfueled-dev -n main \
+az deployment group show -g goalfueled-rg-dev -n main \
   --query properties.outputs
 ```
 
@@ -196,9 +196,9 @@ App is ever called directly from the browser, tighten CORS to the Static Web App
 
 ```bash
 # Remove the placeholder origin and add the real SWA hostname.
-az functionapp cors remove -g rg-goalfueled-dev -n <FUNCTION_APP_NAME> \
+az functionapp cors remove -g goalfueled-rg-dev -n <FUNCTION_APP_NAME> \
   --allowed-origins https://portal.azure.com
-az functionapp cors add -g rg-goalfueled-dev -n <FUNCTION_APP_NAME> \
+az functionapp cors add -g goalfueled-rg-dev -n <FUNCTION_APP_NAME> \
   --allowed-origins https://<STATIC_WEB_APP_HOSTNAME>
 ```
 
@@ -339,7 +339,7 @@ func azure functionapp publish <FUNCTION_APP_NAME>
 dotnet publish src/GoalFueled.Api/GoalFueled.Api.csproj -c Release -o ./publish
 cd publish && zip -r ../api.zip . && cd ..
 az functionapp deployment source config-zip \
-  -g rg-goalfueled-dev -n <FUNCTION_APP_NAME> --src api.zip
+  -g goalfueled-rg-dev -n <FUNCTION_APP_NAME> --src api.zip
 ```
 
 ### SPA (Static Web App)
@@ -357,7 +357,7 @@ swa deploy ./dist \
 ```
 
 The deployment token comes from the Static Web App (`az staticwebapp secrets list -g
-rg-goalfueled-dev -n <STATIC_WEB_APP_NAME> --query properties.apiKey -o tsv`). Make sure
+goalfueled-rg-dev -n <STATIC_WEB_APP_NAME> --query properties.apiKey -o tsv`). Make sure
 `src/web/public/staticwebapp.config.json` ships with the build (it does — Vite copies `public/` into
 `dist/`).
 
@@ -383,7 +383,7 @@ rg-goalfueled-dev -n <STATIC_WEB_APP_NAME> --query properties.apiKey -o tsv`). M
    "Database initialization failed... Set GoalFueled:UseInMemoryStore=true" error.
 
    ```bash
-   az functionapp config appsettings list -g rg-goalfueled-dev -n <FUNCTION_APP_NAME> \
+   az functionapp config appsettings list -g goalfueled-rg-dev -n <FUNCTION_APP_NAME> \
      --query "[?name=='GoalFueled__UseInMemoryStore'].value" -o tsv   # → false
    ```
 
@@ -393,7 +393,7 @@ rg-goalfueled-dev -n <STATIC_WEB_APP_NAME> --query properties.apiKey -o tsv`). M
    `X-Dev-*` headers no longer authenticate anyone (the only auth path until real auth is wired).
 
    ```bash
-   az functionapp config appsettings list -g rg-goalfueled-dev -n <FUNCTION_APP_NAME> \
+   az functionapp config appsettings list -g goalfueled-rg-dev -n <FUNCTION_APP_NAME> \
      --query "[?name=='GoalFueled__Auth__EnableDevAuth'].value" -o tsv  # → false
    ```
 
@@ -452,7 +452,7 @@ params or directly:
 | `GoalFueled__Auth__Entra__Audience`  | `<api-client-id>` (or `api://<api-client-id>`) |
 
 ```bash
-az functionapp config appsettings set -g rg-goalfueled-dev -n <FUNCTION_APP_NAME> --settings \
+az functionapp config appsettings set -g goalfueled-rg-dev -n <FUNCTION_APP_NAME> --settings \
   GoalFueled__Auth__Entra__Authority="https://<tenant>.ciamlogin.com/<tenant-guid>/v2.0" \
   GoalFueled__Auth__Entra__Audience="<api-client-id>"
 ```
@@ -488,7 +488,7 @@ These are not secrets (the SPA is a public client) and are safe to expose in the
 
 ```bash
 # Deletes the entire resource group and everything in it. Irreversible.
-az group delete -n rg-goalfueled-dev --yes --no-wait
+az group delete -n goalfueled-rg-dev --yes --no-wait
 ```
 
 > Cosmos is serverless (pay-per-request) and the Static Web App is Free tier, so an idle dev
