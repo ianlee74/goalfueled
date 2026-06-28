@@ -55,6 +55,16 @@ module cosmos 'modules/cosmos.bicep' = {
   }
 }
 
+module staticWebApp 'modules/staticWebApp.bicep' = {
+  name: 'staticWebApp'
+  params: {
+    name: '${namePrefix}-web-${environment}'
+    // Static Web Apps are available in a limited set of regions; eastus2 is a safe default.
+    location: 'eastus2'
+    tags: tags
+  }
+}
+
 module functionApp 'modules/functionApp.bicep' = {
   name: 'functionApp'
   params: {
@@ -66,16 +76,8 @@ module functionApp 'modules/functionApp.bicep' = {
     appInsightsConnectionString: monitoring.outputs.appInsightsConnectionString
     cosmosConnectionString: cosmos.outputs.connectionString
     cosmosDatabaseName: cosmos.outputs.databaseName
-  }
-}
-
-module staticWebApp 'modules/staticWebApp.bicep' = {
-  name: 'staticWebApp'
-  params: {
-    name: '${namePrefix}-web-${environment}'
-    // Static Web Apps are available in a limited set of regions; eastus2 is a safe default.
-    location: 'eastus2'
-    tags: tags
+    // Allow the SPA's own origin to call the API directly (in addition to the same-origin /api proxy).
+    spaAllowedOrigins: [ 'https://${staticWebApp.outputs.defaultHostname}' ]
   }
 }
 

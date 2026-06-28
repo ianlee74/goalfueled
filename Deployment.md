@@ -178,32 +178,23 @@ Optional setting (used if you enable automatic nutrition lookup, per `README.md`
 |-------------|-------|---------|
 | `GoalFueled__Nutrition__FdcApiKey` | *(USDA FoodData Central key)* | Server-side nutrition enrichment. |
 
-### CORS — must be tightened (placeholder in the repo)
+### CORS — auto-wired to the Static Web App
 
-`infra/modules/functionApp.bicep` currently sets:
+`infra/main.bicep` sets the Function App's allowed CORS origin to the Static Web App's own hostname
+automatically, by passing `spaAllowedOrigins: [ 'https://${staticWebApp.outputs.defaultHostname}' ]`
+to `functionApp.bicep` (which exposes the `spaAllowedOrigins` param). No manual post-deploy step is
+needed.
 
-```bicep
-cors: {
-  // The SPA is served from the Static Web App; tighten this to its hostname post-deploy.
-  allowedOrigins: [ 'https://portal.azure.com' ]
-}
-```
-
-This is a **placeholder**. In the deployed Static Web Apps topology the SPA calls the API as a
-same-origin `/api/*` path (see `src/web/vite.config.ts` and `src/web/src/api/client.ts`, which
-fetch `` `/api${path}` ``), so cross-origin CORS is normally not exercised. If, however, the Function
-App is ever called directly from the browser, tighten CORS to the Static Web App hostname:
+In the deployed Static Web Apps topology the SPA actually calls the API as a same-origin `/api/*`
+path (see `src/web/vite.config.ts` and `src/web/src/api/client.ts`, which fetch `` `/api${path}` ``),
+so cross-origin CORS is normally not even exercised — the auto-wired origin just covers the case where
+the Function App is called directly from the browser. To add more origins (e.g. a custom domain),
+override the param or use the CLI:
 
 ```bash
-# Remove the placeholder origin and add the real SWA hostname.
-az functionapp cors remove -g goalfueled-rg-dev -n <FUNCTION_APP_NAME> \
-  --allowed-origins https://portal.azure.com
 az functionapp cors add -g goalfueled-rg-dev -n <FUNCTION_APP_NAME> \
-  --allowed-origins https://<STATIC_WEB_APP_HOSTNAME>
+  --allowed-origins https://<CUSTOM_DOMAIN>
 ```
-
-(Replace `<FUNCTION_APP_NAME>` / `<STATIC_WEB_APP_HOSTNAME>` with the deployment outputs.) Better
-still, change the placeholder in `functionApp.bicep` to the real hostname before deploying.
 
 ### Frontend → API wiring
 
@@ -244,6 +235,7 @@ Function App configuration and deployment history.
 | Workflow | Secrets | Variables |
 |----------|---------|-----------|
 | `deploy-dev.yml` (auto, env `dev`) | `AZURE_STATIC_WEB_APPS_API_TOKEN` (SWA deployment token) | `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` (OIDC login), `AZURE_FUNCTIONAPP_NAME`, `VITE_ENTRA_CLIENT_ID`, `VITE_ENTRA_AUTHORITY`, `VITE_ENTRA_API_SCOPE` |
+| `deploy-prod.yml` (auto, env `prod`) | same as `deploy-dev.yml`, set on the `prod` Environment | same as `deploy-dev.yml`, set on the `prod` Environment |
 | `deploy-infra.yml` | `AZURE_CREDENTIALS` (`az ad sp create-for-rbac --sdk-auth` output) | `AZURE_RESOURCE_GROUP`, `AZURE_LOCATION` |
 | `deploy.yml` | `AZURE_FUNCTIONAPP_PUBLISH_PROFILE` (Function App publish profile XML), `AZURE_STATIC_WEB_APPS_API_TOKEN` (SWA deployment token) | `AZURE_FUNCTIONAPP_NAME` |
 | `ci.yml` | *(none — build/test only)* | *(none)* |
@@ -268,7 +260,7 @@ to `dev`; the other workflows remain manual (`workflow_dispatch`).
 
 ### GitHub Actions
 
-Four workflows under `.github/workflows/`:
+Five workflows under `.github/workflows/`:
 
 1. **`ci.yml` — CI (automatic).** Triggers on push/PR to `main` and `dev`. Builds + tests the
    .NET API (`dotnet restore/build/test GoalFueled.slnx`) and builds the React web app
@@ -279,11 +271,14 @@ Four workflows under `.github/workflows/`:
    if it's green. Azure login uses **OIDC** (no stored publish profile); the SPA deploy uses the SWA
    token. Configure a `dev` GitHub Environment with the variables/secrets listed at the top of the
    workflow file. This is the auto-deploy pipeline for the dev environment.
-3. **`deploy-infra.yml` — Deploy Infrastructure (manual).** `workflow_dispatch` with an
+3. **`deploy-prod.yml` — Deploy (prod) (automatic).** Identical in shape to `deploy-dev.yml` but
+   triggers on **push to `main`** and targets a `prod` GitHub Environment. Add required reviewers to
+   the `prod` Environment to gate production deploys behind a manual approval.
+4. **`deploy-infra.yml` — Deploy Infrastructure (manual).** `workflow_dispatch` with an
    `environment` input (`dev`/`test`/`prod`). Logs in with `AZURE_CREDENTIALS`, ensures the resource
    group, runs `az deployment group what-if`, then `az deployment group create` against
    `infra/main.bicep`.
-4. **`deploy.yml` — Deploy (manual).** `workflow_dispatch`. The environment-agnostic manual fallback
+5. **`deploy.yml` — Deploy (manual).** `workflow_dispatch`. The environment-agnostic manual fallback
    (publish-profile based). Two jobs:
    - `deploy-api`: `dotnet publish src/GoalFueled.Api/GoalFueled.Api.csproj -c Release -o ./publish`
      then `Azure/functions-action@v1` using the publish profile.

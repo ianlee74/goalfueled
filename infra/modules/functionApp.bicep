@@ -15,6 +15,8 @@ param cosmosDatabaseName string
 param entraAuthority string = ''
 @description('Entra External ID audience: the API app registration client id (or api://<id>).')
 param entraAudience string = ''
+@description('Allowed CORS origins for the SPA (e.g. the Static Web App URL). Usually unnecessary because the SPA calls /api same-origin via the SWA backend, but set it if the API is called cross-origin.')
+param spaAllowedOrigins array = []
 
 resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' existing = {
   name: storageAccountName
@@ -68,8 +70,8 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
       cors: {
-        // The SPA is served from the Static Web App; tighten this to its hostname post-deploy.
-        allowedOrigins: [ 'https://portal.azure.com' ]
+        // Set from main.bicep to the Static Web App origin. Empty by default (same-origin /api proxy).
+        allowedOrigins: spaAllowedOrigins
       }
       appSettings: [
         { name: 'AzureWebJobsStorage', value: storageConnectionString }
