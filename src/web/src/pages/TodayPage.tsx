@@ -500,10 +500,14 @@ export function TodayPage() {
       {/* Level + week-score chips, plus the weekly-review prompt when one is waiting. */}
       {summary && (
         <div className="row wrap" style={{ gap: '0.4rem' }}>
-          <span className="chip" title={`${summary.fuelPoints.toLocaleString()} Fuel Points`}>
+          <Link
+            className="chip"
+            to="/how-it-works?returnTo=/"
+            title={`${summary.fuelPoints.toLocaleString()} Fuel Points · how the game is played`}
+          >
             <span className="ico"><IconLevel size={13} /></span>
             LV{summary.level.number} {summary.level.rank}
-          </span>
+          </Link>
           <span className="chip" title="Your running score for this week">
             <span className="ico"><IconScore size={13} /></span>
             Week {summary.currentWeekScore}

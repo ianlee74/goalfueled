@@ -4,6 +4,7 @@ import { weightApi } from '../api/services'
 import { WEIGHT_UNIT_LABELS, type WeightEntry, type WeightUnit } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { formatWeight, weightUnitFor } from '../lib/weight'
+import { safeReturnTo } from '../lib/returnTo'
 import { IconWeight } from '../components/icons'
 import { EmptyState, SkeletonList } from '../components/Placeholders'
 import { WeightTrendChart } from '../components/WeightTrendChart'
@@ -13,14 +14,6 @@ function todayIso(): string {
   const now = new Date()
   const offset = now.getTimezoneOffset() * 60_000
   return new Date(now.getTime() - offset).toISOString().slice(0, 10)
-}
-
-// Only honor app-internal relative paths to avoid open redirects: a single leading
-// slash, but not "//host" (protocol-relative) or anything containing a scheme.
-function safeReturnTo(raw: string | null): string | null {
-  if (!raw) return null
-  if (!raw.startsWith('/') || raw.startsWith('//')) return null
-  return raw
 }
 
 export function WeightPage() {
