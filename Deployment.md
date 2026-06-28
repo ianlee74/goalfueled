@@ -36,8 +36,8 @@ Provisioned resources (all defined under `infra/`):
 | Log Analytics workspace | `infra/modules/monitoring.bicep` | `goalfueled-log-<env>`, 30-day retention |
 | Application Insights | `infra/modules/monitoring.bicep` | `goalfueled-appi-<env>`, workspace-based |
 | Storage account (StorageV2) | `infra/modules/storage.bicep` | Functions backend + public-read `images` container |
-| Cosmos DB account (SQL API, serverless) | `infra/modules/cosmos.bicep` | DB `goalfueled`; containers `Users`, `Ingredients`, `Recipes`, `Meals`, `MealPlans`, each partitioned by `/id` |
-| Function App + Consumption plan (Linux, Y1 Dynamic) | `infra/modules/functionApp.bicep` | `DOTNET-ISOLATED\|8.0`, system-assigned managed identity, HTTPS-only |
+| Cosmos DB account (SQL API, serverless) | `infra/modules/cosmos.bicep` | DB `goalfueled`, partitioned by `/id`. The app auto-creates all containers at startup via EF `EnsureCreatedAsync` (`Program.cs`), so the module's container list is a convenience, not the source of truth |
+| Function App + Flex Consumption plan (Linux, FC1) | `infra/modules/functionApp.bicep` | .NET 8 isolated runtime; deployment package staged from the storage `deployments` container; system-assigned managed identity, HTTPS-only |
 | Static Web App (Free tier) | `infra/modules/staticWebApp.bicep` | Hosts the SPA; region pinned to `eastus2` |
 
 The composition root is `infra/main.bicep` (`targetScope = 'resourceGroup'`).
@@ -49,7 +49,7 @@ Names derive from two parameters — `namePrefix` (default `goalfueled`) and `en
 unique names collision-free:
 
 - Function App: `goalfueled-api-<env>-<6-char-suffix>`
-- App Service (Consumption) plan: `goalfueled-plan-<env>-<6-char-suffix>`
+- App Service (Flex Consumption) plan: `goalfueled-plan-<env>-<6-char-suffix>`
 - Static Web App: `goalfueled-web-<env>`
 - Cosmos account: `goalfueled-<env>-<6-char-suffix>` (lowercased)
 - Storage account: `goalfueled<11-char-suffix>` (lowercase alphanumeric, ≤24 chars)
@@ -104,8 +104,9 @@ resource group first, then deploy with `az deployment group create`.
 
 ```bash
 # 1. Create the resource group. Resources default to the group's region (override with
-#    -p location=<region>), so pick the region here — e.g. Central US.
-az group create -n rg-goalfueled-dev -l centralus
+#    -p location=<region>), so pick the region here. Use eastus2 to co-locate with the
+#    region-pinned Static Web App.
+az group create -n rg-goalfueled-dev -l eastus2
 
 # 2. (Recommended) Preview the changes.
 az deployment group what-if \
@@ -160,11 +161,16 @@ Azure these become **Function App application settings**. The Bicep already sets
 | `GoalFueled__Cosmos__Database` | `goalfueled` | Cosmos database name. |
 | `GoalFueled__Cosmos__ConnectionString` | *(Cosmos connection string)* | Cosmos SQL-API connection string. Currently injected inline from `cosmos.outputs.connectionString`. |
 | `GoalFueled__Auth__EnableDevAuth` | `false` | Disables the dev `X-Dev-*` header login. **Must be `false` in any deployed env.** Read in `Program.cs` / `DevIdentityProvider`. |
+| `GoalFueled__Auth__Entra__Authority` | *(Entra authority URL)* | Enables Entra External ID sign-in. Set via the `entraAuthority` Bicep param. See §9. |
+| `GoalFueled__Auth__Entra__Audience` | *(API client id)* | Entra token audience. Set via the `entraAudience` Bicep param. See §9. |
 | `AzureWebJobsStorage` | *(storage conn string)* | Functions runtime storage. |
-| `FUNCTIONS_EXTENSION_VERSION` | `~4` | Functions v4 host. |
+| `DEPLOYMENT_STORAGE_CONNECTION_STRING` | *(storage conn string)* | Where Flex Consumption stages the deployment package (the `deployments` blob container). |
 | `FUNCTIONS_WORKER_RUNTIME` | `dotnet-isolated` | .NET isolated worker. |
-| `WEBSITE_RUN_FROM_PACKAGE` | `1` | Run from deployment package. |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | *(App Insights conn string)* | Enables OpenTelemetry export (gated on this var in `Program.cs`). |
+
+> Flex Consumption sets the runtime name/version and the run-from-package behavior through the
+> Function App's `functionAppConfig` (see `functionApp.bicep`), so the classic
+> `FUNCTIONS_EXTENSION_VERSION` and `WEBSITE_RUN_FROM_PACKAGE` settings are no longer used.
 
 Optional setting (used if you enable automatic nutrition lookup, per `README.md`):
 
@@ -237,9 +243,14 @@ Function App configuration and deployment history.
 
 | Workflow | Secrets | Variables |
 |----------|---------|-----------|
+| `deploy-dev.yml` (auto, env `dev`) | `AZURE_STATIC_WEB_APPS_API_TOKEN` (SWA deployment token) | `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` (OIDC login), `AZURE_FUNCTIONAPP_NAME`, `VITE_ENTRA_CLIENT_ID`, `VITE_ENTRA_AUTHORITY`, `VITE_ENTRA_API_SCOPE` |
 | `deploy-infra.yml` | `AZURE_CREDENTIALS` (`az ad sp create-for-rbac --sdk-auth` output) | `AZURE_RESOURCE_GROUP`, `AZURE_LOCATION` |
 | `deploy.yml` | `AZURE_FUNCTIONAPP_PUBLISH_PROFILE` (Function App publish profile XML), `AZURE_STATIC_WEB_APPS_API_TOKEN` (SWA deployment token) | `AZURE_FUNCTIONAPP_NAME` |
 | `ci.yml` | *(none — build/test only)* | *(none)* |
+
+> `deploy-dev.yml` uses **OIDC** (federated credentials), so it needs no stored Azure password/secret —
+> create a federated credential on `AZURE_CLIENT_ID` that trusts this repo's `dev` environment
+> (subject `repo:<owner>/<repo>:environment:dev`) and grant that identity Contributor on the resource group.
 
 **Azure DevOps** (`azure-pipelines.yml`) — set these as pipeline variables / a variable group:
 
@@ -251,21 +262,29 @@ Function App configuration and deployment history.
 
 ## 6. CI/CD deployment
 
-Both a GitHub Actions setup and an Azure DevOps pipeline exist. They are **manual-only / gated and
-inert until you configure the secrets above** — nothing deploys automatically.
+Both a GitHub Actions setup and an Azure DevOps pipeline exist, and all of them are **inert until you
+configure the secrets/variables above**. Once configured, `deploy-dev.yml` auto-deploys on every push
+to `dev`; the other workflows remain manual (`workflow_dispatch`).
 
 ### GitHub Actions
 
-Three workflows under `.github/workflows/`:
+Four workflows under `.github/workflows/`:
 
 1. **`ci.yml` — CI (automatic).** Triggers on push/PR to `main` and `dev`. Builds + tests the
    .NET API (`dotnet restore/build/test GoalFueled.slnx`) and builds the React web app
    (`npm ci`, `npm run lint`, `npm run build`). No deployment.
-2. **`deploy-infra.yml` — Deploy Infrastructure (manual).** `workflow_dispatch` with an
+2. **`deploy-dev.yml` — Deploy (dev) (automatic).** Triggers on **push to `dev`** (also
+   `workflow_dispatch`). A `build-test` job builds + tests the API and builds the SPA (baking in the
+   `VITE_ENTRA_*` vars), uploading both as artifacts; `deploy-api` and `deploy-web` jobs then run only
+   if it's green. Azure login uses **OIDC** (no stored publish profile); the SPA deploy uses the SWA
+   token. Configure a `dev` GitHub Environment with the variables/secrets listed at the top of the
+   workflow file. This is the auto-deploy pipeline for the dev environment.
+3. **`deploy-infra.yml` — Deploy Infrastructure (manual).** `workflow_dispatch` with an
    `environment` input (`dev`/`test`/`prod`). Logs in with `AZURE_CREDENTIALS`, ensures the resource
    group, runs `az deployment group what-if`, then `az deployment group create` against
    `infra/main.bicep`.
-3. **`deploy.yml` — Deploy (manual).** `workflow_dispatch`. Two jobs:
+4. **`deploy.yml` — Deploy (manual).** `workflow_dispatch`. The environment-agnostic manual fallback
+   (publish-profile based). Two jobs:
    - `deploy-api`: `dotnet publish src/GoalFueled.Api/GoalFueled.Api.csproj -c Release -o ./publish`
      then `Azure/functions-action@v1` using the publish profile.
    - `deploy-web`: `Azure/static-web-apps-deploy@v1` with `app_location: src/web`,
@@ -382,28 +401,72 @@ rg-goalfueled-dev -n <STATIC_WEB_APP_NAME> --query properties.apiKey -o tsv`). M
 
 ---
 
-## 9. Real authentication (production note)
+## 9. Authentication (Entra External ID — Google + email/password)
 
-Dev auth (`X-Dev-*` headers via `DevIdentityProvider`) is for local development only and is
-disabled in deployed environments (`GoalFueled__Auth__EnableDevAuth=false`). Production needs a real
-identity provider.
+Sign-in is implemented end to end via **Microsoft Entra External ID**, which federates Google and
+(when enabled) email+password local accounts. The pieces:
 
-The intended provider is **Microsoft Entra External ID**, scaffolded but **not yet implemented** at
-`src/GoalFueled.Api/Auth/EntraExternalIdProvider.cs` (it currently returns `null` and is inert). To
-finish it, per the in-file TODO and `Program.cs`:
+- **API** — `src/GoalFueled.Api/Auth/EntraExternalIdProvider.cs` validates the incoming Bearer JWT
+  against the tenant's published OpenID metadata (issuer, audience, signing keys, lifetime) and maps
+  `sub`/`email`/`name`/`picture` to the user. It is registered in `Program.cs` and stays inert until
+  `GoalFueled:Auth:Entra:Authority` and `:Audience` are set, so it fails closed.
+- **SPA** — runs in `entra` mode when the `VITE_ENTRA_*` vars are set at build time (see
+  `src/web/.env.example` and `src/web/src/auth/authConfig.ts`); the login screen opens the Entra user
+  flow via MSAL and sends `Authorization: Bearer <token>` on every API call.
 
-1. Provision an Entra External ID tenant + user flow; add Google/Microsoft/Facebook IdPs.
-2. Register SPA + API app registrations; expose an API scope.
-3. Validate the Bearer token in `EntraExternalIdProvider.ResolveAsync` (issuer/audience/signing
-   keys) and map `sub`/`email`/`name` claims.
-4. Register the provider in `src/GoalFueled.Api/Program.cs` (uncomment the
-   `AddSingleton<IIdentityProvider, EntraExternalIdProvider>()` line) and keep
-   `GoalFueled:Auth:EnableDevAuth=false`.
-5. On the frontend, swap the dev headers in `src/web/src/api/client.ts` for an
-   `Authorization: Bearer <token>` header (the file is already structured for this).
+> **Local development still uses the preset dev logins** (`X-Dev-*` headers via `DevIdentityProvider`,
+> gated by `GoalFueled:Auth:EnableDevAuth=true`). When the `VITE_ENTRA_*` vars are unset, the SPA
+> automatically falls back to the dev-user picker — so `npm run dev` needs no Entra setup. Dev auth is
+> spoofable and **must stay off in deployed environments** (`GoalFueled__Auth__EnableDevAuth=false`).
 
-Until then, a deployed environment with dev auth off has **no working login** — treat real auth as a
-prerequisite for a real production launch.
+### 9.1 Creating multiple test logins without multiple Google accounts
+
+Enable the **Email with password** (local account) identity provider in the tenant's sign-up/sign-in
+user flow, alongside Google. You can then self-register as many test users as you like with any email
+address — no Google accounts required. The API treats every token from the tenant the same way (it is
+`sub`-based and provider-agnostic), so Google and email/password accounts both just work. The first
+account to sign in becomes the App Admin (`Authenticator.ResolveSignedInUserAsync`).
+
+### 9.2 One-time tenant + app registration setup
+
+1. **Create an Entra External ID tenant** (Azure portal → *Microsoft Entra External ID* → create an
+   external (CIAM) tenant). Note its **tenant subdomain** and **tenant id**.
+2. **Add identity providers** to the tenant: Google (configure a Google OAuth client and paste its
+   client id/secret), and **Email with password** for password-based test logins.
+3. **Create a sign-up/sign-in user flow** and associate both identity providers with it.
+4. **Register the API app** (App registrations → New). Under *Expose an API*, set the Application ID
+   URI (e.g. `api://<api-client-id>`) and add a scope, e.g. `access_as_user`.
+5. **Register the SPA app**. Add a **Single-page application** redirect URI of the Static Web App
+   origin (e.g. `https://goalfueled-web-dev.azurestaticapps.net`) plus `http://localhost:5173` for
+   local testing. Under *API permissions*, add and grant the API scope from step 4.
+6. Collect the values for the settings below.
+
+### 9.3 Wiring the config
+
+**API (Function App application settings)** — set via the `entraAuthority` / `entraAudience` Bicep
+params or directly:
+
+| App setting | Example |
+|-------------|---------|
+| `GoalFueled__Auth__Entra__Authority` | `https://<tenant>.ciamlogin.com/<tenant-guid>/v2.0` |
+| `GoalFueled__Auth__Entra__Audience`  | `<api-client-id>` (or `api://<api-client-id>`) |
+
+```bash
+az functionapp config appsettings set -g rg-goalfueled-dev -n <FUNCTION_APP_NAME> --settings \
+  GoalFueled__Auth__Entra__Authority="https://<tenant>.ciamlogin.com/<tenant-guid>/v2.0" \
+  GoalFueled__Auth__Entra__Audience="<api-client-id>"
+```
+
+**SPA (build-time `VITE_ENTRA_*`)** — set as GitHub Environment *variables* (the `deploy-dev.yml`
+workflow bakes them into the build) or in a local `.env.local`:
+
+| Var | Example |
+|-----|---------|
+| `VITE_ENTRA_CLIENT_ID`   | `<spa-client-id>` |
+| `VITE_ENTRA_AUTHORITY`   | `https://<tenant>.ciamlogin.com/<tenant-guid>/v2.0` |
+| `VITE_ENTRA_API_SCOPE`   | `api://<api-client-id>/access_as_user` |
+
+These are not secrets (the SPA is a public client) and are safe to expose in the bundle.
 
 ---
 

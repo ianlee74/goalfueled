@@ -22,8 +22,7 @@ import { IconUsers } from '../components/icons'
 export function InvitePage() {
   const { token } = useParams<{ token: string }>()
   const navigate = useNavigate()
-  const { devUser, switchAccount } = useAuth()
-  const signedIn = devUser !== null
+  const { signedIn, switchAccount } = useAuth()
   // Where sign-in should return to so the recipient lands back on this invitation, now authenticated.
   const returnHere = encodeURIComponent(`/invite/${token ?? ''}`)
   const [preview, setPreview] = useState<ShareInvitationPreview | null>(null)

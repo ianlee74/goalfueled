@@ -1,4 +1,6 @@
+import { authMode } from '../auth/authConfig'
 import { getStoredDevUser } from '../auth/devUsers'
+import { acquireToken } from '../auth/msal'
 import { getActiveAccountId } from '../lib/activeAccount'
 
 export class ApiError extends Error {
@@ -10,19 +12,26 @@ export class ApiError extends Error {
 }
 
 /**
- * Builds auth headers for the current request. Today this attaches the dev-login headers; when real
- * social auth is added, swap this for an `Authorization: Bearer <token>` header — nothing else in
- * the app needs to change.
+ * Builds auth headers for the current request. In "entra" mode it attaches an
+ * `Authorization: Bearer <token>` header (token acquired via MSAL); in local "dev" mode it attaches
+ * the spoofable X-Dev-* headers. In both modes it forwards the optional act-as header.
  */
-function authHeaders(): Record<string, string> {
-  const user = getStoredDevUser()
-  if (!user) return {}
-  const headers: Record<string, string> = {
-    'X-Dev-Subject': user.subject,
-    'X-Dev-Email': user.email,
-    'X-Dev-Name': user.name,
+async function authHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {}
+
+  if (authMode === 'entra') {
+    const token = await acquireToken()
+    if (token) headers['Authorization'] = `Bearer ${token}`
+  } else {
+    const user = getStoredDevUser()
+    if (user) {
+      headers['X-Dev-Subject'] = user.subject
+      headers['X-Dev-Email'] = user.email
+      headers['X-Dev-Name'] = user.name
+      if (user.avatar) headers['X-Dev-Avatar'] = user.avatar
+    }
   }
-  if (user.avatar) headers['X-Dev-Avatar'] = user.avatar
+
   // Account switching: when viewing an account shared with us, ask the API to act as that owner. It only
   // honors this if we hold an active grant, so an unauthorized value safely falls back to our own account.
   const actAs = getActiveAccountId()
@@ -34,7 +43,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   const res = await fetch(`/api${path}`, {
     method,
     headers: {
-      ...authHeaders(),
+      ...(await authHeaders()),
       ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -62,7 +71,7 @@ async function upload<T>(path: string, file: File, field = 'file'): Promise<T> {
 
   const res = await fetch(`/api${path}`, {
     method: 'POST',
-    headers: { ...authHeaders() },
+    headers: { ...(await authHeaders()) },
     body: form,
   })
 

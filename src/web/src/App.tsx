@@ -27,12 +27,18 @@ import { SharingPage } from './pages/SharingPage'
 import { InvitePage } from './pages/InvitePage'
 
 export default function App() {
-  const { devUser, profile, loading } = useAuth()
+  const { signedIn, profile, loading } = useAuth()
+
+  // While we're still determining whether a session exists (e.g. MSAL hydrating on load), show a spinner
+  // rather than flashing the login page.
+  if (loading && !signedIn) {
+    return <div className="center-screen"><p className="muted">Loading…</p></div>
+  }
 
   // Not signed in → login. A shared-invitation link is still reachable so a recipient who isn't signed in
   // yet lands on the invitation (where they can sign in, create an account, or decline) instead of a bare
   // login page that has lost the link.
-  if (!devUser) {
+  if (!signedIn) {
     return (
       <Routes>
         <Route path="/login" element={<LoginPage />} />

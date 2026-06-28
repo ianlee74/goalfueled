@@ -2,15 +2,22 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { userApi } from '../api/services'
 import type { CurrentUser } from '../api/types'
 import { setActiveAccountId } from '../lib/activeAccount'
+import { authMode } from './authConfig'
 import { getStoredDevUser, setStoredDevUser, type DevUser } from './devUsers'
+import { getAccount, initMsal, login as entraLogin, logout as entraLogout } from './msal'
 
 interface AuthState {
-  /** The selected dev identity (null = signed out). */
-  devUser: DevUser | null
-  /** The persisted profile returned by the API for the current dev identity (or the account being acted as). */
+  /** Whether a user is currently signed in (a dev identity in "dev" mode, an Entra account in "entra" mode). */
+  signedIn: boolean
+  /** The active sign-in mode for this build. */
+  mode: typeof authMode
+  /** The persisted profile returned by the API for the current identity (or the account being acted as). */
   profile: CurrentUser | null
   loading: boolean
+  /** Dev-mode sign-in: "become" a preset user. (Only meaningful when mode === 'dev'.) */
   signIn: (user: DevUser) => Promise<void>
+  /** Entra-mode sign-in: open the Entra External ID user flow (Google / email+password). */
+  signInWithEntra: () => Promise<void>
   signOut: () => void
   /** Re-fetch the profile (after onboarding or admin-view toggle). */
   refresh: () => Promise<void>
@@ -23,38 +30,47 @@ interface AuthState {
 
 const AuthCtx = createContext<AuthState | undefined>(undefined)
 
+/** Whether a session already exists synchronously (only knowable up-front in dev mode). */
+const devSessionPresent = authMode === 'dev' && !!getStoredDevUser()
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [devUser, setDevUser] = useState<DevUser | null>(getStoredDevUser())
+  const [signedIn, setSignedIn] = useState<boolean>(devSessionPresent)
   const [profile, setProfile] = useState<CurrentUser | null>(null)
-  const [loading, setLoading] = useState<boolean>(!!getStoredDevUser())
+  // Entra mode must wait for MSAL to hydrate before we know if there's a session, so it starts loading.
+  const [loading, setLoading] = useState<boolean>(authMode === 'entra' || devSessionPresent)
 
   const loadProfile = useCallback(async () => {
-    if (!getStoredDevUser()) {
-      setProfile(null)
-      return
-    }
     const me = await userApi.me()
     setProfile(me)
   }, [])
 
-  // On first mount, if a dev user is already stored, hydrate the profile.
-  // `loading` is initialized to reflect whether a stored user exists, so no synchronous
-  // setState is needed here — we only clear/replace it once the async load settles.
+  // On first mount, hydrate any existing session (Entra account or stored dev user) and its profile.
   useEffect(() => {
-    if (!devUser) return
     let cancelled = false
-    loadProfile()
-      .catch(() => { if (!cancelled) setProfile(null) })
-      .finally(() => { if (!cancelled) setLoading(false) })
+    async function bootstrap() {
+      try {
+        if (authMode === 'entra') {
+          await initMsal()
+          if (cancelled) return
+          if (!getAccount()) return
+          setSignedIn(true)
+        } else if (!getStoredDevUser()) {
+          return
+        }
+        await loadProfile()
+      } catch {
+        if (!cancelled) setProfile(null)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    bootstrap()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const signIn = useCallback(async (user: DevUser) => {
-    // A fresh sign-in always starts on the user's own account (clear any prior account-switch).
-    setActiveAccountId(null)
-    setStoredDevUser(user)
-    setDevUser(user)
+  const finishSignIn = useCallback(async () => {
+    setSignedIn(true)
     setLoading(true)
     try {
       await loadProfile()
@@ -63,12 +79,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [loadProfile])
 
+  const signIn = useCallback(async (user: DevUser) => {
+    // A fresh sign-in always starts on the user's own account (clear any prior account-switch).
+    setActiveAccountId(null)
+    setStoredDevUser(user)
+    await finishSignIn()
+  }, [finishSignIn])
+
+  const signInWithEntra = useCallback(async () => {
+    setActiveAccountId(null)
+    await entraLogin()
+    await finishSignIn()
+  }, [finishSignIn])
+
   const signOut = useCallback(() => {
     // Signing out also drops any account-switch so the next sign-in starts on their own account.
     setActiveAccountId(null)
-    setStoredDevUser(null)
-    setDevUser(null)
     setProfile(null)
+    setSignedIn(false)
+    if (authMode === 'entra') {
+      void entraLogout().catch(() => { /* best-effort; local state is already cleared */ })
+    } else {
+      setStoredDevUser(null)
+    }
   }, [])
 
   const refresh = useCallback(async () => {
@@ -88,7 +121,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadProfile])
 
   return (
-    <AuthCtx.Provider value={{ devUser, profile, loading, signIn, signOut, refresh, switchAccount }}>
+    <AuthCtx.Provider
+      value={{ signedIn, mode: authMode, profile, loading, signIn, signInWithEntra, signOut, refresh, switchAccount }}
+    >
       {children}
     </AuthCtx.Provider>
   )

@@ -1,0 +1,127 @@
+name: Deploy (dev)
+
+# Auto-deploys to the dev environment on every push to `dev`: build + test first, then (only if green)
+# publish the API to the Function App and the SPA to the Static Web App. Also runnable on demand.
+#
+# Azure auth uses OIDC (federated credentials) — no long-lived publish profile is stored. Configure a
+# GitHub Environment named `dev` with:
+#   Variables:
+#     AZURE_CLIENT_ID            app registration (federated) client id used for OIDC login
+#     AZURE_TENANT_ID            Azure AD tenant id of the subscription
+#     AZURE_SUBSCRIPTION_ID      target subscription id
+#     AZURE_FUNCTIONAPP_NAME     deployed Function App name (e.g. goalfueled-api-dev-xxxxxx)
+#     VITE_ENTRA_CLIENT_ID       SPA app registration client id  (Entra sign-in; omit to ship dev logins)
+#     VITE_ENTRA_AUTHORITY       Entra External ID authority URL
+#     VITE_ENTRA_API_SCOPE       API scope the SPA requests
+#   Secrets:
+#     AZURE_STATIC_WEB_APPS_API_TOKEN   deployment token of the Static Web App
+#
+# The federated credential on AZURE_CLIENT_ID must trust this repo's `dev` environment
+# (subject: repo:<owner>/<repo>:environment:dev) and the identity needs Contributor on the resource group.
+
+on:
+  push:
+    branches: [ dev ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write   # required for azure/login OIDC
+
+# Never let two dev deploys race; cancel an in-flight one when a newer push lands.
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- API: build, test, publish ---
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Restore
+        run: dotnet restore GoalFueled.slnx
+      - name: Build
+        run: dotnet build GoalFueled.slnx --configuration Release --no-restore
+      - name: Test
+        run: dotnet test GoalFueled.slnx --configuration Release --no-build --verbosity normal
+      - name: Publish API
+        run: dotnet publish src/GoalFueled.Api/GoalFueled.Api.csproj -c Release -o ./publish --no-build
+      - name: Upload API artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: api
+          path: ./publish
+
+      # --- SPA: lint, build (Entra config baked in from env), upload ---
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: src/web/package-lock.json
+      - name: Install web deps
+        working-directory: src/web
+        run: npm ci
+      - name: Lint web
+        working-directory: src/web
+        run: npm run lint
+      - name: Build web
+        working-directory: src/web
+        run: npm run build
+        env:
+          VITE_ENTRA_CLIENT_ID: ${{ vars.VITE_ENTRA_CLIENT_ID }}
+          VITE_ENTRA_AUTHORITY: ${{ vars.VITE_ENTRA_AUTHORITY }}
+          VITE_ENTRA_API_SCOPE: ${{ vars.VITE_ENTRA_API_SCOPE }}
+      - name: Upload web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: src/web/dist
+
+  deploy-api:
+    name: Deploy API
+    needs: build-test
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Download API artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: api
+          path: ./publish
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Deploy to Azure Functions
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ vars.AZURE_FUNCTIONAPP_NAME }}
+          package: ./publish
+
+  deploy-web:
+    name: Deploy Web
+    needs: build-test
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Download web artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: web
+          path: ./web-dist
+      - name: Deploy to Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          action: upload
+          app_location: web-dist
+          skip_app_build: true
+          skip_api_build: true
