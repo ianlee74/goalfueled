@@ -31,5 +31,14 @@ resource imagesContainer 'Microsoft.Storage/storageAccounts/blobServices/contain
   }
 }
 
+// Private container where Flex Consumption stages the Function App deployment package.
+resource deploymentsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'deployments'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
 output name string = storage.name
 output id string = storage.id
