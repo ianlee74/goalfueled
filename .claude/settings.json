@@ -17,6 +17,8 @@
       "PowerShell(Write-Output *)",
       "PowerShell(echo *)",
       "PowerShell(Test-Path *)",
+      "PowerShell(Get-Process *)",
+      "PowerShell(Get-NetTCPConnection *)",
       "Bash(cd /c/Code/goalfueled/*)",
       "Bash(cd src/*)",
       "Bash(git status *)",
@@ -41,8 +43,7 @@
       "Bash(dotnet add *)",
       "Bash(powershell.exe -NoProfile -Command \"winget --version\")",
       "Bash(grep -iA6 \"All_core_services_resolve\\\\|Error Message\\\\|Stack Trace\")",
-      "PowerShell(Get-Process -Id 49892 -ErrorAction SilentlyContinue)",
-      "PowerShell(Get-NetTCPConnection -LocalPort 7071,7072 -State Listen -ErrorAction SilentlyContinue)"
+      "WebFetch(domain:support.claude.com)"
     ]
   }
 }
