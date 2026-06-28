@@ -26,9 +26,10 @@ if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("APPLICATIONINSIGHT
 // --- Application services ---
 builder.Services.AddGoalFueledData(builder.Configuration);
 
-// Identity providers (first to resolve wins). Dev auth now; Entra External ID seam for later.
+// Identity providers (first to resolve wins). DevIdentityProvider is inert unless EnableDevAuth=true,
+// so in production only Entra (Google sign-in via Entra External ID) resolves real callers.
 builder.Services.AddSingleton<IIdentityProvider, DevIdentityProvider>();
-// builder.Services.AddSingleton<IIdentityProvider, EntraExternalIdProvider>(); // enable for real social login
+builder.Services.AddSingleton<IIdentityProvider, EntraExternalIdProvider>();
 
 builder.Services.AddScoped<IAuthenticator, Authenticator>();
 builder.Services.AddSingleton<ImageStorageService>();

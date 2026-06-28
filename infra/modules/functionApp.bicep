@@ -11,6 +11,10 @@ param appInsightsConnectionString string
 @secure()
 param cosmosConnectionString string
 param cosmosDatabaseName string
+@description('Entra External ID authority, e.g. https://<tenant>.ciamlogin.com/<tenant-guid>/v2.0. Blank leaves Google sign-in inert.')
+param entraAuthority string = ''
+@description('Entra External ID audience: the API app registration client id (or api://<id>).')
+param entraAudience string = ''
 
 resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' existing = {
   name: storageAccountName
@@ -78,6 +82,10 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         { name: 'GoalFueled__Cosmos__Database', value: cosmosDatabaseName }
         { name: 'GoalFueled__Cosmos__ConnectionString', value: cosmosConnectionString }
         { name: 'GoalFueled__Auth__EnableDevAuth', value: 'false' }
+
+        // Google sign-in via Entra External ID. Set these once the tenant/app registrations exist.
+        { name: 'GoalFueled__Auth__Entra__Authority', value: entraAuthority }
+        { name: 'GoalFueled__Auth__Entra__Audience', value: entraAudience }
       ]
     }
   }
