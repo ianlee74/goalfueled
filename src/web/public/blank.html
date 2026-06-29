@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Signing in…</title>
+  </head>
+  <!--
+    Intentionally blank. Used as the MSAL popup redirect target so the auth response lands on a page
+    that does NOT boot the SPA. MSAL in the opener window reads the result from this popup and closes
+    it; rendering the full app here instead causes interaction/cache errors during sign-in.
+  -->
+  <body></body>
+</html>

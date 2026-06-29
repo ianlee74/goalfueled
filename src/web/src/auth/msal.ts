@@ -23,7 +23,10 @@ function app(): PublicClientApplication {
         clientId: entraConfig.clientId,
         authority: entraConfig.authority,
         knownAuthorities: entraConfig.knownAuthority ? [entraConfig.knownAuthority] : [],
-        redirectUri: window.location.origin,
+        // A blank page (not the SPA root) so the popup's auth response lands somewhere that doesn't
+        // re-boot the app — booting the SPA in the popup breaks the popup handshake. Must be registered
+        // as a SPA redirect URI in the app registration.
+        redirectUri: `${window.location.origin}/blank.html`,
       },
       // localStorage so the session survives a full page reload (the SPA hydrates from it on mount).
       cache: { cacheLocation: 'localStorage' },
