@@ -3,6 +3,12 @@ import { getStoredDevUser } from '../auth/devUsers'
 import { acquireToken } from '../auth/msal'
 import { getActiveAccountId } from '../lib/activeAccount'
 
+// Base URL for the API. Empty (the default) means same-origin `/api/...` — correct for local dev (Vite
+// proxies /api to the Functions host) and for a Static Web App that proxies /api to a linked backend.
+// Set VITE_API_BASE_URL to the Function App's absolute origin when the SPA must call it cross-origin
+// (e.g. an SWA Free tier that can't link a backend); CORS on the API must allow the SPA origin.
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
+
 export class ApiError extends Error {
   status: number
   constructor(status: number, message: string) {
@@ -40,7 +46,7 @@ async function authHeaders(): Promise<Record<string, string>> {
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`/api${path}`, {
+  const res = await fetch(`${API_BASE}/api${path}`, {
     method,
     headers: {
       ...(await authHeaders()),
@@ -69,7 +75,7 @@ async function upload<T>(path: string, file: File, field = 'file'): Promise<T> {
   const form = new FormData()
   form.append(field, file)
 
-  const res = await fetch(`/api${path}`, {
+  const res = await fetch(`${API_BASE}/api${path}`, {
     method: 'POST',
     headers: { ...(await authHeaders()) },
     body: form,

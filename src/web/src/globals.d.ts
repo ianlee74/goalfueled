@@ -9,6 +9,8 @@ declare const __BUILD_DATE__: string
  * src/web/src/auth/authConfig.ts.
  */
 interface ImportMetaEnv {
+  /** Absolute API origin for cross-origin calls (e.g. https://<func>.azurewebsites.net). Empty = same-origin /api. */
+  readonly VITE_API_BASE_URL?: string
   /** SPA app registration client id. */
   readonly VITE_ENTRA_CLIENT_ID?: string
   /** Authority URL, e.g. https://<tenant>.ciamlogin.com/<tenant-guid>/v2.0 */
