@@ -34,7 +34,13 @@ function app(): PublicClientApplication {
 
 /** Idempotently initialize MSAL (required by v3+ before any other call). */
 export async function initMsal(): Promise<void> {
-  initPromise ??= app().initialize()
+  initPromise ??= (async () => {
+    await app().initialize()
+    // Completes any pending redirect response and, crucially, clears a stale "interaction_in_progress"
+    // flag that an interrupted popup/redirect can leave in localStorage — which would otherwise block
+    // every subsequent sign-in until storage is manually cleared.
+    await app().handleRedirectPromise()
+  })()
   await initPromise
 }
 
