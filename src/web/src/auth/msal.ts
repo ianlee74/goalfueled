@@ -1,7 +1,8 @@
-// Thin wrapper around MSAL for the "entra" auth mode. Uses popup flows so it slots into the existing
-// AuthContext without redirect-bootstrapping: sign-in opens the Entra user flow (Google + email/password
-// local accounts, depending on tenant config) in a popup, and access tokens are acquired silently from
-// the cached account on every API call (with a popup fallback when interaction is required).
+// Thin wrapper around MSAL for the "entra" auth mode. Uses the full-page REDIRECT flow (not popups):
+// sign-in navigates the whole tab to the Entra user flow (Google + email/password) and returns to the
+// app, where initMsal()'s handleRedirectPromise() completes the sign-in. Redirect avoids the popup
+// handshake failure modes (interaction_in_progress / no_token_request_cache_error / blocked or
+// orphaned popups) and needs no separate redirect page — the app origin is the redirect target.
 //
 // Everything here throws if Entra is not configured; callers must guard on `authMode === 'entra'`.
 
@@ -23,25 +24,25 @@ function app(): PublicClientApplication {
         clientId: entraConfig.clientId,
         authority: entraConfig.authority,
         knownAuthorities: entraConfig.knownAuthority ? [entraConfig.knownAuthority] : [],
-        // A blank page (not the SPA root) so the popup's auth response lands somewhere that doesn't
-        // re-boot the app — booting the SPA in the popup breaks the popup handshake. Must be registered
-        // as a SPA redirect URI in the app registration.
-        redirectUri: `${window.location.origin}/blank.html`,
+        // The app origin (already registered as a SPA redirect URI). The redirect response lands here
+        // and is processed by handleRedirectPromise() in initMsal().
+        redirectUri: window.location.origin,
       },
-      // localStorage so the session survives a full page reload (the SPA hydrates from it on mount).
+      // localStorage so the session survives the full-page redirect and later reloads.
       cache: { cacheLocation: 'localStorage' },
     })
   }
   return pca
 }
 
-/** Idempotently initialize MSAL (required by v3+ before any other call). */
+/**
+ * Idempotently initialize MSAL and process a returning redirect response. Calling handleRedirectPromise()
+ * here both completes a redirect sign-in (establishing the cached account) and clears any stale
+ * interaction state. Safe (returns null) on a normal page load.
+ */
 export async function initMsal(): Promise<void> {
   initPromise ??= (async () => {
     await app().initialize()
-    // Completes any pending redirect response and, crucially, clears a stale "interaction_in_progress"
-    // flag that an interrupted popup/redirect can leave in localStorage — which would otherwise block
-    // every subsequent sign-in until storage is manually cleared.
     await app().handleRedirectPromise()
   })()
   await initPromise
@@ -52,24 +53,21 @@ export function getAccount(): AccountInfo | null {
   return app().getAllAccounts()[0] ?? null
 }
 
-/** Interactive sign-in via popup. Resolves to the signed-in account. */
-export async function login(): Promise<AccountInfo> {
+/** Interactive sign-in via full-page redirect. Navigates away; the session is established on return. */
+export async function login(): Promise<void> {
   await initMsal()
-  const result = await app().loginPopup({ scopes: [entraConfig!.scope] })
-  app().setActiveAccount(result.account)
-  return result.account
+  await app().loginRedirect({ scopes: [entraConfig!.scope] })
 }
 
-/** Sign out and clear the cached account. */
+/** Sign out via full-page redirect, clearing the cached account. */
 export async function logout(): Promise<void> {
   await initMsal()
-  const account = getAccount()
-  await app().logoutPopup({ account: account ?? undefined })
+  await app().logoutRedirect({ account: getAccount() ?? undefined })
 }
 
 /**
- * Acquire an access token for the API scope, or null if no account is signed in. Tries silent first
- * and falls back to an interactive popup only when the cached token can't be refreshed.
+ * Acquire an access token for the API scope, or null if no account is signed in. Tries silent first;
+ * if interaction is required it falls back to a redirect (which navigates away and resolves on return).
  */
 export async function acquireToken(): Promise<string | null> {
   await initMsal()
@@ -82,8 +80,8 @@ export async function acquireToken(): Promise<string | null> {
     return result.accessToken
   } catch (e) {
     if (e instanceof InteractionRequiredAuthError) {
-      const result = await app().acquireTokenPopup(request)
-      return result.accessToken
+      await app().acquireTokenRedirect(request)
+      return null // the page navigates away; the token is available after the redirect completes
     }
     throw e
   }

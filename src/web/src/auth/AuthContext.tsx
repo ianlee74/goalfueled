@@ -87,10 +87,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [finishSignIn])
 
   const signInWithEntra = useCallback(async () => {
+    // Full-page redirect to the Entra user flow. This navigates away and does not return here; the
+    // session is established on the way back by the bootstrap effect (initMsal → handleRedirectPromise).
     setActiveAccountId(null)
     await entraLogin()
-    await finishSignIn()
-  }, [finishSignIn])
+  }, [])
 
   const signOut = useCallback(() => {
     // Signing out also drops any account-switch so the next sign-in starts on their own account.
