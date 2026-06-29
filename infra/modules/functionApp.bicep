@@ -76,7 +76,8 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
       appSettings: [
         { name: 'AzureWebJobsStorage', value: storageConnectionString }
         { name: 'DEPLOYMENT_STORAGE_CONNECTION_STRING', value: storageConnectionString }
-        { name: 'FUNCTIONS_WORKER_RUNTIME', value: 'dotnet-isolated' }
+        // NB: FUNCTIONS_WORKER_RUNTIME / FUNCTIONS_EXTENSION_VERSION are forbidden on Flex Consumption —
+        // the worker runtime and version are declared in functionAppConfig.runtime above.
         { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsightsConnectionString }
 
         // Application configuration — production uses Cosmos and disables dev auth.
