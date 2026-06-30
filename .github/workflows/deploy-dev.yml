@@ -37,6 +37,10 @@ jobs:
   build-test:
     name: Build & test
     runs-on: ubuntu-latest
+    # Join the `dev` environment so the environment-scoped VITE_* variables resolve here — the SPA's
+    # Entra/API config is baked in at build time, and without the environment they'd be empty (shipping
+    # a dev-login, same-origin bundle that hangs on "Loading…").
+    environment: dev
     steps:
       - uses: actions/checkout@v4
 
