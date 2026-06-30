@@ -54,6 +54,16 @@ export function IconBurn(p: IconProps) {
   )
 }
 
+/** Four-point spark — the passive "kindle" burn that runs in the background. */
+export function IconSpark(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M12 3v5M12 16v5M3 12h5M16 12h5" />
+      <path d="M12 9.5l1 1.5 1.5 1-1.5 1-1 1.5-1-1.5-1.5-1 1.5-1Z" />
+    </Svg>
+  )
+}
+
 /** Bathroom scale: plate with a dial. */
 export function IconWeight(p: IconProps) {
   return (

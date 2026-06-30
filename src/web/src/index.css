@@ -625,6 +625,10 @@ label.field .hint, div.field .hint { font-weight: 400; color: var(--muted); font
 }
 .fb-icon.fb-fuel { background: var(--primary-soft); color: var(--primary-dark); }
 .fb-icon.fb-burn { background: var(--accent-soft); color: var(--accent); }
+/* Kindle is the passive, automatic burn — a muted, outlined chip so it reads as background
+   metabolism rather than something the user logs like Fuel or Burn. Outline (not a filled tint)
+   keeps it legible across the light/dark/high-contrast themes. */
+.fb-icon.fb-kindle { background: transparent; color: var(--muted); border: 1px solid var(--border); }
 .fb-heading { align-items: center; }
 .fb-title { display: inline-flex; align-items: center; gap: 0.5rem; margin: 0; }
 .fb-title.fb-fuel { color: var(--primary-dark); }
