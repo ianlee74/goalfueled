@@ -58,6 +58,9 @@ jobs:
         with:
           name: api
           path: ./publish
+          # The Functions worker emits a hidden .azurefunctions/ dir that Flex Consumption's deploy
+          # requires; upload-artifact@v4 excludes hidden files by default, so opt it back in.
+          include-hidden-files: true
 
       # --- SPA: lint, build (Entra config baked in from env), upload ---
       - uses: actions/setup-node@v4

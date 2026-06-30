@@ -531,6 +531,10 @@ Function App **CORS** allow-list and in the Entra **SPA app registration redirec
   every write to fail (400 / substatus 1001). See `cosmos.bicep`.
 - **SWA Free can't link a backend** (needs Standard), so the SPA calls the API cross-origin via
   `VITE_API_BASE_URL`; the Function App CORS must allow the SPA origin(s).
+- **`actions/upload-artifact@v4` drops hidden files by default**, which strips the worker's
+  `.azurefunctions/` directory from the API package — Flex deploy then fails with
+  `InvalidPackageContentException: Cannot find required .azurefunctions directory`. Set
+  `include-hidden-files: true` on the API artifact upload (see `deploy-dev.yml` / `deploy-prod.yml`).
 
 ---
 
