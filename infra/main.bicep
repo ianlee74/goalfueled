@@ -76,8 +76,13 @@ module functionApp 'modules/functionApp.bicep' = {
     appInsightsConnectionString: monitoring.outputs.appInsightsConnectionString
     cosmosConnectionString: cosmos.outputs.connectionString
     cosmosDatabaseName: cosmos.outputs.databaseName
-    // Allow the SPA's own origin to call the API directly (in addition to the same-origin /api proxy).
-    spaAllowedOrigins: [ 'https://${staticWebApp.outputs.defaultHostname}' ]
+    // Origins allowed to call the API directly (cross-origin, since SWA Free can't proxy /api):
+    // the SWA default hostname plus the custom domain. Keep in sync with the Function App CORS.
+    spaAllowedOrigins: [
+      'https://${staticWebApp.outputs.defaultHostname}'
+      'https://goalfueled.com'
+      'https://www.goalfueled.com'
+    ]
   }
 }
 
