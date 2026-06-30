@@ -38,6 +38,10 @@ jobs:
   build-test:
     name: Build & test
     runs-on: ubuntu-latest
+    # Join the `prod` environment so the environment-scoped VITE_* variables resolve here — the SPA's
+    # Entra/API config is baked in at build time, and without the environment they'd be empty (shipping
+    # a dev-login, same-origin bundle that hangs on "Loading…").
+    environment: prod
     steps:
       - uses: actions/checkout@v4
 
@@ -81,6 +85,9 @@ jobs:
           VITE_ENTRA_CLIENT_ID: ${{ vars.VITE_ENTRA_CLIENT_ID }}
           VITE_ENTRA_AUTHORITY: ${{ vars.VITE_ENTRA_AUTHORITY }}
           VITE_ENTRA_API_SCOPE: ${{ vars.VITE_ENTRA_API_SCOPE }}
+          # The Free-tier SWA can't proxy /api to a separate Function App, so the SPA calls the API
+          # cross-origin. Without this the bundle falls back to same-origin /api and every call 404s.
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
       - name: Upload web artifact
         uses: actions/upload-artifact@v4
         with:
