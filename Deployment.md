@@ -491,6 +491,49 @@ az group delete -n goalfueled-rg-dev --yes --no-wait
 
 ---
 
+## 11. Custom domain (Azure DNS)
+
+The live deployment serves the SPA from `goalfueled.com`. DNS is hosted in an **Azure DNS zone**
+(`goalfueled.com`, in `goalfueled-rg-dev`); delegate the domain at the registrar to the zone's four
+`*.azure-dns.*` name servers (`az network dns zone show -g goalfueled-rg-dev -n goalfueled.com
+--query nameServers`).
+
+Records and Static Web App custom domains:
+
+- **Apex `goalfueled.com`** — register with `az staticwebapp hostname set ... --hostname goalfueled.com
+  --validation-method dns-txt-token`, then create a **TXT** record at `@` with the validation token and
+  an **alias A** record at `@` targeting the Static Web App resource
+  (`az network dns record-set a create -g goalfueled-rg-dev -z goalfueled.com -n @ --target-resource
+  <swa-resource-id>`). SWA validates and provisions a free managed cert (apex can take 15–30 min).
+- **`www.goalfueled.com`** — a **CNAME** to the SWA default hostname, registered with the default
+  `cname-delegation` validation. It serves the app (SWA has no host-based `www`→apex 301 redirect; a true
+  redirect would need Azure Front Door).
+
+Because the SPA calls the API cross-origin (SWA Free, §4), each domain that serves the SPA must be in the
+Function App **CORS** allow-list and in the Entra **SPA app registration redirect URIs**:
+
+- CORS: `https://goalfueled.com`, `https://www.goalfueled.com` (set live and in `main.bicep`'s
+  `spaAllowedOrigins`).
+- Entra `goalfueled-spa` → Authentication → **Single-page application** redirect URIs (must be SPA-type,
+  not Web — a Web-platform URI causes a token-endpoint 400 on cross-origin code redemption).
+
+## 12. Operational gotchas (learned in this deployment)
+
+- **Flex Consumption forbids `FUNCTIONS_WORKER_RUNTIME`** as an app setting (deploy fails BadRequest
+  51021); the runtime lives in `functionAppConfig.runtime`. See `functionApp.bicep`.
+- **Deploy the API with `func azure functionapp publish`** (or `Azure/functions-action`). The Flex plan
+  rejects `az functionapp deployment source config-zip` ("Runtime is not supported") and `az functionapp
+  deploy` (415).
+- **`az functionapp config appsettings set` fails on Flex** ("Runtime is not supported"); set app
+  settings via the ARM REST API (`.../config/appsettings` list+PUT) instead. (`az functionapp cors` works.)
+- **Cosmos containers: let EF Core create them.** Bicep must NOT pre-create them — EF's
+  `HasPartitionKey(e => e.Id)` needs path `/Id` (capital), and a Bicep-created `/id` (lowercase) causes
+  every write to fail (400 / substatus 1001). See `cosmos.bicep`.
+- **SWA Free can't link a backend** (needs Standard), so the SPA calls the API cross-origin via
+  `VITE_API_BASE_URL`; the Function App CORS must allow the SPA origin(s).
+
+---
+
 ## Appendix — file reference
 
 | Concern | File(s) |
