@@ -19,6 +19,14 @@ public class Ingredient
     /// <summary>URL of an uploaded image in blob storage, if any.</summary>
     public string? ImageUrl { get; set; }
 
+    /// <summary>
+    /// Product barcode (UPC/EAN), when this ingredient was created from a scanned package. Used to
+    /// de-duplicate re-scans and to contribute the product back to Open Food Facts. Nullable: legacy
+    /// documents written before this field existed must materialize as null rather than throw (see the
+    /// Cosmos non-nullable-field landmine).
+    /// </summary>
+    public string? Barcode { get; set; }
+
     /// <summary>The unit used to define a single serving of this ingredient.</summary>
     public UnitOfMeasure Unit { get; set; } = UnitOfMeasure.Gram;
 

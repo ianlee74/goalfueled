@@ -36,6 +36,13 @@ public interface IIngredientRepository
 
     Task<Ingredient?> GetByIdAsync(string id, CancellationToken ct = default);
 
+    /// <summary>
+    /// Returns the ingredient visible to the user that carries the given barcode, or null. Used to
+    /// short-circuit a re-scan to the existing library item instead of creating a duplicate. Visibility
+    /// mirrors <see cref="ListVisibleAsync"/>: app-level, the user's own, and any public ingredient.
+    /// </summary>
+    Task<Ingredient?> GetByBarcodeVisibleAsync(string userId, string barcode, CancellationToken ct = default);
+
     Task<Ingredient> AddAsync(Ingredient ingredient, CancellationToken ct = default);
 
     Task UpdateAsync(Ingredient ingredient, CancellationToken ct = default);

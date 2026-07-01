@@ -1,4 +1,5 @@
 using GoalFueled.Api.Common;
+using GoalFueled.Api.Services.OpenFoodFacts;
 using GoalFueled.Data.Repositories;
 using GoalFueled.Domain;
 using GoalFueled.Domain.Contracts;
@@ -16,12 +17,22 @@ public sealed class IngredientService
     private readonly IIngredientRepository _repo;
 
     /// <summary>
+    /// Contributes newly-added barcoded products back to Open Food Facts. Optional so tests can construct
+    /// the service without it; DI supplies it in production.
+    /// </summary>
+    private readonly OffContributionService? _contribution;
+
+    /// <summary>
     /// How many of a user's ingredients may sit in <see cref="IngredientVisibility.PendingReview"/> at
     /// once. An in-app guard against flooding the review queue (mirrors the recipe cap).
     /// </summary>
     private const int MaxPendingReviewsPerUser = 10;
 
-    public IngredientService(IIngredientRepository repo) => _repo = repo;
+    public IngredientService(IIngredientRepository repo, OffContributionService? contribution = null)
+    {
+        _repo = repo;
+        _contribution = contribution;
+    }
 
     /// <summary>
     /// Lists ingredients visible to the user. When <paramref name="all"/> is set AND the caller is
@@ -66,6 +77,7 @@ public sealed class IngredientService
             Name = input.Name.Trim(),
             Description = HtmlSanitizer.Sanitize(input.Description),
             ImageUrl = input.ImageUrl,
+            Barcode = NormalizeBarcode(input.Barcode),
             Unit = input.Unit,
             ServingSize = input.ServingSize,
             NutritionPerServing = NormalizeNutrition(input.NutritionPerServing),
@@ -80,6 +92,11 @@ public sealed class IngredientService
         };
 
         await _repo.AddAsync(ingredient, ct);
+
+        // Only public products are contributed to OFF. A user's new ingredient starts private and is
+        // queued later, on approval; an admin's app-level ingredient is public immediately and is queued now.
+        await EnqueueForOffIfPublicAsync(ingredient, ct);
+
         return ToDto(ingredient, user);
     }
 
@@ -100,6 +117,7 @@ public sealed class IngredientService
             Name = InputLimits.CustomizedName(source.Name),
             Description = source.Description,
             ImageUrl = source.ImageUrl,
+            Barcode = source.Barcode,
             Unit = source.Unit,
             ServingSize = source.ServingSize,
             NutritionPerServing = source.NutritionPerServing
@@ -127,6 +145,7 @@ public sealed class IngredientService
         ingredient.Name = input.Name.Trim();
         ingredient.Description = HtmlSanitizer.Sanitize(input.Description);
         ingredient.ImageUrl = input.ImageUrl;
+        ingredient.Barcode = NormalizeBarcode(input.Barcode);
         ingredient.Unit = input.Unit;
         ingredient.ServingSize = input.ServingSize;
         ingredient.NutritionPerServing = NormalizeNutrition(input.NutritionPerServing);
@@ -145,6 +164,11 @@ public sealed class IngredientService
         }
 
         await _repo.UpdateAsync(ingredient, ct);
+
+        // Re-queue if this edit left the ingredient public (an admin promoting it to app-level, or an
+        // owner editing an already-public product). The worker skips products OFF already has.
+        await EnqueueForOffIfPublicAsync(ingredient, ct);
+
         return ToDto(ingredient, user);
     }
 
@@ -204,6 +228,10 @@ public sealed class IngredientService
         ingredient.OriginalCreatorUserId ??= ingredient.OwnerUserId;
         ingredient.UpdatedAt = DateTimeOffset.UtcNow;
         await _repo.UpdateAsync(ingredient, ct);
+
+        // Vetted and now public → queue for OFF contribution (no-op without a barcode/account).
+        await EnqueueForOffIfPublicAsync(ingredient, ct);
+
         return ToDto(ingredient, user);
     }
 
@@ -344,8 +372,32 @@ public sealed class IngredientService
             .ToList();
     }
 
+    /// <summary>
+    /// Queues an ingredient for Open Food Facts contribution, but only when it is <b>public</b> — a
+    /// user's ingredient qualifies once it has passed review, and an admin's app-level ingredient is
+    /// public by definition. This keeps unvetted, private data out of OFF. The queue upsert dedups by
+    /// barcode, and <see cref="OffContributionService"/> further no-ops without a barcode or write account.
+    /// </summary>
+    private Task EnqueueForOffIfPublicAsync(Ingredient ingredient, CancellationToken ct)
+    {
+        if (_contribution is null || ingredient.Barcode is null) return Task.CompletedTask;
+        if (ingredient.EffectiveVisibility != IngredientVisibility.Public) return Task.CompletedTask;
+        return _contribution.EnqueueIfEligibleAsync(ingredient, ct);
+    }
+
+    /// <summary>
+    /// Trims a barcode and keeps only its digits (UPC/EAN codes are numeric; scanners occasionally emit
+    /// stray whitespace). Returns null when nothing usable remains so blank codes aren't persisted.
+    /// </summary>
+    private static string? NormalizeBarcode(string? barcode)
+    {
+        if (string.IsNullOrWhiteSpace(barcode)) return null;
+        var digits = new string(barcode.Where(char.IsDigit).ToArray());
+        return digits.Length == 0 ? null : digits;
+    }
+
     private static IngredientDto ToDto(Ingredient i, AppUser user) => new(
-        i.Id, i.Name, i.Description, i.ImageUrl,
+        i.Id, i.Name, i.Description, i.ImageUrl, i.Barcode,
         i.Tags ?? (IReadOnlyList<string>)Array.Empty<string>(),
         i.Aliases ?? (IReadOnlyList<string>)Array.Empty<string>(),
         i.LocalizedNames ?? (IReadOnlyList<LocalizedName>)Array.Empty<LocalizedName>(),

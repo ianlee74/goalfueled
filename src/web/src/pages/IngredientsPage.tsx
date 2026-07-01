@@ -55,6 +55,7 @@ export function IngredientsPage() {
           {isAdmin && (
             <Link className="btn btn-sm" to="/ingredients/review-queue">Review queue</Link>
           )}
+          <Link className="btn btn-sm" to="/ingredients/scan" title="Scan a product barcode">Scan</Link>
           <Link className="btn btn-primary btn-sm" to="/ingredients/new">+ New</Link>
         </div>
       </div>

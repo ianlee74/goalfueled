@@ -1,6 +1,7 @@
 using GoalFueled.Api.Auth;
 using GoalFueled.Api.Services;
 using GoalFueled.Api.Services.Nutrition;
+using GoalFueled.Api.Services.OpenFoodFacts;
 using GoalFueled.Data;
 using GoalFueled.Data.Repositories;
 using GoalFueled.Data.Seeding;
@@ -54,6 +55,11 @@ public class DependencyInjectionTests
         services.AddScoped<FavoriteService>();
         services.AddHttpClient<IFdcNutritionClient, FdcNutritionClient>();
         services.AddScoped<NutritionLookupService>();
+        services.AddHttpClient<IOffClient, OffClient>();
+        services.AddScoped<BarcodeLookupService>();
+        services.AddScoped<OffContributionService>();
+        services.AddHttpClient<INutritionLabelReader, AnthropicVisionClient>();
+        services.AddScoped<VisionModelSettingsService>();
 
         return services.BuildServiceProvider(new ServiceProviderOptions
         {
@@ -87,6 +93,13 @@ public class DependencyInjectionTests
         Assert.NotNull(sp.GetRequiredService<FavoriteService>());
         Assert.NotNull(sp.GetRequiredService<NutritionLookupService>());
         Assert.NotNull(sp.GetRequiredService<IFdcNutritionClient>());
+        Assert.NotNull(sp.GetRequiredService<IOffClient>());
+        Assert.NotNull(sp.GetRequiredService<BarcodeLookupService>());
+        Assert.NotNull(sp.GetRequiredService<OffContributionService>());
+        Assert.NotNull(sp.GetRequiredService<IOffContributionQueue>());
+        Assert.NotNull(sp.GetRequiredService<INutritionLabelReader>());
+        Assert.NotNull(sp.GetRequiredService<VisionModelSettingsService>());
+        Assert.NotNull(sp.GetRequiredService<IAppSettingsRepository>());
         Assert.NotNull(sp.GetRequiredService<IUserRepository>());
         Assert.NotNull(sp.GetRequiredService<IIngredientRepository>());
         Assert.NotNull(sp.GetRequiredService<IRecipeRepository>());

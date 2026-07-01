@@ -2,6 +2,7 @@ using Azure.Monitor.OpenTelemetry.Exporter;
 using GoalFueled.Api.Auth;
 using GoalFueled.Api.Services;
 using GoalFueled.Api.Services.Nutrition;
+using GoalFueled.Api.Services.OpenFoodFacts;
 using GoalFueled.Data;
 using GoalFueled.Data.Seeding;
 using Microsoft.Azure.Functions.Worker;
@@ -54,6 +55,20 @@ builder.Services.AddScoped<SharingService>();
 builder.Services.AddHttpClient<IFdcNutritionClient, FdcNutritionClient>(http =>
     http.Timeout = TimeSpan.FromSeconds(15));
 builder.Services.AddScoped<NutritionLookupService>();
+
+// Barcode scan → Open Food Facts (read for lookup, write to contribute new products back). Same
+// server-side IHttpClientFactory pattern as USDA so credentials stay off the client.
+builder.Services.AddHttpClient<IOffClient, OffClient>(http =>
+    http.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddScoped<BarcodeLookupService>();
+builder.Services.AddScoped<OffContributionService>();
+
+// Nutrition-label OCR fallback (Claude vision). Longer timeout — a vision call takes longer than a
+// plain REST lookup.
+builder.Services.AddHttpClient<INutritionLabelReader, AnthropicVisionClient>(http =>
+    http.Timeout = TimeSpan.FromSeconds(60));
+// Admin runtime override for the OCR model (for A/B testing before committing a choice to config).
+builder.Services.AddScoped<VisionModelSettingsService>();
 
 var host = builder.Build();
 

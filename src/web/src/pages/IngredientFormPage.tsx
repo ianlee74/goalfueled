@@ -16,6 +16,21 @@ import {
 
 const UNIT_OPTIONS = Object.keys(UNIT_LABELS) as UnitOfMeasure[]
 
+/**
+ * Prefill handed to the create form by the barcode scanner (router state). Carries product data pulled
+ * from Open Food Facts (per 100 g) or read from a nutrition-label photo (per serving), plus the barcode
+ * so the saved ingredient can be contributed back to OFF.
+ */
+export interface ScanPrefill {
+  name?: string
+  barcode?: string
+  imageUrl?: string
+  unit: UnitOfMeasure
+  servingSize: number
+  nutritionPerServing: NutrientAmount[]
+  note?: string
+}
+
 // A localized-name editor row; keyed locally so removing a row never re-targets inputs.
 interface LocalizedRow extends LocalizedName {
   key: number
@@ -35,6 +50,7 @@ export function IngredientFormPage() {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [imageUrl, setImageUrl] = useState('')
+  const [barcode, setBarcode] = useState('')
   const [unit, setUnit] = useState<UnitOfMeasure>('Gram')
   const [servingSize, setServingSize] = useState('100')
   const [appLevel, setAppLevel] = useState(false)
@@ -85,6 +101,7 @@ export function IngredientFormPage() {
         setName(i.name)
         setDescription(i.description ?? '')
         setImageUrl(i.imageUrl ?? '')
+        setBarcode(i.barcode ?? '')
         setUnit(i.unit)
         setServingSize(String(i.servingSize))
         setAmounts(i.nutritionPerServing)
@@ -180,6 +197,28 @@ export function IngredientFormPage() {
     navigate('/ingredients/new', { replace: true })
   }, [isNew, customizeFrom, navigate])
 
+  // Pre-fill from a barcode scan (Open Food Facts data, or a nutrition-label photo). Seeds a brand-new
+  // unsaved form; nothing is created server-side until the user reviews and presses Save. State is
+  // consumed once so a refresh/back doesn't re-seed.
+  const scanPrefill = (location.state as { scanPrefill?: ScanPrefill } | null)?.scanPrefill
+  const scanSeededRef = useRef(false)
+  useEffect(() => {
+    if (!isNew || !scanPrefill || scanSeededRef.current) return
+    scanSeededRef.current = true
+    const p = scanPrefill
+    if (p.name) setName(p.name)
+    if (p.imageUrl) setImageUrl(p.imageUrl)
+    if (p.barcode) setBarcode(p.barcode)
+    setUnit(p.unit)
+    setServingSize(String(p.servingSize))
+    setAmounts(p.nutritionPerServing.map((a) => ({ ...a })))
+    // Suppress the "similar ingredients" popover for the seeded name (this is a specific product).
+    if (p.name) skipMatchName.current = p.name.trim()
+    if (p.note) setSeededInfo(p.note)
+    // Drop the router state so this only seeds once.
+    navigate('/ingredients/new', { replace: true })
+  }, [isNew, scanPrefill, navigate])
+
   // Nutrients available to add (not already in the list).
   const present = useMemo(() => new Set(amounts.map((a) => a.nutrientId)), [amounts])
   const addable = nutrients.filter((n) => !present.has(n.id))
@@ -245,6 +284,7 @@ export function IngredientFormPage() {
       name: name.trim(),
       description: description.trim() || undefined,
       imageUrl: imageUrl.trim() || undefined,
+      barcode: barcode.trim() || undefined,
       unit,
       servingSize: serving,
       nutritionPerServing: amounts.filter((a) => Number.isFinite(a.value)),
@@ -418,6 +458,15 @@ export function IngredientFormPage() {
         )}
 
         <ImageUpload value={imageUrl} onChange={setImageUrl} disabled={readOnly} />
+
+        {(barcode || !readOnly) && (
+          <label className="field">
+            Barcode <span className="hint">UPC/EAN — set when scanned</span>
+            <input className="input" inputMode="numeric" value={barcode} disabled={readOnly}
+              placeholder="e.g. 737628064502"
+              onChange={(e) => setBarcode(e.target.value)} />
+          </label>
+        )}
 
         <div className="row" style={{ gap: '0.75rem' }}>
           <label className="field" style={{ flex: 1 }}>

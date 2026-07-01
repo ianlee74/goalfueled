@@ -2,9 +2,10 @@ import { api } from './client'
 import type {
   AdminUser, BurnActivity, BurnActivityInput, BurnDay, BurnSuggestion,
   CompletePlannedMealInput, ConsumptionDay, ConsumptionEntry, ConsumptionEntryInput,
-  CreateShareInvitationInput, CurrentUser, Dashboard, FavoriteState, GamificationSummary, Goal, GoalInput,
-  Ingredient, IngredientInput, Meal, MealInput, MealPlan, MealPlanInput, NutrientDefinition,
+  BarcodeLookupResult, CreateShareInvitationInput, CurrentUser, Dashboard, FavoriteState, GamificationSummary, Goal, GoalInput,
+  Ingredient, IngredientInput, LabelOcrResult, Meal, MealInput, MealPlan, MealPlanInput, NutrientDefinition,
   NutritionLookupResult, OnboardingInput, PlannedDay, ProfileInput, Recipe, RecipeInput, SharedAccount,
+  VisionModelSettings,
   ShareInvitation, ShareInvitationPreview, WeeklyReview, WeightEntry,
   WeightEntryInput, WeightScheduleInput,
 } from './types'
@@ -32,6 +33,13 @@ export const adminApi = {
     api.post<AdminUser>(`/manage-users/${id}/admin-role`, { isAdmin }),
   // Permanently deletes a user and all their personal data. Content accepted as public/app-owned is kept.
   deleteUser: (id: string) => api.del(`/manage-users/${id}`),
+}
+
+// Admin-only: choose the nutrition-label OCR vision model at runtime (for testing before committing to config).
+export const visionModelApi = {
+  get: () => api.get<VisionModelSettings>('/vision-model-settings'),
+  setOverride: (model: string) => api.put<VisionModelSettings>('/vision-model-settings', { model }),
+  clearOverride: () => api.del('/vision-model-settings'),
 }
 
 // Account sharing: create/manage invitation links, respond to one as a recipient, and list the accounts
@@ -71,6 +79,10 @@ export const ingredientApi = {
   // Uses a distinct top-level path (not /ingredients/...) so it can't be shadowed by /ingredients/{id}.
   nutritionLookup: (query: string) =>
     api.get<NutritionLookupResult>(`/ingredient-nutrition-lookup?query=${encodeURIComponent(query)}`),
+  // Look up a scanned barcode: an existing library item, Open Food Facts data, or a not-found result.
+  // Distinct top-level path so it can't be shadowed by /ingredients/{id}.
+  byBarcode: (barcode: string) =>
+    api.get<BarcodeLookupResult>(`/ingredient-by-barcode?barcode=${encodeURIComponent(barcode)}`),
   create: (input: IngredientInput) => api.post<Ingredient>('/ingredients', input),
   // Clones an app-level ingredient into a private copy owned by the caller, ready to edit.
   customize: (id: string) => api.post<Ingredient>(`/ingredients/${id}/customize`),
@@ -184,6 +196,11 @@ export const dashboardApi = {
 export const imageApi = {
   // Uploads an image and returns its public blob URL.
   upload: (file: File) => api.upload<{ url: string }>('/images', file),
+}
+
+export const ocrApi = {
+  // Reads a photographed nutrition label into structured, catalog-mapped per-serving nutrition.
+  readLabel: (file: File) => api.upload<LabelOcrResult>('/nutrition-label-ocr', file),
 }
 
 export const gamificationApi = {

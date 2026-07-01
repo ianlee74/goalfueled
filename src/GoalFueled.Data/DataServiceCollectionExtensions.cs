@@ -42,6 +42,8 @@ public static class DataServiceCollectionExtensions
         services.AddScoped<IBurnActivityRepository, BurnActivityRepository>();
         services.AddScoped<IUserStatsRepository, UserStatsRepository>();
         services.AddScoped<IShareInvitationRepository, ShareInvitationRepository>();
+        services.AddScoped<IOffContributionQueue, OffContributionQueue>();
+        services.AddScoped<IAppSettingsRepository, AppSettingsRepository>();
         services.AddScoped<DatabaseInitializer>();
 
         return services;

@@ -50,6 +50,8 @@ public class GoalFueledDbContext : DbContext
     public DbSet<BurnActivity> BurnActivities => Set<BurnActivity>();
     public DbSet<UserStats> UserStats => Set<UserStats>();
     public DbSet<ShareInvitation> ShareInvitations => Set<ShareInvitation>();
+    public DbSet<OffContributionQueueItem> OffContributionQueue => Set<OffContributionQueueItem>();
+    public DbSet<AppSetting> AppSettings => Set<AppSetting>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -189,6 +191,22 @@ public class GoalFueledDbContext : DbContext
             // status enum by its string name (stable across reordering, readable in the document).
             e.Property(s => s.Permissions).HasConversion(SharePermissionsConverter);
             e.Property(s => s.Status).HasConversion<string>();
+        });
+
+        // --- Open Food Facts contribution queue ---
+        b.Entity<OffContributionQueueItem>(e =>
+        {
+            e.ToContainer("OffContributionQueue");
+            e.HasPartitionKey(q => q.Id);
+            e.HasKey(q => q.Id);
+        });
+
+        // --- App settings (runtime key/value store) ---
+        b.Entity<AppSetting>(e =>
+        {
+            e.ToContainer("AppSettings");
+            e.HasPartitionKey(s => s.Id);
+            e.HasKey(s => s.Id);
         });
 
         base.OnModelCreating(b);

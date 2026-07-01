@@ -79,6 +79,22 @@ public class IngredientRepository : IIngredientRepository
     public Task<Ingredient?> GetByIdAsync(string id, CancellationToken ct = default) =>
         _db.Ingredients.FirstOrDefaultAsync(i => i.Id == id, ct);
 
+    public async Task<Ingredient?> GetByBarcodeVisibleAsync(
+        string userId, string barcode, CancellationToken ct = default)
+    {
+        // Equality on Barcode is translatable; scope to what the user may see, then prefer their own
+        // copy over a public/app one. Materialize the (tiny) match set — barcodes are near-unique.
+        var matches = await _db.Ingredients
+            .Where(i => i.Barcode == barcode &&
+                        (i.Scope == OwnershipScope.App ||
+                         (i.Scope == OwnershipScope.User && i.OwnerUserId == userId) ||
+                         i.Visibility == IngredientVisibility.Public))
+            .ToListAsync(ct);
+
+        return matches.FirstOrDefault(i => i.Scope == OwnershipScope.User && i.OwnerUserId == userId)
+            ?? matches.FirstOrDefault();
+    }
+
     public async Task<Ingredient> AddAsync(Ingredient ingredient, CancellationToken ct = default)
     {
         _db.Ingredients.Add(ingredient);

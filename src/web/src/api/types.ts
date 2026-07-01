@@ -207,6 +207,8 @@ export interface Ingredient {
   name: string
   description?: string
   imageUrl?: string
+  // Product barcode (UPC/EAN) when created from a scan; absent otherwise.
+  barcode?: string
   // Finder search metadata; the API always returns these as (possibly empty) arrays.
   tags: string[]
   aliases: string[]
@@ -239,6 +241,50 @@ export interface IngredientInput {
   tags?: string[]
   aliases?: string[]
   localizedNames?: LocalizedName[]
+  // Optional product barcode (UPC/EAN). When set and not already on Open Food Facts, the new
+  // ingredient is contributed back to OFF after save.
+  barcode?: string
+}
+
+/**
+ * Result of scanning a product barcode. Either points at an ingredient already in the library
+ * (existingIngredientId), carries prefill data from Open Food Facts, or reports found=false so the
+ * client offers the photograph-the-label fallback.
+ */
+export interface BarcodeLookupResult {
+  barcode: string
+  found: boolean
+  existingIngredientId?: string
+  source?: string
+  productName?: string
+  brands?: string
+  imageUrl?: string
+  basisGrams: number
+  nutritionPer100g: NutrientAmount[]
+}
+
+/** Result of reading a photographed nutrition label; values are per the label's stated serving. */
+export interface LabelOcrResult {
+  productName?: string
+  servingSize: number
+  unit: UnitOfMeasure
+  nutritionPerServing: NutrientAmount[]
+}
+
+/** Admin view of the nutrition-label OCR vision model (configured default + runtime override). */
+export interface VisionModelSettings {
+  // The model from configuration, or the built-in default when none is set.
+  configuredModel: string
+  // True when a model is explicitly set in configuration.
+  isModelConfigured: boolean
+  // The admin runtime override, if any (wins over the configured model).
+  overrideModel?: string
+  // The model actually used for OCR right now.
+  effectiveModel: string
+  // False when no Anthropic API key is configured (label OCR disabled).
+  isApiKeyConfigured: boolean
+  // The models an admin may choose from.
+  availableModels: string[]
 }
 
 /** The favorite state of one library item (ingredient/recipe/meal) for the signed-in user. */

@@ -9,6 +9,8 @@ public sealed record IngredientDto(
     string Name,
     string? Description,
     string? ImageUrl,
+    /// <summary>Product barcode (UPC/EAN), when created from a scan; null otherwise.</summary>
+    string? Barcode,
     /// <summary>Free-form search/browse tags (e.g. "protein", "vegetable").</summary>
     IReadOnlyList<string> Tags,
     /// <summary>Alternate names matched in search (e.g. "garbanzo beans").</summary>
@@ -51,4 +53,9 @@ public sealed record IngredientInput(
     /// <summary>Optional alternate names; entries are trimmed and de-duplicated on save.</summary>
     IReadOnlyList<string>? Aliases = null,
     /// <summary>Optional non-English names; entries are trimmed and de-duplicated on save.</summary>
-    IReadOnlyList<LocalizedName>? LocalizedNames = null);
+    IReadOnlyList<LocalizedName>? LocalizedNames = null,
+    /// <summary>
+    /// Optional product barcode (UPC/EAN). Persisted as-is; when present and the product is not yet on
+    /// Open Food Facts, the new ingredient is contributed back to OFF after save.
+    /// </summary>
+    string? Barcode = null);

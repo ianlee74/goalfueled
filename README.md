@@ -154,6 +154,63 @@ nutrients the app tracks are populated. The catalog fallback only applies to mas
 are skipped. The lookup pre-fills editable fields, never auto-saves, and always surfaces a clear
 message (rate-limited / no match / no key) so manual entry is never blocked.
 
+## Configuration
+
+Every setting has a safe default, so the app runs locally with no configuration. You only set values to
+enable optional features (nutrition lookup, barcode contribution, label OCR) or to deploy to Azure.
+
+- **API settings** live in `src/GoalFueled.Api/local.settings.json` (under `Values`) for local dev, and
+  as **Function App application settings** (or Key Vault references) in Azure. The table below lists the
+  canonical `Section:Key` name used **in code and `local.settings.json`** (read via the JSON provider).
+  In **Azure** these are environment variables, so replace each `:` with a double underscore:
+  `GoalFueled:OpenFoodFacts:UserId` → `GoalFueled__OpenFoodFacts__UserId`. The `__` form is **required**
+  on Linux plans (including Flex Consumption, which this app uses) — a `:` is not a valid environment-
+  variable character there and won't bind. The .NET config provider maps `__` back to `:` automatically.
+- **Frontend variables** are `VITE_*`, **baked into the static bundle at build time** (not runtime). Set
+  them in `src/web/.env.local` locally (see `src/web/.env.example`) or in the SPA build environment in CI.
+- 🔒 = a **secret** — never commit it; set it via Key Vault / CI secrets, not in source.
+
+### API settings (`GoalFueled.Api`)
+
+| Setting | Required? | Local default | Description |
+| --- | --- | --- | --- |
+| `FUNCTIONS_WORKER_RUNTIME` | Yes | `dotnet-isolated` | Functions host runtime. Set by `local.settings.json` / infra. |
+| `AzureWebJobsStorage` | Yes | `UseDevelopmentStorage=true` (Azurite) | Storage connection used by the Functions host, the image-blob container, and the contribution timer. In Azure, the real Storage account. |
+| `APPLICATIONINSIGHTS_CONNECTION_STRING` | No | *(unset)* | When set, exports telemetry to Azure Monitor. |
+| `GoalFueled:Auth:EnableDevAuth` | Yes | `true` | Enables the spoofable `X-Dev-*` header login. **Must be `false` in any real deployment.** |
+| `GoalFueled:Auth:Entra:Authority` | Prod | *(blank)* | Entra External ID authority URL. Required for real sign-in. |
+| `GoalFueled:Auth:Entra:Audience` | Prod | *(blank)* | API app-registration client id (token audience). Required for real sign-in. |
+| `GoalFueled:Auth:Entra:MetadataAddress` | No | *(blank)* | Optional OIDC metadata URL override (derived from the authority when omitted). |
+| `GoalFueled:UseInMemoryStore` | Yes | `true` | `true` = ephemeral in-memory store; `false` = Cosmos (emulator locally, real in Azure). |
+| `GoalFueled:Cosmos:ConnectionString` | When not in-memory | *(emulator string)* | Cosmos DB connection string. 🔒 in Azure. |
+| `GoalFueled:Cosmos:Database` | No | `goalfueled` | Cosmos database name. |
+| `GoalFueled:Storage:ImageContainer` | No | `images` | Blob container for uploaded images (uses `AzureWebJobsStorage`). |
+| `GoalFueled:Nutrition:FdcApiKey` | Recommended | `DEMO_KEY` | USDA FoodData Central key. `DEMO_KEY` is shared and rate-limited (~10/hr); get a free key for live lookups. |
+| `GoalFueled:Nutrition:FdcBaseUrl` | No | `https://api.nal.usda.gov/fdc/v1/` | USDA API base URL (rarely changed). |
+| `GoalFueled:OpenFoodFacts:ReadBaseUrl` | No | `https://world.openfoodfacts.org` | Base URL for barcode product lookups. |
+| `GoalFueled:OpenFoodFacts:WriteBaseUrl` | No | `https://world.openfoodfacts.net` (**staging**) | Base URL for contributions. Point at `https://world.openfoodfacts.org` for production writes. |
+| `GoalFueled:OpenFoodFacts:UserAgent` | No | `GoalFueled/1.0 (ian@houseoflees.net)` | Descriptive User-Agent OFF requires on every request. |
+| `GoalFueled:OpenFoodFacts:UserId` | For write-back | *(blank)* | Shared OFF account username. Contribution is disabled until this and the password are set. |
+| `GoalFueled:OpenFoodFacts:Password` | For write-back | *(blank)* | 🔒 Shared OFF account password. |
+| `GoalFueled:OpenFoodFacts:ContributionBatchSize` | No | `20` | Max products the contribution timer pushes per run. |
+| `GoalFueled:OpenFoodFacts:ContributionDelayMs` | No | `6000` | Delay between OFF calls within a run (rate limiting). |
+| `GoalFueled:Anthropic:ApiKey` | For label OCR | *(blank)* | 🔒 Anthropic API key. Label OCR is disabled until set. |
+| `GoalFueled:Anthropic:VisionModel` | No | `claude-opus-4-8` | OCR model. An admin can override at runtime from the Admin page (persisted; wins over this). |
+| `GoalFueled:Anthropic:BaseUrl` | No | `https://api.anthropic.com` | Anthropic API base URL (rarely changed). |
+
+### Frontend build variables (`VITE_*`)
+
+| Variable | Required? | Description |
+| --- | --- | --- |
+| `VITE_API_BASE_URL` | No | Absolute API origin for cross-origin calls (e.g. a Free-tier SWA that can't proxy `/api`). Leave empty for local dev or when the SWA proxies `/api` to a linked backend. |
+| `VITE_ENTRA_CLIENT_ID` | Prod | SPA app-registration (client) id. |
+| `VITE_ENTRA_AUTHORITY` | Prod | Entra External ID authority URL. |
+| `VITE_ENTRA_API_SCOPE` | Prod | Access-token scope exposed by the API app registration. |
+| `VITE_ENTRA_KNOWN_AUTHORITY` | No | Authority host MSAL should trust (derived from `VITE_ENTRA_AUTHORITY` when omitted). |
+
+> The three `VITE_ENTRA_*` "Prod" vars are required **together** to switch the SPA into real-auth mode;
+> leave all unset for the local dev logins. They are public (not secrets) and safe to expose in the bundle.
+
 ## Authentication & authorization
 
 Auth is built behind a provider seam (`IIdentityProvider`) so the local dev login can be swapped for

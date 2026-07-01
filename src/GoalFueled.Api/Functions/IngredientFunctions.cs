@@ -2,6 +2,7 @@ using GoalFueled.Api.Auth;
 using GoalFueled.Api.Common;
 using GoalFueled.Api.Services;
 using GoalFueled.Api.Services.Nutrition;
+using GoalFueled.Api.Services.OpenFoodFacts;
 using GoalFueled.Domain.Contracts;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -14,13 +15,16 @@ public sealed class IngredientFunctions
 {
     private readonly IngredientService _ingredients;
     private readonly NutritionLookupService _nutritionLookup;
+    private readonly BarcodeLookupService _barcodeLookup;
     private readonly IAuthenticator _auth;
 
     public IngredientFunctions(
-        IngredientService ingredients, NutritionLookupService nutritionLookup, IAuthenticator auth)
+        IngredientService ingredients, NutritionLookupService nutritionLookup,
+        BarcodeLookupService barcodeLookup, IAuthenticator auth)
     {
         _ingredients = ingredients;
         _nutritionLookup = nutritionLookup;
+        _barcodeLookup = barcodeLookup;
         _auth = auth;
     }
 
@@ -48,6 +52,18 @@ public sealed class IngredientFunctions
         {
             var query = req.Query["query"].FirstOrDefault();
             var result = await _nutritionLookup.LookupAsync(user.Id, query, req.HttpContext.RequestAborted);
+            return HttpResults.Ok(result);
+        });
+
+    // Barcode lookup for the scan flow. Distinct top-level route (NOT "ingredients/...") so it can't be
+    // shadowed by the "ingredients/{id}" route — the same route-shadowing class as the lookup above.
+    [Function("LookupIngredientByBarcode")]
+    public Task<IActionResult> BarcodeLookup(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "ingredient-by-barcode")] HttpRequest req) =>
+        ApiEndpoint.RunAuthenticated(req, _auth, async user =>
+        {
+            var barcode = req.Query["barcode"].FirstOrDefault();
+            var result = await _barcodeLookup.LookupAsync(user.Id, barcode, req.HttpContext.RequestAborted);
             return HttpResults.Ok(result);
         });
 

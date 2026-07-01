@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@azure/msal-browser": "^5.15.0",
+    "@zxing/browser": "^0.1.5",
     "dompurify": "^3.4.8",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
