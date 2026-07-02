@@ -63,11 +63,31 @@ public static class OffNutrimentMap
         ToOffKey.TryGetValue(catalogId, out var key) ? key : null;
 
     /// <summary>
+    /// Hard physical ceiling for a mass nutrient per 100 g of food. 100 g of anything contains at most
+    /// 100 g of a component; the small headroom absorbs OFF's per-serving→per-100 g rounding artifacts
+    /// (e.g. pure sugar normalizing to 100.2).
+    /// </summary>
+    private const double MaxGramsPer100g = 100.5;
+
+    /// <summary>
+    /// Hard physical ceiling for energy per 100 g: pure fat is 9 kcal/g → 900 kcal/100 g. Anything above
+    /// is a data error.
+    /// </summary>
+    private const double MaxKcalPer100g = 900;
+
+    /// <summary>
     /// Projects an OFF nutriments object onto catalog-keyed amounts per 100 g, converting each value from
     /// OFF's canonical unit (kcal for energy, grams otherwise) to the nutrient's catalog unit, dropping
     /// untracked nutriments, and preserving catalog order for stable, label-like output. Sodium falls back
     /// to salt ÷ 2.5 when only salt is reported.
     /// </summary>
+    /// <remarks>
+    /// OFF is community data, and records with impossible values exist (e.g. 144 g of carbohydrate per
+    /// 100 g, from per-bag values entered against a per-serving basis). One impossible value means the
+    /// whole record can't be trusted — the plausible-looking siblings usually share the same mistake — so
+    /// this returns an <b>empty</b> list rather than importing any of it. The scan flow then falls back to
+    /// the label photo / manual entry.
+    /// </remarks>
     public static IReadOnlyList<NutrientAmount> MapPer100g(IReadOnlyDictionary<string, JsonElement> nutriments)
     {
         var byId = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
@@ -87,6 +107,12 @@ public static class OffNutrimentMap
             }
 
             if (grams is null || grams < 0) continue;
+
+            // A physically impossible value proves the record is bad — import nothing from it.
+            var impossible = def.Unit == NutrientUnit.Kcal
+                ? grams.Value > MaxKcalPer100g
+                : grams.Value > MaxGramsPer100g;
+            if (impossible) return Array.Empty<NutrientAmount>();
 
             var converted = FromOffCanonical(grams.Value, def);
             if (converted is null) continue;

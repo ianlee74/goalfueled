@@ -68,6 +68,9 @@ export function ScanBarcodePage() {
       }
 
       if (result.found) {
+        // The backend rejects OFF records with physically impossible values (bad community data), so a
+        // found product can arrive with no nutrition — prefill the identity fields and say so honestly.
+        const hasNutrition = result.nutritionPer100g.length > 0
         const prefill: ScanPrefill = {
           name: result.productName,
           barcode: result.barcode,
@@ -76,9 +79,13 @@ export function ScanBarcodePage() {
           unit: 'Gram',
           servingSize: 100,
           nutritionPerServing: result.nutritionPer100g,
-          note: `Filled from ${result.source ?? 'Open Food Facts'}` +
-            (result.productName ? ` ("${result.productName}"` : '') +
-            (result.productName ? ', per 100 g). Review and edit before saving.' : ' (per 100 g). Review and edit before saving.'),
+          note: hasNutrition
+            ? `Filled from ${result.source ?? 'Open Food Facts'}` +
+              (result.productName ? ` ("${result.productName}"` : '') +
+              (result.productName ? ', per 100 g). Review and edit before saving.' : ' (per 100 g). Review and edit before saving.')
+            : `Found "${result.productName ?? result.barcode}" on ${result.source ?? 'Open Food Facts'}, but its ` +
+              'nutrition data looked unreliable and was not imported. Enter the values from the package ' +
+              '(or use "Look up nutrition").',
         }
         navigate('/ingredients/new', { replace: true, state: { scanPrefill: prefill } })
         return

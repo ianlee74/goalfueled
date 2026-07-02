@@ -183,6 +183,60 @@ public class OpenFoodFactsTests
         Assert.Equal(500, OffNutrimentMap.FromOffCanonical(0.5, sodium)!.Value, 6); // 0.5 g → 500 mg
     }
 
+    [Fact]
+    public void Map_rejects_whole_record_when_a_mass_value_is_impossible()
+    {
+        // Real-world case (Peanut M&M's on OFF): carbohydrates_100g = 144.5 g per 100 g is physically
+        // impossible, which proves the record's plausible-looking siblings are untrustworthy too.
+        var amounts = OffNutrimentMap.MapPer100g(Nutriments("""
+        {
+          "energy-kcal_100g": 500,
+          "fat_100g": 68.1,
+          "carbohydrates_100g": 144.5,
+          "sugars_100g": 119,
+          "proteins_100g": 25.5
+        }
+        """));
+
+        Assert.Empty(amounts);
+    }
+
+    [Fact]
+    public void Map_rejects_whole_record_when_energy_is_impossible()
+    {
+        // Pure fat is 900 kcal/100 g — anything above is a data error.
+        var amounts = OffNutrimentMap.MapPer100g(Nutriments(
+            """{ "energy-kcal_100g": 2100, "proteins_100g": 10 }"""));
+
+        Assert.Empty(amounts);
+    }
+
+    [Fact]
+    public void Map_keeps_extreme_but_physically_possible_values()
+    {
+        // Creole seasoning: 30.9 g sodium per 100 g (basically salt) is real. Pure sugar normalizes to
+        // ~100 g carbs per 100 g with small rounding artifacts; pure oil is ~900 kcal. All must survive.
+        var amounts = OffNutrimentMap.MapPer100g(Nutriments("""
+        {
+          "energy-kcal_100g": 900,
+          "sodium_100g": 30.909,
+          "carbohydrates_100g": 100.2
+        }
+        """));
+
+        Assert.Equal(900, ValueOf(amounts, "calories"));
+        Assert.Equal(30909, ValueOf(amounts, "sodium"), 3);
+        Assert.Equal(100.2, ValueOf(amounts, "total_carbohydrate"), 6);
+    }
+
+    [Fact]
+    public void Map_rejects_record_when_derived_sodium_is_impossible()
+    {
+        // salt 300 g/100 g → derived sodium 120 g/100 g: impossible, so the record is rejected.
+        var amounts = OffNutrimentMap.MapPer100g(Nutriments("""{ "salt_100g": 300, "proteins_100g": 5 }"""));
+        Assert.Empty(amounts);
+    }
+
     // ---- BarcodeLookupService ----
 
     private static OffProduct SampleProduct() => new()
