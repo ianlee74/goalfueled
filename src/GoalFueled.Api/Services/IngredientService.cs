@@ -23,15 +23,25 @@ public sealed class IngredientService
     private readonly OffContributionService? _contribution;
 
     /// <summary>
+    /// Verifies (server-side) that a barcoded ingredient's data matches Open Food Facts verbatim, which
+    /// makes it app-wide immediately without review. Optional for the same test reason as above.
+    /// </summary>
+    private readonly OffVerificationService? _offVerification;
+
+    /// <summary>
     /// How many of a user's ingredients may sit in <see cref="IngredientVisibility.PendingReview"/> at
     /// once. An in-app guard against flooding the review queue (mirrors the recipe cap).
     /// </summary>
     private const int MaxPendingReviewsPerUser = 10;
 
-    public IngredientService(IIngredientRepository repo, OffContributionService? contribution = null)
+    public IngredientService(
+        IIngredientRepository repo,
+        OffContributionService? contribution = null,
+        OffVerificationService? offVerification = null)
     {
         _repo = repo;
         _contribution = contribution;
+        _offVerification = offVerification;
     }
 
     /// <summary>
@@ -91,6 +101,23 @@ public sealed class IngredientService
             Visibility = appLevel ? IngredientVisibility.Public : IngredientVisibility.Private,
         };
 
+        // Barcoded products whose data matches Open Food Facts verbatim (verified server-side, never
+        // client-claimed) are already public data — make them app-wide immediately, skipping review.
+        // Any user modification (different serving basis, edited/removed nutrients) fails verification
+        // and takes the normal private → review path.
+        if (ingredient.Barcode is not null && _offVerification is not null &&
+            await _offVerification.MatchesOffAsync(ingredient, ct))
+        {
+            ingredient.SourcedFromOff = true;
+            if (!appLevel)
+            {
+                ingredient.Scope = OwnershipScope.App;
+                ingredient.OwnerUserId = null;
+                ingredient.Visibility = IngredientVisibility.Public;
+                // OriginalCreatorUserId (set above) keeps crediting the scanner.
+            }
+        }
+
         await _repo.AddAsync(ingredient, ct);
 
         // Only public products are contributed to OFF. A user's new ingredient starts private and is
@@ -142,13 +169,27 @@ public sealed class IngredientService
         var ingredient = await _repo.GetByIdAsync(id, ct) ?? throw new NotFoundException("Ingredient not found.");
         EnsureCanEdit(ingredient, user);
 
+        // An edit that changes the nutrition DATA (values, serving basis, or barcode) means the
+        // ingredient no longer mirrors Open Food Facts — clear the sourced-from-OFF marker. Cosmetic
+        // edits (name, description, image, tags) keep it.
+        var newNutrition = NormalizeNutrition(input.NutritionPerServing);
+        var newBarcode = NormalizeBarcode(input.Barcode);
+        if (ingredient.SourcedFromOff == true &&
+            (ingredient.Unit != input.Unit ||
+             Math.Abs(ingredient.ServingSize - input.ServingSize) > 0.001 ||
+             ingredient.Barcode != newBarcode ||
+             !SameNutrition(ingredient.NutritionPerServing, newNutrition)))
+        {
+            ingredient.SourcedFromOff = false;
+        }
+
         ingredient.Name = input.Name.Trim();
         ingredient.Description = HtmlSanitizer.Sanitize(input.Description);
         ingredient.ImageUrl = input.ImageUrl;
-        ingredient.Barcode = NormalizeBarcode(input.Barcode);
+        ingredient.Barcode = newBarcode;
         ingredient.Unit = input.Unit;
         ingredient.ServingSize = input.ServingSize;
-        ingredient.NutritionPerServing = NormalizeNutrition(input.NutritionPerServing);
+        ingredient.NutritionPerServing = newNutrition;
         ingredient.Tags = NormalizeTerms(input.Tags);
         ingredient.Aliases = NormalizeTerms(input.Aliases);
         ingredient.LocalizedNames = NormalizeLocalizedNames(input.LocalizedNames);
@@ -382,7 +423,17 @@ public sealed class IngredientService
     {
         if (_contribution is null || ingredient.Barcode is null) return Task.CompletedTask;
         if (ingredient.EffectiveVisibility != IngredientVisibility.Public) return Task.CompletedTask;
+        // Verbatim OFF data came FROM Open Food Facts — nothing to contribute back.
+        if (ingredient.SourcedFromOff == true) return Task.CompletedTask;
         return _contribution.EnqueueIfEligibleAsync(ingredient, ct);
+    }
+
+    /// <summary>Order-insensitive equality of two nutrient collections (same ids, same values).</summary>
+    private static bool SameNutrition(IReadOnlyList<NutrientAmount> a, IReadOnlyList<NutrientAmount> b)
+    {
+        if (a.Count != b.Count) return false;
+        var byId = a.ToDictionary(n => n.NutrientId, n => n.Value, StringComparer.OrdinalIgnoreCase);
+        return b.All(n => byId.TryGetValue(n.NutrientId, out var v) && v.Equals(n.Value));
     }
 
     /// <summary>
@@ -405,5 +456,6 @@ public sealed class IngredientService
         i.NutritionPerServing, i.Scope, i.OwnerUserId, i.OriginalCreatorUserId, i.EffectiveVisibility,
         i.CreatedAt, i.UpdatedAt,
         CanEdit(i, user), CanSubmitForReview(i, user), CanReview(i, user),
-        user.IsFavoriteIngredient(i.Id));
+        user.IsFavoriteIngredient(i.Id),
+        i.SourcedFromOff == true, i.ContributedToOffAt);
 }

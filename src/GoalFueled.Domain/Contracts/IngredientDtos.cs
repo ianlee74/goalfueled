@@ -33,7 +33,11 @@ public sealed record IngredientDto(
     /// <summary>True if the caller (an acting admin) may approve/reject this pending ingredient.</summary>
     bool CanReview,
     /// <summary>True when the current caller has marked this ingredient as a favorite (per-user).</summary>
-    bool IsFavorite = false);
+    bool IsFavorite = false,
+    /// <summary>True when the nutrition was verified to match the Open Food Facts record verbatim.</summary>
+    bool SourcedFromOff = false,
+    /// <summary>When this product was contributed to Open Food Facts; null when it never was.</summary>
+    DateTimeOffset? ContributedToOffAt = null);
 
 /// <summary>Payload for creating or updating an ingredient.</summary>
 public sealed record IngredientInput(

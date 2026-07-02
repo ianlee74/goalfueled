@@ -227,6 +227,10 @@ export interface Ingredient {
   canReview: boolean
   // True when the signed-in user has marked this ingredient as a favorite (per-user).
   isFavorite: boolean
+  // True when the nutrition was verified (server-side) to match the Open Food Facts record verbatim.
+  sourcedFromOff: boolean
+  // When this product was contributed to Open Food Facts; absent when it never was.
+  contributedToOffAt?: string
 }
 
 export interface IngredientInput {

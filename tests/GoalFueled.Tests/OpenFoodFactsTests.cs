@@ -66,7 +66,8 @@ public class OpenFoodFactsTests
         public Task<IReadOnlyList<Ingredient>> ListPendingReviewAsync(CancellationToken ct = default) => throw new NotImplementedException();
         public Task<int> CountPendingReviewByOwnerAsync(string ownerUserId, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<Ingredient> AddAsync(Ingredient ingredient, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task UpdateAsync(Ingredient ingredient, CancellationToken ct = default) => throw new NotImplementedException();
+        // The contribution worker updates the ingredient (ContributedToOffAt stamp) — in-memory no-op.
+        public Task UpdateAsync(Ingredient ingredient, CancellationToken ct = default) => Task.CompletedTask;
         public Task DeleteAsync(Ingredient ingredient, CancellationToken ct = default) => throw new NotImplementedException();
     }
 
@@ -612,5 +613,116 @@ public class OpenFoodFactsTests
 
         Assert.Single(queue.Items); // app-level is public immediately → queued
         Assert.Equal("555555555555", queue.Items[0].Barcode);
+    }
+
+    [Fact]
+    public async Task Process_stamps_ContributedToOffAt_on_success()
+    {
+        var ing = Ing(UnitOfMeasure.Gram, 100, ("calories", 100));
+        var off = new FakeOffClient(null); // missing on OFF → will be contributed
+        var queue = new FakeQueue();
+        queue.Items.Add(new OffContributionQueueItem { Barcode = ing.Barcode!, IngredientId = ing.Id });
+        var svc = WithQueue(off, queue, ing);
+
+        await svc.ProcessQueueAsync(batchSize: 10, delay: TimeSpan.Zero);
+
+        Assert.NotNull(ing.ContributedToOffAt); // drives the "shared to OFF" indicator
+    }
+
+    // ---- OFF verification: verbatim OFF data becomes app-wide immediately ----
+
+    /// <summary>The exact per-100 g input a client sends after an unmodified OFF prefill.</summary>
+    private static IngredientInput OffPrefillInput(string barcode, IReadOnlyList<NutrientAmount> mapped) =>
+        new("Test Cereal", null, null, UnitOfMeasure.Gram, 100, mapped, Barcode: barcode);
+
+    private static (IngredientService svc, FakeQueue queue) ServiceWithVerification(
+        GoalFueledDbContext db, OffProduct? product)
+    {
+        var off = new FakeOffClient(product);
+        var queue = new FakeQueue();
+        var repo = new IngredientRepository(db);
+        var contribution = new OffContributionService(off, queue, repo, NullLogger<OffContributionService>.Instance);
+        var verification = new OffVerificationService(off);
+        return (new IngredientService(repo, contribution, verification), queue);
+    }
+
+    [Fact]
+    public async Task Unmodified_off_data_becomes_app_wide_public_immediately()
+    {
+        using var db = TestHelpers.NewContext();
+        var user = await UserAsync(db, "user");
+        var product = SampleProduct();
+        var mapped = OffNutrimentMap.MapPer100g(product.Nutriments!);
+        var (svc, queue) = ServiceWithVerification(db, product);
+
+        var created = await svc.CreateAsync(user, OffPrefillInput("737628064502", mapped), default);
+
+        Assert.Equal(OwnershipScope.App, created.Scope);                     // app-wide, no review
+        Assert.Equal(IngredientVisibility.Public, created.Visibility);
+        Assert.Null(created.OwnerUserId);
+        Assert.Equal(user.Id, created.OriginalCreatorUserId);                // scanner keeps credit
+        Assert.True(created.SourcedFromOff);
+        Assert.Empty(queue.Items);                                           // came FROM OFF → never pushed back
+    }
+
+    [Fact]
+    public async Task Modified_off_data_stays_private_and_unbadged()
+    {
+        using var db = TestHelpers.NewContext();
+        var user = await UserAsync(db, "user");
+        var product = SampleProduct();
+        // The user tweaked one value after the prefill → no longer verbatim OFF data.
+        var modified = OffNutrimentMap.MapPer100g(product.Nutriments!)
+            .Select(a => a.NutrientId == "calories" ? new NutrientAmount(a.NutrientId, a.Value + 50) : a)
+            .ToList();
+        var (svc, _) = ServiceWithVerification(db, product);
+
+        var created = await svc.CreateAsync(user, OffPrefillInput("737628064502", modified), default);
+
+        Assert.Equal(OwnershipScope.User, created.Scope);
+        Assert.Equal(IngredientVisibility.Private, created.Visibility);
+        Assert.False(created.SourcedFromOff);
+    }
+
+    [Fact]
+    public async Task Off_unreachable_or_unknown_barcode_takes_the_normal_private_path()
+    {
+        using var db = TestHelpers.NewContext();
+        var user = await UserAsync(db, "user");
+        var (svc, _) = ServiceWithVerification(db, product: null); // OFF has nothing / is down
+
+        var created = await svc.CreateAsync(
+            user, OffPrefillInput("737628064502", new[] { new NutrientAmount("calories", 100) }), default);
+
+        Assert.Equal(OwnershipScope.User, created.Scope);
+        Assert.Equal(IngredientVisibility.Private, created.Visibility);
+        Assert.False(created.SourcedFromOff);
+    }
+
+    [Fact]
+    public async Task Editing_the_nutrition_of_an_off_sourced_ingredient_clears_the_badge()
+    {
+        using var db = TestHelpers.NewContext();
+        var admin = await UserAsync(db, "admin"); // app-scoped items are admin-editable
+        var product = SampleProduct();
+        var mapped = OffNutrimentMap.MapPer100g(product.Nutriments!);
+        var (svc, _) = ServiceWithVerification(db, product);
+
+        var created = await svc.CreateAsync(admin, OffPrefillInput("737628064502", mapped), default);
+        Assert.True(created.SourcedFromOff);
+
+        // A cosmetic rename keeps the badge…
+        var renamed = await svc.UpdateAsync(admin,
+            created.Id, OffPrefillInput("737628064502", mapped) with { Name = "Nicer Name", AppLevel = true }, default);
+        Assert.True(renamed.SourcedFromOff);
+
+        // …but changing a nutrient value clears it.
+        var tweaked = mapped
+            .Select(a => a.NutrientId == "calories" ? new NutrientAmount(a.NutrientId, a.Value + 1) : a)
+            .ToList();
+        var edited = await svc.UpdateAsync(admin,
+            created.Id, OffPrefillInput("737628064502", tweaked) with { AppLevel = true }, default);
+        Assert.False(edited.SourcedFromOff);
+        Assert.Equal(IngredientVisibility.Public, edited.Visibility); // public never reverts
     }
 }

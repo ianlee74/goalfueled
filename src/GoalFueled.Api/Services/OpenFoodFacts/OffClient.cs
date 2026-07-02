@@ -18,6 +18,9 @@ namespace GoalFueled.Api.Services.OpenFoodFacts;
 /// <c>https://world.openfoodfacts.net</c> so nothing hits production until a real host is set.</item>
 /// <item><c>GoalFueled:OpenFoodFacts:UserAgent</c> — OFF requires a descriptive UA; defaults to
 /// <c>GoalFueled/1.0 (ian@houseoflees.net)</c>.</item>
+/// <item><c>GoalFueled:OpenFoodFacts:EnableContribution</c> — master switch for write-back, default
+/// <b>false</b>. Contribution stays off until explicitly enabled, so data can be tested end-to-end
+/// without ever pushing to OFF.</item>
 /// <item><c>GoalFueled:OpenFoodFacts:UserId</c> / <c>:Password</c> — the shared write account. When either
 /// is blank, <see cref="CanContribute"/> is false and writes are skipped.</item>
 /// </list>
@@ -43,6 +46,7 @@ public sealed class OffClient : IOffClient
     private readonly ILogger<OffClient> _logger;
     private readonly Uri _readBase;
     private readonly Uri _writeBase;
+    private readonly bool _enableContribution;
     private readonly string? _userId;
     private readonly string? _password;
 
@@ -58,11 +62,14 @@ public sealed class OffClient : IOffClient
 
         _readBase = ResolveBase(config["GoalFueled:OpenFoodFacts:ReadBaseUrl"], DefaultReadBaseUrl);
         _writeBase = ResolveBase(config["GoalFueled:OpenFoodFacts:WriteBaseUrl"], DefaultWriteBaseUrl);
+        _enableContribution = string.Equals(
+            config["GoalFueled:OpenFoodFacts:EnableContribution"], "true", StringComparison.OrdinalIgnoreCase);
         _userId = config["GoalFueled:OpenFoodFacts:UserId"];
         _password = config["GoalFueled:OpenFoodFacts:Password"];
     }
 
     public bool CanContribute =>
+        _enableContribution &&
         !string.IsNullOrWhiteSpace(_userId) && !string.IsNullOrWhiteSpace(_password);
 
     public async Task<OffProduct?> GetProductAsync(string barcode, CancellationToken ct = default)

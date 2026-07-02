@@ -58,6 +58,7 @@ public class DependencyInjectionTests
         services.AddHttpClient<IOffClient, OffClient>();
         services.AddScoped<BarcodeLookupService>();
         services.AddScoped<OffContributionService>();
+        services.AddScoped<OffVerificationService>();
         services.AddHttpClient<INutritionLabelReader, AnthropicVisionClient>();
         services.AddScoped<VisionModelSettingsService>();
 
@@ -96,6 +97,7 @@ public class DependencyInjectionTests
         Assert.NotNull(sp.GetRequiredService<IOffClient>());
         Assert.NotNull(sp.GetRequiredService<BarcodeLookupService>());
         Assert.NotNull(sp.GetRequiredService<OffContributionService>());
+        Assert.NotNull(sp.GetRequiredService<OffVerificationService>());
         Assert.NotNull(sp.GetRequiredService<IOffContributionQueue>());
         Assert.NotNull(sp.GetRequiredService<INutritionLabelReader>());
         Assert.NotNull(sp.GetRequiredService<VisionModelSettingsService>());

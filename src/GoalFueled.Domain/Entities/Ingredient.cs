@@ -27,6 +27,21 @@ public class Ingredient
     /// </summary>
     public string? Barcode { get; set; }
 
+    /// <summary>
+    /// True when this ingredient's nutrition was verified (server-side, at save time) to match the Open
+    /// Food Facts record for its barcode verbatim. Such ingredients are already public data, so they're
+    /// made app-wide immediately without the review workflow. Cleared when a later edit changes the
+    /// nutrition/serving data. Nullable (null = false) for the same old-document reason as
+    /// <see cref="Tags"/>.
+    /// </summary>
+    public bool? SourcedFromOff { get; set; }
+
+    /// <summary>
+    /// When the contribution worker successfully pushed this product to Open Food Facts; null when it
+    /// never was. Drives the "shared to OFF" indicator. Nullable for the old-document reason above.
+    /// </summary>
+    public DateTimeOffset? ContributedToOffAt { get; set; }
+
     /// <summary>The unit used to define a single serving of this ingredient.</summary>
     public UnitOfMeasure Unit { get; set; } = UnitOfMeasure.Gram;
 

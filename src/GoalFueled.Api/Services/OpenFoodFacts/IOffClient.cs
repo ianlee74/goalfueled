@@ -13,7 +13,8 @@ public interface IOffClient
     Task<OffProduct?> GetProductAsync(string barcode, CancellationToken ct = default);
 
     /// <summary>
-    /// True when a write account is configured (user id + password). Contribution is skipped when false.
+    /// True when contribution is explicitly enabled (<c>EnableContribution</c>, default off) AND a write
+    /// account is configured (user id + password). Contribution is skipped when false.
     /// </summary>
     bool CanContribute { get; }
 

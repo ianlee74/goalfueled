@@ -62,6 +62,7 @@ builder.Services.AddHttpClient<IOffClient, OffClient>(http =>
     http.Timeout = TimeSpan.FromSeconds(15));
 builder.Services.AddScoped<BarcodeLookupService>();
 builder.Services.AddScoped<OffContributionService>();
+builder.Services.AddScoped<OffVerificationService>();
 
 // Nutrition-label OCR fallback (Claude vision). Longer timeout — a vision call takes longer than a
 // plain REST lookup.

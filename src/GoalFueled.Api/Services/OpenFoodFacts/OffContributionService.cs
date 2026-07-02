@@ -112,6 +112,9 @@ public sealed class OffContributionService
             {
                 case OffContributionOutcome.Contributed:
                     contributed++;
+                    // Stamp the ingredient so the UI can show the "shared to Open Food Facts" indicator.
+                    ingredient.ContributedToOffAt = DateTimeOffset.UtcNow;
+                    await _ingredients.UpdateAsync(ingredient, ct);
                     await _queue.RemoveAsync(item, ct);
                     break;
 

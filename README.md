@@ -190,7 +190,8 @@ enable optional features (nutrition lookup, barcode contribution, label OCR) or 
 | `GoalFueled:OpenFoodFacts:ReadBaseUrl` | No | `https://world.openfoodfacts.org` | Base URL for barcode product lookups. |
 | `GoalFueled:OpenFoodFacts:WriteBaseUrl` | No | `https://world.openfoodfacts.net` (**staging**) | Base URL for contributions. Point at `https://world.openfoodfacts.org` for production writes. |
 | `GoalFueled:OpenFoodFacts:UserAgent` | No | `GoalFueled/1.0 (ian@houseoflees.net)` | Descriptive User-Agent OFF requires on every request. |
-| `GoalFueled:OpenFoodFacts:UserId` | For write-back | *(blank)* | Shared OFF account username. Contribution is disabled until this and the password are set. |
+| `GoalFueled:OpenFoodFacts:EnableContribution` | For write-back | `false` | Master switch for contributing products back to OFF. Keep `false` until the app's data is tested — nothing is pushed while off (the queue still accumulates nothing). |
+| `GoalFueled:OpenFoodFacts:UserId` | For write-back | *(blank)* | Shared OFF account username. Contribution also requires `EnableContribution=true`. |
 | `GoalFueled:OpenFoodFacts:Password` | For write-back | *(blank)* | 🔒 Shared OFF account password. |
 | `GoalFueled:OpenFoodFacts:ContributionBatchSize` | No | `20` | Max products the contribution timer pushes per run. |
 | `GoalFueled:OpenFoodFacts:ContributionDelayMs` | No | `6000` | Delay between OFF calls within a run (rate limiting). |

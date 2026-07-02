@@ -91,8 +91,13 @@ export function IngredientsPage() {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="row spread">
                 <strong>{i.name}</strong>
-                <span className={`badge ${i.scope === 'App' ? 'app' : 'mine'}`}>
-                  {i.scope === 'App' ? 'App' : 'Mine'}
+                <span className="row" style={{ gap: '0.25rem' }}>
+                  {i.sourcedFromOff && (
+                    <span className="badge" title="Nutrition sourced from Open Food Facts">OFF</span>
+                  )}
+                  <span className={`badge ${i.scope === 'App' ? 'app' : 'mine'}`}>
+                    {i.scope === 'App' ? 'App' : 'Mine'}
+                  </span>
                 </span>
               </div>
               <div className="small muted">

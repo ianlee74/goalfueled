@@ -384,6 +384,21 @@ export function IngredientFormPage() {
       {!isNew && !readOnly && (
         <div className="notice info">Status: <strong>{INGREDIENT_VISIBILITY_LABELS[visibility]}</strong></div>
       )}
+      {!isNew && (loadedRef.current?.sourcedFromOff || loadedRef.current?.contributedToOffAt) && (
+        <div className="row" style={{ gap: '0.4rem', flexWrap: 'wrap' }}>
+          {loadedRef.current?.sourcedFromOff && (
+            <span className="badge" title="Nutrition verified to match the Open Food Facts record for this barcode">
+              Sourced from Open Food Facts
+            </span>
+          )}
+          {loadedRef.current?.contributedToOffAt && (
+            <span className="badge"
+              title={`Contributed on ${new Date(loadedRef.current.contributedToOffAt).toLocaleDateString()}`}>
+              Shared to Open Food Facts
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="card stack">
         <label className="field">
