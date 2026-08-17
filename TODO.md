@@ -6,11 +6,6 @@ Ignore all files in the `Future Features` section.
 
 ## Tasks
 
-- [] **Add AI Voice Functionality**: allow the user to use voice or text prompts to have Claude AI do input for them. Input to start with would be:
-   - Log `fuel` or `burn`. Automatically create recipe/meals if one doesn't already exist or prompt if unsure if there's a match. For example, if the user says "I ate a quarter pounder with fries from McDonalds." then you would look to see if we already have meals for those and if we don't then you would find the ingredients for the meal and generate the recipe and meal data then log the `fuel`.
-   - Add a `recipe`.
-   - Add a `meal`.
-
 ## FUTURE FEATURES
 
 >[AI Agent] skip ALL items in this section.

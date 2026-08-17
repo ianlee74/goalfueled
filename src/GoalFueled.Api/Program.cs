@@ -1,6 +1,7 @@
 using Azure.Monitor.OpenTelemetry.Exporter;
 using GoalFueled.Api.Auth;
 using GoalFueled.Api.Services;
+using GoalFueled.Api.Services.Assistant;
 using GoalFueled.Api.Services.Nutrition;
 using GoalFueled.Api.Services.OpenFoodFacts;
 using GoalFueled.Data;
@@ -70,6 +71,13 @@ builder.Services.AddHttpClient<INutritionLabelReader, AnthropicVisionClient>(htt
     http.Timeout = TimeSpan.FromSeconds(60));
 // Admin runtime override for the OCR model (for A/B testing before committing a choice to config).
 builder.Services.AddScoped<VisionModelSettingsService>();
+
+// AI assistant ("say what you ate"). Same server-side pattern: the key never reaches the browser. The
+// timeout is the longest of the outbound calls — one turn can involve thinking plus several tool calls.
+builder.Services.AddHttpClient<IAssistantModelClient, AnthropicAssistantClient>(http =>
+    http.Timeout = TimeSpan.FromSeconds(120));
+builder.Services.AddScoped<AssistantToolDispatcher>();
+builder.Services.AddScoped<AssistantService>();
 
 var host = builder.Build();
 

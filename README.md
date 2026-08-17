@@ -154,6 +154,29 @@ nutrients the app tracks are populated. The catalog fallback only applies to mas
 are skipped. The lookup pre-fills editable fields, never auto-saves, and always surfaces a clear
 message (rate-limited / no match / no key) so manual entry is never blocked.
 
+### AI assistant (log fuel or burn by talking or typing)
+
+Say or type one sentence — *"I ate a quarter pounder with fries from McDonalds"* — and the assistant
+records it. Behind `POST /api/assistant-chat` it runs a **tool-use loop server-side**: it searches your
+fuel sources, recipes and ingredients, looks up real nutrition, and creates only what's missing before
+logging. Every tool maps onto an existing service method, so ownership, visibility, validation and input
+limits apply exactly as they do to the normal forms, and anything it creates is **private to you**.
+
+> [!IMPORTANT]
+> **It asks before it acts.** Whenever the assistant would create something, or isn't sure which existing
+> item you meant, it stops and asks — the reply comes back as a question with the proposal spelled out, and
+> nothing is created until you answer. Confirmation is a tool the model calls, not an honour system.
+
+- **Voice is optional, text always works.** Speech is transcribed *in the browser* by the free built-in
+  Web Speech API; only text is sent to the server. Browsers without it (notably Firefox) simply don't get
+  a mic button and see a one-line note — the typing path is unaffected.
+- **Enable it** by setting `GoalFueled:Anthropic:ApiKey` (the same key as label OCR). Without it the
+  assistant replies that it isn't configured and points you at the normal forms — never an error.
+- **Gated** behind the `ai-voice-logging` feature tag (Beta, Pro tier by default, grantable per user).
+- **Cost caps**: at most 10 model calls per user turn, a per-call output ceiling, and length limits on both
+  the message and the conversation echoed back by the client. `GoalFueled:Anthropic:AssistantEffort` is the
+  main cost/latency dial.
+
 ## Configuration
 
 Every setting has a safe default, so the app runs locally with no configuration. You only set values to
@@ -195,8 +218,10 @@ enable optional features (nutrition lookup, barcode contribution, label OCR) or 
 | `GoalFueled:OpenFoodFacts:Password` | For write-back | *(blank)* | 🔒 Shared OFF account password. |
 | `GoalFueled:OpenFoodFacts:ContributionBatchSize` | No | `20` | Max products the contribution timer pushes per run. |
 | `GoalFueled:OpenFoodFacts:ContributionDelayMs` | No | `6000` | Delay between OFF calls within a run (rate limiting). |
-| `GoalFueled:Anthropic:ApiKey` | For label OCR | *(blank)* | 🔒 Anthropic API key. Label OCR is disabled until set. |
+| `GoalFueled:Anthropic:ApiKey` | For label OCR + AI assistant | *(blank)* | 🔒 Anthropic API key, shared by both features. Each is disabled (and says so) until it is set. |
 | `GoalFueled:Anthropic:VisionModel` | No | `claude-opus-4-8` | OCR model. An admin can override at runtime from the Admin page (persisted; wins over this). |
+| `GoalFueled:Anthropic:AssistantModel` | No | `claude-opus-5` | Model for the AI assistant's tool-use loop. |
+| `GoalFueled:Anthropic:AssistantEffort` | No | `medium` | Assistant reasoning effort: `low`, `medium`, `high`, `xhigh`, `max`. The main cost/latency dial; an unrecognized value falls back to the default rather than failing every call. |
 | `GoalFueled:Anthropic:BaseUrl` | No | `https://api.anthropic.com` | Anthropic API base URL (rarely changed). |
 
 ### Frontend build variables (`VITE_*`)

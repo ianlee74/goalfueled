@@ -15,7 +15,6 @@ public class FeatureAccessTests
     // A free-tier feature (Beta) and a paid-tier one (Beta, Plus+) — the catalog's two enforced gates.
     private const string FreeFeature = FeatureKeys.BarcodeScanning;
     private const string PaidFeature = FeatureKeys.NutritionLabelOcr;
-    private const string PlannedFeature = FeatureKeys.AiVoiceLogging;
 
     private static AppUser NewUser(SubscriptionLevel? level = null) =>
         new() { Id = "u1", Email = "u@dev.local", DisplayName = "U", SubscriptionLevel = level };
@@ -153,19 +152,31 @@ public class FeatureAccessTests
 
     // ---- Status participates in resolution ----
 
+    // The catalog currently ships no Planned/Disabled feature (ai-voice-logging graduated to Beta), so this
+    // asserts over whatever non-enableable features exist rather than naming one. It is the integration
+    // guard for the semantics the [Theory] below pins on FeatureDefinition itself: the moment someone adds a
+    // Planned or Disabled entry, this fires if FeatureAccess stops honouring IsEnableable.
     [Fact]
-    public void A_planned_feature_is_off_for_everyone_even_at_the_top_tier()
+    public void A_non_enableable_feature_is_off_for_everyone_and_cannot_be_resurrected_by_a_grant()
     {
-        Assert.False(FeatureAccess.IsEnabled(NewUser(SubscriptionLevel.Pro), PlannedFeature));
+        foreach (var feature in FeatureCatalog.All.Where(f => !f.IsEnableable))
+        {
+            // Off at the top tier...
+            Assert.False(FeatureAccess.IsEnabled(NewUser(SubscriptionLevel.Pro), feature.Key));
+
+            // ...and still off when handed out individually.
+            var granted = NewUser(SubscriptionLevel.Pro);
+            FeatureAccess.SetOverride(granted, feature.Key, FeatureAccessMode.Granted);
+            Assert.False(FeatureAccess.IsEnabled(granted, feature.Key));
+        }
     }
 
+    // Every shipped feature is enableable — i.e. reachable by some tier or grant. This is the companion
+    // assertion that keeps the test above from silently becoming vacuous without anyone noticing.
     [Fact]
-    public void An_individual_grant_cannot_resurrect_a_planned_or_disabled_feature()
+    public void Every_catalog_feature_is_currently_enableable()
     {
-        var user = NewUser(SubscriptionLevel.Pro);
-        FeatureAccess.SetOverride(user, PlannedFeature, FeatureAccessMode.Granted);
-
-        Assert.False(FeatureAccess.IsEnabled(user, PlannedFeature));
+        Assert.All(FeatureCatalog.All, f => Assert.True(f.IsEnableable, $"{f.Key} is not enableable."));
     }
 
     [Theory]

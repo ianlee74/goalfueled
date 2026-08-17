@@ -59,6 +59,21 @@ public static class InputLimits
     /// <summary>Upper bound for the calories burned on a single logged activity (a generous ceiling).</summary>
     public const int BurnCaloriesMax = 100_000;
 
+    /// <summary>Max length of one message sent to the AI assistant (a spoken or typed sentence).</summary>
+    public const int AssistantMessageMaxLength = 2_000;
+
+    /// <summary>
+    /// Max turns in an assistant conversation echoed back by the client. Conversation state is client-held,
+    /// so this is what stops an unbounded transcript from being replayed into a (billed) model call.
+    /// </summary>
+    public const int AssistantConversationTurnsMax = 60;
+
+    /// <summary>
+    /// Max total characters across an echoed conversation's content blocks. A second, tighter ceiling on the
+    /// same untrusted input: turn COUNT alone can't bound the token cost of one enormous turn.
+    /// </summary>
+    public const int AssistantConversationCharsMax = 200_000;
+
     /// <summary>
     /// Builds the name for a customized clone: the original with a " (custom)" suffix so it's
     /// distinguishable from the app-level source in lists. Truncates the original first if needed so

@@ -343,6 +343,48 @@ export interface LabelOcrResult {
   nutritionPerServing: NutrientAmount[]
 }
 
+// ---- AI assistant ----
+
+/**
+ * One turn of an assistant conversation. `content` is the provider's raw content-block array and is
+ * deliberately OPAQUE to the client: it is echoed back untouched so provider-owned blocks survive the
+ * round-trip. Never read or construct one here — only pass along what the server returned.
+ */
+export interface AssistantTurn {
+  role: 'user' | 'assistant'
+  content: unknown
+}
+
+/** How an assistant turn ended. */
+export type AssistantChatStatus = 'Completed' | 'NeedsConfirmation' | 'Unavailable'
+
+/** One thing the assistant actually created or logged — real outcomes, not the model's prose. */
+export interface AssistantAction {
+  /** `ingredient` | `recipe` | `fuel-source` | `fuel` | `burn`. */
+  kind: string
+  summary: string
+  id?: string
+}
+
+export interface AssistantChatInput {
+  message: string
+  /** Prior turns, exactly as the last response returned them. Omit to start a new conversation. */
+  conversation?: AssistantTurn[]
+  /** Set only when answering a confirmation question; `message` then carries the answer. */
+  pendingToolUseId?: string
+}
+
+export interface AssistantChatResult {
+  status: AssistantChatStatus
+  /** The assistant's answer, or its confirmation question. */
+  reply: string
+  actions: AssistantAction[]
+  /** Send this back on the next turn — the server keeps no session state. */
+  conversation: AssistantTurn[]
+  /** Present when `status` is `NeedsConfirmation`: echo it back with the user's answer. */
+  pendingToolUseId?: string
+}
+
 /** Admin view of the nutrition-label OCR vision model (configured default + runtime override). */
 export interface VisionModelSettings {
   // The model from configuration, or the built-in default when none is set.

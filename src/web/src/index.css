@@ -446,6 +446,24 @@ a.chip:hover { text-decoration: none; background: var(--hover); }
 .sheet-actions > button:hover { background: var(--hover); }
 .sheet-action-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 
+/* ---- AI assistant sheet ---- */
+/* Example prompts, offered before the first exchange. Reuses the finder chip look. */
+.assistant-examples { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+/* The exchange so far. Capped so a long conversation scrolls inside the sheet rather than growing it. */
+.assistant-transcript {
+  display: flex; flex-direction: column; gap: 0.7rem;
+  max-height: 40vh; overflow-y: auto;
+  padding: 0.75rem; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.assistant-line { display: flex; flex-direction: column; gap: 2px; }
+.assistant-line p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.assistant-line.you p { color: var(--muted); }
+/* Input + mic + send on one row; the field takes whatever is left. */
+.assistant-compose { display: flex; gap: 0.4rem; align-items: center; }
+.assistant-compose .input { flex: 1; min-width: 0; }
+.assistant-compose .btn { flex: 0 0 auto; }
+
 /* ---- Components ---- */
 /* Cards sit flat on the background; shadow is reserved for raised elements (drawers, sheets). */
 .card {

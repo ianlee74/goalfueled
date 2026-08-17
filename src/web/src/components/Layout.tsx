@@ -2,10 +2,12 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import type { ComponentType } from 'react'
 import { useAuth } from '../auth/AuthContext'
+import { FEATURES, useFeature } from '../hooks/useFeature'
+import { AssistantSheet } from './AssistantSheet'
 import { FuelBurnIcon } from './FuelBurnIcon'
 import { Sheet } from './Sheet'
 import {
-  IconGauge, IconLibrary, IconLogPlus, IconRocket, IconTarget, IconUser, IconUsers, IconWeight,
+  IconGauge, IconLibrary, IconLogPlus, IconRocket, IconSpark, IconTarget, IconUser, IconUsers, IconWeight,
 } from './icons'
 
 /**
@@ -45,8 +47,12 @@ function isDestinationActive(d: Destination, pathname: string): boolean {
 
 export function Layout() {
   const [logOpen, setLogOpen] = useState(false)
+  const [assistantOpen, setAssistantOpen] = useState(false)
   const { pathname } = useLocation()
   const { profile, switchAccount } = useAuth()
+  // Feature-tagged. Without the tag the entry point simply isn't offered; the endpoint enforces the same
+  // gate server-side and returns 403 either way.
+  const canUseAssistant = useFeature(FEATURES.aiVoiceLogging)
   // Surface the Admin destination in the sidebar only while acting as an admin.
   const sidebarDestinations = profile?.isActingAsAdmin
     ? [...DESTINATIONS, ADMIN_DESTINATION]
@@ -109,7 +115,14 @@ export function Layout() {
         {DESTINATIONS.slice(2).map((d) => <TabLink key={d.to} d={d} pathname={pathname} />)}
       </nav>
 
-      {logOpen && <LogSheet onClose={() => setLogOpen(false)} />}
+      {logOpen && (
+        <LogSheet
+          onClose={() => setLogOpen(false)}
+          canUseAssistant={canUseAssistant}
+          onOpenAssistant={() => { setLogOpen(false); setAssistantOpen(true) }}
+        />
+      )}
+      {assistantOpen && <AssistantSheet onClose={() => setAssistantOpen(false)} />}
     </div>
   )
 }
@@ -123,8 +136,12 @@ function TabLink({ d, pathname }: { d: Destination; pathname: string }) {
   )
 }
 
-/** Bottom sheet listing the three quick-log destinations. */
-function LogSheet({ onClose }: { onClose: () => void }) {
+/** Bottom sheet listing the quick-log destinations (plus the assistant, when the account has it). */
+function LogSheet({ onClose, canUseAssistant, onOpenAssistant }: {
+  onClose: () => void
+  canUseAssistant: boolean
+  onOpenAssistant: () => void
+}) {
   const navigate = useNavigate()
 
   function go(path: string) {
@@ -135,6 +152,17 @@ function LogSheet({ onClose }: { onClose: () => void }) {
   return (
     <Sheet title="Log" onClose={onClose}>
       <div className="sheet-actions">
+        {canUseAssistant && (
+          <button type="button" onClick={onOpenAssistant}>
+            <span className="fb-icon" style={{ background: 'var(--surface-muted)', color: 'var(--primary)' }}>
+              <IconSpark size={18} />
+            </span>
+            <span className="sheet-action-text">
+              <strong>Assistant <span className="badge beta">Beta</span></strong>
+              <span className="small muted">Say or type it and I'll log it</span>
+            </span>
+          </button>
+        )}
         <button type="button" onClick={() => go('/?add=fuel')}>
           <FuelBurnIcon kind="fuel" />
           <span className="sheet-action-text">

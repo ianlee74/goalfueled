@@ -5,6 +5,7 @@ import { useAuth } from '../auth/AuthContext'
 import { ActivityFinder } from '../components/ActivityFinder'
 import { FoodItemFinder } from '../components/FoodItemFinder'
 import { caloriesOf } from '../lib/ingredientMatch'
+import { onLogged } from '../lib/logged'
 import { NutritionLabel } from '../components/NutritionLabel'
 import { FuelBurnIcon } from '../components/FuelBurnIcon'
 import { FuelGauge } from '../components/FuelGauge'
@@ -208,6 +209,11 @@ export function TodayPage() {
     return () => { cancelled = true }
     // activePlanId is included so switching plans refreshes the tasks.
   }, [date, activePlanId])
+
+  // The assistant sheet logs from the app chrome, above this screen. Re-read when it says it wrote
+  // something, so the gauge and timeline don't sit stale behind the sheet. `reload` sets state from its
+  // async callbacks, never synchronously here.
+  useEffect(() => onLogged(() => { void reload() }), [reload])
 
   const options = meals
   const effectiveSourceId = source === 'FreeForm'

@@ -1,5 +1,6 @@
 using GoalFueled.Api.Auth;
 using GoalFueled.Api.Services;
+using GoalFueled.Api.Services.Assistant;
 using GoalFueled.Api.Services.Nutrition;
 using GoalFueled.Api.Services.OpenFoodFacts;
 using GoalFueled.Data;
@@ -61,6 +62,9 @@ public class DependencyInjectionTests
         services.AddScoped<OffVerificationService>();
         services.AddHttpClient<INutritionLabelReader, AnthropicVisionClient>();
         services.AddScoped<VisionModelSettingsService>();
+        services.AddHttpClient<IAssistantModelClient, AnthropicAssistantClient>();
+        services.AddScoped<AssistantToolDispatcher>();
+        services.AddScoped<AssistantService>();
 
         return services.BuildServiceProvider(new ServiceProviderOptions
         {
@@ -101,6 +105,9 @@ public class DependencyInjectionTests
         Assert.NotNull(sp.GetRequiredService<IOffContributionQueue>());
         Assert.NotNull(sp.GetRequiredService<INutritionLabelReader>());
         Assert.NotNull(sp.GetRequiredService<VisionModelSettingsService>());
+        Assert.NotNull(sp.GetRequiredService<IAssistantModelClient>());
+        Assert.NotNull(sp.GetRequiredService<AssistantToolDispatcher>());
+        Assert.NotNull(sp.GetRequiredService<AssistantService>());
         Assert.NotNull(sp.GetRequiredService<IAppSettingsRepository>());
         Assert.NotNull(sp.GetRequiredService<IUserRepository>());
         Assert.NotNull(sp.GetRequiredService<IIngredientRepository>());

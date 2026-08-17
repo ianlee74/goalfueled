@@ -50,10 +50,13 @@ public static class FeatureCatalog
             "Your week in fuel: week score, streaks, and the Fuel Point bonus for completing it.",
             FeatureStatus.Released),
 
+        // Shipping as Beta. Kept at Pro for the same reason label OCR sits at Plus, only more so: a single
+        // request can fan out into several billed model calls, so it is the most expensive per-use
+        // capability in the app. Free/Plus accounts that need it can still be granted it individually.
         new(FeatureKeys.AiVoiceLogging,
             "AI voice logging",
             "Say or type what you ate and have the assistant create the recipe and log it for you.",
-            FeatureStatus.Planned,
+            FeatureStatus.Beta,
             SubscriptionLevel.Pro),
     });
 

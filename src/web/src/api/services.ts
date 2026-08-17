@@ -1,6 +1,7 @@
 import { api } from './client'
 import type {
-  AdminUser, BurnActivity, BurnActivityInput, BurnDay, BurnSuggestion,
+  AdminUser, AssistantChatInput, AssistantChatResult,
+  BurnActivity, BurnActivityInput, BurnDay, BurnSuggestion,
   CompletePlannedMealInput, ConsumptionDay, ConsumptionEntry, ConsumptionEntryInput,
   BarcodeLookupResult, CreateShareInvitationInput, CurrentUser, Dashboard, FavoriteState, Feature,
   FeatureAccessMode, SubscriptionLevel, GamificationSummary, Goal, GoalInput,
@@ -214,6 +215,12 @@ export const imageApi = {
 export const ocrApi = {
   // Reads a photographed nutrition label into structured, catalog-mapped per-serving nutrition.
   readLabel: (file: File) => api.upload<LabelOcrResult>('/nutrition-label-ocr', file),
+}
+
+// The AI assistant: one sentence in, real logged data out. A distinct top-level path (not
+// "/assistant/chat") so it can never be shadowed by an "/assistant/{id}" sibling route.
+export const assistantApi = {
+  chat: (input: AssistantChatInput) => api.post<AssistantChatResult>('/assistant-chat', input),
 }
 
 export const gamificationApi = {
