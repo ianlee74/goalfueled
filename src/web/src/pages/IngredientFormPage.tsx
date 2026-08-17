@@ -71,7 +71,8 @@ export function IngredientFormPage() {
 
   // The ingredient as loaded from the server (edit/read-only mode), kept so "Customize" can seed a
   // new form from the exact source rather than reconstructing it from the editable field state.
-  const loadedRef = useRef<Ingredient | null>(null)
+  // State rather than a ref because the provenance badges below render from it.
+  const [loaded, setLoaded] = useState<Ingredient | null>(null)
 
   // Automatic nutrition lookup (USDA via the backend).
   const [lookingUp, setLookingUp] = useState(false)
@@ -97,7 +98,7 @@ export function IngredientFormPage() {
     ingredientApi.get(id!)
       .then((i) => {
         if (cancelled) return
-        loadedRef.current = i
+        setLoaded(i)
         setName(i.name)
         setDescription(i.description ?? '')
         setImageUrl(i.imageUrl ?? '')
@@ -331,7 +332,7 @@ export function IngredientFormPage() {
   // ingredient. Nothing is persisted until the user reviews and presses Save (creating their own
   // private copy via the normal create path), so the Save button stays idle until they submit.
   function customize() {
-    const source = loadedRef.current
+    const source = loaded
     if (isNew || canEdit || !source) return
     navigate('/ingredients/new', { state: { customizeFrom: source } })
   }
@@ -384,16 +385,16 @@ export function IngredientFormPage() {
       {!isNew && !readOnly && (
         <div className="notice info">Status: <strong>{INGREDIENT_VISIBILITY_LABELS[visibility]}</strong></div>
       )}
-      {!isNew && (loadedRef.current?.sourcedFromOff || loadedRef.current?.contributedToOffAt) && (
+      {!isNew && (loaded?.sourcedFromOff || loaded?.contributedToOffAt) && (
         <div className="row" style={{ gap: '0.4rem', flexWrap: 'wrap' }}>
-          {loadedRef.current?.sourcedFromOff && (
+          {loaded?.sourcedFromOff && (
             <span className="badge" title="Nutrition verified to match the Open Food Facts record for this barcode">
               Sourced from Open Food Facts
             </span>
           )}
-          {loadedRef.current?.contributedToOffAt && (
+          {loaded?.contributedToOffAt && (
             <span className="badge"
-              title={`Contributed on ${new Date(loadedRef.current.contributedToOffAt).toLocaleDateString()}`}>
+              title={`Contributed on ${new Date(loaded.contributedToOffAt).toLocaleDateString()}`}>
               Shared to Open Food Facts
             </span>
           )}
