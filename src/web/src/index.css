@@ -526,6 +526,29 @@ label.field .hint, div.field .hint { font-weight: 400; color: var(--muted); font
 .badge.app { background: var(--primary-soft); color: var(--primary-dark); }
 .badge.mine { background: var(--badge-mine-bg); color: var(--badge-mine-text); }
 .badge.fuel-type { background: var(--badge-bg); color: var(--muted); }
+/* Feature-tag lifecycle. Ember = still settling (beta/alpha), the neutral chip = on its way out or
+   switched off. Released reuses the emerald `.badge.app`, so nothing new is needed for the common case. */
+.badge.beta { background: var(--accent-soft); color: var(--accent); }
+.badge.off { background: var(--badge-bg); color: var(--muted); text-decoration: line-through; }
+
+/* ---- Feature tags (admin) ----
+   The catalog cards on /features and the per-user grant/deny grid on /users. Plain rows on the card
+   surface — the status/tier pills carry the meaning, so no new container chrome is introduced. */
+.feature-card { gap: 0.4rem; }
+.feature-card-levels { gap: 0.3rem; }
+.feature-panel {
+  display: flex; flex-direction: column; gap: 0.5rem;
+  border-top: 1px solid var(--border); padding-top: 0.6rem;
+}
+.feature-panel-hint { margin: 0; }
+.feature-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.5rem; flex-wrap: wrap;
+}
+.feature-row-main { min-width: 0; }
+.feature-row-title { gap: 0.35rem; }
+.feature-mode { max-width: 10rem; }
+.field.feature-tier { max-width: 12rem; }
 
 /* ---- Finder (type-ahead combobox) ----
    A searchable combobox replacing plain <select>s / native <datalist>s: the ingredient finder

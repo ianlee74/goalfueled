@@ -2,7 +2,8 @@ import { api } from './client'
 import type {
   AdminUser, BurnActivity, BurnActivityInput, BurnDay, BurnSuggestion,
   CompletePlannedMealInput, ConsumptionDay, ConsumptionEntry, ConsumptionEntryInput,
-  BarcodeLookupResult, CreateShareInvitationInput, CurrentUser, Dashboard, FavoriteState, GamificationSummary, Goal, GoalInput,
+  BarcodeLookupResult, CreateShareInvitationInput, CurrentUser, Dashboard, FavoriteState, Feature,
+  FeatureAccessMode, SubscriptionLevel, GamificationSummary, Goal, GoalInput,
   Ingredient, IngredientInput, LabelOcrResult, Meal, MealInput, MealPlan, MealPlanInput, NutrientDefinition,
   NutritionLookupResult, OnboardingInput, PlannedDay, ProfileInput, Recipe, RecipeInput, SharedAccount,
   VisionModelSettings,
@@ -33,6 +34,18 @@ export const adminApi = {
     api.post<AdminUser>(`/manage-users/${id}/admin-role`, { isAdmin }),
   // Permanently deletes a user and all their personal data. Content accepted as public/app-owned is kept.
   deleteUser: (id: string) => api.del(`/manage-users/${id}`),
+  // Moves a user to a different subscription tier (changes their baseline feature tags).
+  setSubscriptionLevel: (id: string, level: SubscriptionLevel) =>
+    api.put<AdminUser>(`/manage-users/${id}/subscription`, { level }),
+  // Grants / denies / clears (Inherit) one feature tag for one user.
+  setFeatureAccess: (id: string, key: string, mode: FeatureAccessMode) =>
+    api.put<AdminUser>(`/manage-users/${id}/feature-access`, { key, mode }),
+}
+
+// The feature-tag catalog (admin-only). A distinct top-level path, NOT "/features/catalog": a
+// "features/{id}" route would shadow a literal sibling at the same depth in the Functions host.
+export const featureApi = {
+  catalog: () => api.get<Feature[]>('/feature-catalog'),
 }
 
 // Admin-only: choose the nutrition-label OCR vision model at runtime (for testing before committing to config).

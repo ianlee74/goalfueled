@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser'
 import { useNavigate } from 'react-router-dom'
 import { ingredientApi, ocrApi } from '../api/services'
+import { FEATURES, useFeature } from '../hooks/useFeature'
 import type { ScanPrefill } from './IngredientFormPage'
 
 type Phase = 'scanning' | 'looking-up' | 'not-found' | 'reading-label'
@@ -15,6 +16,11 @@ type Phase = 'scanning' | 'looking-up' | 'not-found' | 'reading-label'
  */
 export function ScanBarcodePage() {
   const navigate = useNavigate()
+  // Feature-tagged. Barcode scanning gates the whole screen; label OCR is a separate tag (it is a paid
+  // tier by default because every read costs a metered vision call), so the fallback path can be off
+  // while scanning is on. Both endpoints enforce the same gates server-side.
+  const canScan = useFeature(FEATURES.barcodeScanning)
+  const canReadLabel = useFeature(FEATURES.nutritionLabelOcr)
   const videoRef = useRef<HTMLVideoElement>(null)
   const controlsRef = useRef<IScannerControls | null>(null)
   const labelInputRef = useRef<HTMLInputElement>(null)
@@ -26,6 +32,12 @@ export function ScanBarcodePage() {
   // The barcode that failed OFF lookup — carried onto the label-OCR path so the new product is still
   // contributed back to OFF under its real code.
   const [pendingBarcode, setPendingBarcode] = useState<string | null>(null)
+
+  // Without the barcode-scanning tag this screen doesn't exist for the account; bounce back to the list
+  // (the same pattern the admin-only screens use).
+  useEffect(() => {
+    if (!canScan) navigate('/ingredients', { replace: true })
+  }, [canScan, navigate])
 
   // Start the camera scanner while in the scanning phase; stop it whenever we leave that phase or unmount.
   useEffect(() => {
@@ -175,16 +187,21 @@ export function ScanBarcodePage() {
             {pendingBarcode
               ? `We couldn't find that product (barcode ${pendingBarcode}).`
               : 'No product data found.'}
-            {' '}Take a photo of the Nutrition Facts label and we'll read it. Once your product is approved
-            for the public library, it's also shared back to Open Food Facts so the next person's scan finds it.
+            {canReadLabel
+              ? ' Take a photo of the Nutrition Facts label and we\'ll read it.'
+              : ' Enter the details from the package yourself.'}
+            {' '}Once your product is approved for the public library, it's also shared back to
+            Open Food Facts so the next person's scan finds it.
           </div>
-          <input
-            ref={labelInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            capture="environment"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleLabel(f) }}
-          />
+          {canReadLabel && (
+            <input
+              ref={labelInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              capture="environment"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleLabel(f) }}
+            />
+          )}
           <div className="row" style={{ gap: '0.5rem' }}>
             <button className="btn btn-sm" onClick={() => { setPendingBarcode(null); setError(null); setPhase('scanning') }}>
               Scan again

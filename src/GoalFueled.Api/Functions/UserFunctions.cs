@@ -4,6 +4,7 @@ using GoalFueled.Api.Services;
 using GoalFueled.Domain;
 using GoalFueled.Domain.Contracts;
 using GoalFueled.Domain.Entities;
+using GoalFueled.Domain.Features;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
@@ -95,12 +96,19 @@ public sealed class UserFunctions
         var actingPermissions = u.IsActingViaShare
             ? ToPermissionList(u.ActingSharePermissions)
             : null;
+        // Feature tags: only the features this account actually HAS, so the client can treat presence as
+        // permission. Resolution handles the legacy case (no stored tier / null override lists = Free, no
+        // overrides). When acting via a share, `u` is the SHARED account, so its tier and grants apply.
+        var features = FeatureAccess.Resolve(u)
+            .Select(f => new UserFeatureDto(f.Key, f.Name, f.Status))
+            .ToList();
         return new(
             u.Id, u.Email, u.DisplayName, u.AvatarUrl, u.Roles, u.IsAdmin,
             u.AdminViewEnabled, u.IsActingAsAdmin, u.PrimaryGoal, u.SexAtBirth, u.HeightCm,
             u.DateOfBirth, u.HasCompletedOnboarding, u.ActiveMealPlanId, scheduleDto,
             u.UnitsPreference ?? UnitsPreference.UsImperial,
-            u.IsActingViaShare, actingPermissions);
+            u.IsActingViaShare, actingPermissions,
+            u.EffectiveSubscriptionLevel, features);
     }
 
     /// <summary>Expands the acting guest's permission flags into the list the client shows.</summary>

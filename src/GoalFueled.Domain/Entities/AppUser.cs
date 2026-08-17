@@ -118,6 +118,36 @@ public class AppUser
     /// <summary>True when the user has favorited the given meal. Null list = no favorites.</summary>
     public bool IsFavoriteMeal(string id) => FavoriteMealIds?.Contains(id) == true;
 
+    /// <summary>
+    /// The subscription tier this account is on, which decides the baseline set of feature tags it gets
+    /// (see <see cref="GoalFueled.Domain.Features.FeatureAccess"/>). Nullable so user documents written
+    /// before this field existed materialize as null instead of throwing on read (the project's Cosmos
+    /// non-nullable-value-type rule — same treatment as <see cref="UnitsPreference"/>); a null read means
+    /// <see cref="GoalFueled.Domain.SubscriptionLevel.Free"/>, which is also what new accounts start on.
+    /// Only an admin can change it.
+    /// </summary>
+    // Fully qualified so the initializer binds the enum type, not this same-named property (CS0236).
+    public SubscriptionLevel? SubscriptionLevel { get; set; }
+
+    /// <summary>
+    /// Feature keys this user has been handed INDIVIDUALLY, on top of whatever their tier includes. Null
+    /// (rather than an empty list) when there are no individual grants, so documents written before this
+    /// field existed read back fine and accounts with no overrides never grow the property — the same
+    /// nullable-collection pattern as <see cref="FavoriteIngredientIds"/>.
+    /// </summary>
+    public List<string>? GrantedFeatureKeys { get; set; }
+
+    /// <summary>
+    /// Feature keys this user is individually denied, even when their tier includes them. A denial always
+    /// wins over the tier and over <see cref="GrantedFeatureKeys"/>. Null when there are none (see the note
+    /// on <see cref="GrantedFeatureKeys"/>).
+    /// </summary>
+    public List<string>? DeniedFeatureKeys { get; set; }
+
+    /// <summary>The tier to use for feature resolution: the stored one, or Free for legacy/unset documents.</summary>
+    public SubscriptionLevel EffectiveSubscriptionLevel =>
+        SubscriptionLevel ?? GoalFueled.Domain.SubscriptionLevel.Free;
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public bool IsAdmin => Roles.Contains(AppRole.AppAdmin);

@@ -19,6 +19,7 @@ import { WeightPage } from './pages/WeightPage'
 import { GoalsPage } from './pages/GoalsPage'
 import { ReviewPage } from './pages/ReviewPage'
 import { UsersPage } from './pages/UsersPage'
+import { FeaturesPage } from './pages/FeaturesPage'
 import { LibraryPage } from './pages/LibraryPage'
 import { YouPage } from './pages/YouPage'
 import { AdminPage } from './pages/AdminPage'
@@ -98,6 +99,7 @@ export default function App() {
         {/* The old profile route lives inside the You tab now. */}
         <Route path="/profile" element={<Navigate to="/you" replace />} />
         <Route path="/users" element={<UsersPage />} />
+        <Route path="/features" element={<FeaturesPage />} />
         <Route path="/admin" element={<AdminPage />} />
         {/* Opening a shared-invitation link as an already-onboarded user. */}
         <Route path="/invite/:token" element={<InvitePage />} />

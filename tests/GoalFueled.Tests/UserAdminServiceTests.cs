@@ -4,7 +4,9 @@ using GoalFueled.Api.Services;
 using GoalFueled.Data;
 using GoalFueled.Data.Repositories;
 using GoalFueled.Domain;
+using GoalFueled.Domain.Contracts;
 using GoalFueled.Domain.Entities;
+using GoalFueled.Domain.Features;
 
 namespace GoalFueled.Tests;
 
@@ -246,5 +248,165 @@ public class UserAdminServiceTests
         var (admin, user, _, svc) = await SetupAsync(db);
 
         await Assert.ThrowsAsync<ForbiddenException>(() => svc.DeleteAsync(user, admin.Id, default));
+    }
+
+    // ---- Feature tags: catalog, subscription tier, and per-user grants/denials ----
+
+    [Fact]
+    public async Task Acting_admin_sees_the_whole_feature_catalog()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, _, _, svc) = await SetupAsync(db);
+
+        var catalog = svc.ListFeatures(admin);
+
+        Assert.Equal(FeatureCatalog.All.Count, catalog.Count);
+        var ocr = Assert.Single(catalog, f => f.Key == FeatureKeys.NutritionLabelOcr);
+        Assert.Equal(FeatureStatus.Beta, ocr.Status);
+        Assert.Equal(SubscriptionLevel.Plus, ocr.MinimumSubscriptionLevel);
+        Assert.Equal(new[] { SubscriptionLevel.Plus, SubscriptionLevel.Pro }, ocr.IncludedLevels);
+    }
+
+    [Fact]
+    public async Task Non_admin_cannot_see_the_feature_catalog()
+    {
+        using var db = TestHelpers.NewContext();
+        var (_, user, _, svc) = await SetupAsync(db);
+
+        Assert.Throws<ForbiddenException>(() => svc.ListFeatures(user));
+    }
+
+    [Fact]
+    public async Task New_users_start_on_the_free_tier_with_no_overrides()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, _, svc) = await SetupAsync(db);
+
+        var dto = Assert.Single(await svc.ListAsync(admin, default), u => u.Id == user.Id);
+
+        Assert.Equal(SubscriptionLevel.Free, dto.SubscriptionLevel);
+        Assert.Empty(dto.GrantedFeatureKeys!);
+        Assert.Empty(dto.DeniedFeatureKeys!);
+        Assert.Contains(FeatureKeys.BarcodeScanning, dto.EffectiveFeatureKeys!);
+        Assert.DoesNotContain(FeatureKeys.NutritionLabelOcr, dto.EffectiveFeatureKeys!);
+    }
+
+    [Fact]
+    public async Task Admin_can_move_a_user_to_a_paid_tier_which_widens_their_effective_features()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, repo, svc) = await SetupAsync(db);
+
+        var updated = await svc.SetSubscriptionLevelAsync(admin, user.Id, SubscriptionLevel.Plus, default);
+
+        Assert.Equal(SubscriptionLevel.Plus, updated.SubscriptionLevel);
+        Assert.Contains(FeatureKeys.NutritionLabelOcr, updated.EffectiveFeatureKeys!);
+        Assert.Equal(SubscriptionLevel.Plus, (await repo.GetByIdAsync(user.Id))!.SubscriptionLevel);
+    }
+
+    [Fact]
+    public async Task Admin_can_grant_a_paid_feature_to_a_free_user_individually()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, repo, svc) = await SetupAsync(db);
+
+        var updated = await svc.SetFeatureAccessAsync(admin, user.Id,
+            new SetFeatureAccessInput(FeatureKeys.NutritionLabelOcr, FeatureAccessMode.Granted), default);
+
+        Assert.Equal(SubscriptionLevel.Free, updated.SubscriptionLevel);
+        Assert.Contains(FeatureKeys.NutritionLabelOcr, updated.GrantedFeatureKeys!);
+        Assert.Contains(FeatureKeys.NutritionLabelOcr, updated.EffectiveFeatureKeys!);
+
+        var persisted = await repo.GetByIdAsync(user.Id);
+        Assert.True(FeatureAccess.IsEnabled(persisted!, FeatureKeys.NutritionLabelOcr));
+    }
+
+    [Fact]
+    public async Task Admin_can_deny_a_user_a_feature_their_tier_includes()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, repo, svc) = await SetupAsync(db);
+        await svc.SetSubscriptionLevelAsync(admin, user.Id, SubscriptionLevel.Pro, default);
+
+        var updated = await svc.SetFeatureAccessAsync(admin, user.Id,
+            new SetFeatureAccessInput(FeatureKeys.BarcodeScanning, FeatureAccessMode.Denied), default);
+
+        Assert.Contains(FeatureKeys.BarcodeScanning, updated.DeniedFeatureKeys!);
+        Assert.DoesNotContain(FeatureKeys.BarcodeScanning, updated.EffectiveFeatureKeys!);
+        Assert.False(FeatureAccess.IsEnabled((await repo.GetByIdAsync(user.Id))!, FeatureKeys.BarcodeScanning));
+    }
+
+    [Fact]
+    public async Task Clearing_an_override_returns_the_user_to_their_tier()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, repo, svc) = await SetupAsync(db);
+        await svc.SetFeatureAccessAsync(admin, user.Id,
+            new SetFeatureAccessInput(FeatureKeys.NutritionLabelOcr, FeatureAccessMode.Granted), default);
+
+        var updated = await svc.SetFeatureAccessAsync(admin, user.Id,
+            new SetFeatureAccessInput(FeatureKeys.NutritionLabelOcr, FeatureAccessMode.Inherit), default);
+
+        Assert.Empty(updated.GrantedFeatureKeys!);
+        Assert.DoesNotContain(FeatureKeys.NutritionLabelOcr, updated.EffectiveFeatureKeys!);
+        // The emptied list collapses back to null so the document stays as it was before any override.
+        Assert.Null((await repo.GetByIdAsync(user.Id))!.GrantedFeatureKeys);
+    }
+
+    [Fact]
+    public async Task Non_admin_cannot_change_a_subscription_level_or_feature_grants()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, _, svc) = await SetupAsync(db);
+
+        // Not even for themselves — the tier is never self-serviceable.
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            svc.SetSubscriptionLevelAsync(user, user.Id, SubscriptionLevel.Pro, default));
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            svc.SetFeatureAccessAsync(user, user.Id,
+                new SetFeatureAccessInput(FeatureKeys.NutritionLabelOcr, FeatureAccessMode.Granted), default));
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            svc.SetFeatureAccessAsync(user, admin.Id,
+                new SetFeatureAccessInput(FeatureKeys.BarcodeScanning, FeatureAccessMode.Denied), default));
+    }
+
+    [Fact]
+    public async Task Admin_with_view_disabled_cannot_change_feature_access()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, _, svc) = await SetupAsync(db);
+        admin.AdminViewEnabled = false;
+
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            svc.SetSubscriptionLevelAsync(admin, user.Id, SubscriptionLevel.Pro, default));
+    }
+
+    [Fact]
+    public async Task Unknown_feature_keys_and_levels_are_rejected()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, user, _, svc) = await SetupAsync(db);
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            svc.SetFeatureAccessAsync(admin, user.Id,
+                new SetFeatureAccessInput("not-a-feature", FeatureAccessMode.Granted), default));
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            svc.SetSubscriptionLevelAsync(admin, user.Id, (SubscriptionLevel)99, default));
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            svc.SetFeatureAccessAsync(admin, user.Id,
+                new SetFeatureAccessInput(FeatureKeys.BarcodeScanning, (FeatureAccessMode)99), default));
+    }
+
+    [Fact]
+    public async Task Feature_administration_of_a_missing_user_returns_not_found()
+    {
+        using var db = TestHelpers.NewContext();
+        var (admin, _, _, svc) = await SetupAsync(db);
+
+        await Assert.ThrowsAsync<NotFoundException>(() =>
+            svc.SetSubscriptionLevelAsync(admin, "does-not-exist", SubscriptionLevel.Plus, default));
+        await Assert.ThrowsAsync<NotFoundException>(() =>
+            svc.SetFeatureAccessAsync(admin, "does-not-exist",
+                new SetFeatureAccessInput(FeatureKeys.BarcodeScanning, FeatureAccessMode.Granted), default));
     }
 }

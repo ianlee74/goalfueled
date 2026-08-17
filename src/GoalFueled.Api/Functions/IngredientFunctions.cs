@@ -4,6 +4,7 @@ using GoalFueled.Api.Services;
 using GoalFueled.Api.Services.Nutrition;
 using GoalFueled.Api.Services.OpenFoodFacts;
 using GoalFueled.Domain.Contracts;
+using GoalFueled.Domain.Features;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
@@ -62,6 +63,8 @@ public sealed class IngredientFunctions
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "ingredient-by-barcode")] HttpRequest req) =>
         ApiEndpoint.RunAuthenticated(req, _auth, async user =>
         {
+            // Feature-tagged capability: barcode scanning must be enabled for this account.
+            FeatureGuard.EnsureFeature(user, FeatureKeys.BarcodeScanning);
             var barcode = req.Query["barcode"].FirstOrDefault();
             var result = await _barcodeLookup.LookupAsync(user.Id, barcode, req.HttpContext.RequestAborted);
             return HttpResults.Ok(result);

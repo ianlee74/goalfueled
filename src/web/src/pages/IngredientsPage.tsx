@@ -6,6 +6,7 @@ import { UNIT_LABELS, type Ingredient } from '../api/types'
 import { IconIngredient } from '../components/icons'
 import { EmptyState, SkeletonList } from '../components/Placeholders'
 import { FavoriteStar } from '../components/FavoriteStar'
+import { FEATURES, useFeature, useFeatureStatus } from '../hooks/useFeature'
 import { withFavorite } from '../lib/favorites'
 
 export function IngredientsPage() {
@@ -17,6 +18,8 @@ export function IngredientsPage() {
   const [error, setError] = useState<string | null>(null)
 
   const isAdmin = !!profile?.isActingAsAdmin
+  const canScan = useFeature(FEATURES.barcodeScanning)
+  const scanStatus = useFeatureStatus(FEATURES.barcodeScanning)
 
   // Debounced search. The admin "show all" flag is only sent when acting as an admin.
   useEffect(() => {
@@ -55,7 +58,13 @@ export function IngredientsPage() {
           {isAdmin && (
             <Link className="btn btn-sm" to="/ingredients/review-queue">Review queue</Link>
           )}
-          <Link className="btn btn-sm" to="/ingredients/scan" title="Scan a product barcode">Scan</Link>
+          {/* Feature-tagged: the scan flow only appears for accounts whose tier or individual grants
+              include it. The endpoints behind it enforce the same gate. */}
+          {canScan && (
+            <Link className="btn btn-sm" to="/ingredients/scan" title="Scan a product barcode">
+              Scan{scanStatus === 'Beta' && <span className="badge beta" style={{ marginLeft: '0.4rem' }}>Beta</span>}
+            </Link>
+          )}
           <Link className="btn btn-primary btn-sm" to="/ingredients/new">+ New</Link>
         </div>
       </div>

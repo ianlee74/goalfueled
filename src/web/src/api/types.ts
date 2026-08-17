@@ -66,6 +66,66 @@ export interface CurrentUser {
   isActingViaShare: boolean
   // The permissions the acting guest holds over this account; absent/empty when not acting via a share.
   actingPermissions?: SharePermission[]
+  // The subscription tier of the account being viewed (the SHARED account when acting via a share).
+  subscriptionLevel: SubscriptionLevel
+  // ONLY the feature tags this account actually has — presence means permission. Read it through
+  // `useFeature`/`useFeatureStatus` in hooks/useFeature.ts rather than poking at the array directly.
+  features: UserFeature[]
+}
+
+// ---- Feature tags ----
+
+/** Subscription tiers, an ordered ladder: a feature's minimum tier is inherited by every higher tier. */
+export type SubscriptionLevel = 'Free' | 'Plus' | 'Pro'
+
+/**
+ * Where a feature sits in its lifecycle. Status participates in access resolution server-side:
+ * Planned/Disabled are off for everyone, Alpha is grant-only, Beta/Released/Deprecated come with the tier.
+ */
+export type FeatureStatus = 'Planned' | 'Alpha' | 'Beta' | 'Released' | 'Deprecated' | 'Disabled'
+
+/** A user's individual override for one feature, on top of their tier. Denied always wins. */
+export type FeatureAccessMode = 'Inherit' | 'Granted' | 'Denied'
+
+/** A feature tag in the catalog (admin view). The catalog ships with the build and is read-only. */
+export interface Feature {
+  key: string
+  name: string
+  description: string
+  status: FeatureStatus
+  minimumSubscriptionLevel: SubscriptionLevel
+  // The tiers that include it, expanded from the minimum; empty when no tier hands it out.
+  includedLevels: SubscriptionLevel[]
+}
+
+/** One feature the signed-in user HAS, as carried on `CurrentUser.features`. */
+export interface UserFeature {
+  key: string
+  name: string
+  status: FeatureStatus
+}
+
+export const SUBSCRIPTION_LEVEL_LABELS: Record<SubscriptionLevel, string> = {
+  Free: 'Free',
+  Plus: 'Plus',
+  Pro: 'Pro',
+}
+
+export const SUBSCRIPTION_LEVELS: SubscriptionLevel[] = ['Free', 'Plus', 'Pro']
+
+export const FEATURE_STATUS_LABELS: Record<FeatureStatus, string> = {
+  Planned: 'Planned',
+  Alpha: 'Alpha',
+  Beta: 'Beta',
+  Released: 'Released',
+  Deprecated: 'Deprecated',
+  Disabled: 'Disabled',
+}
+
+export const FEATURE_ACCESS_MODE_LABELS: Record<FeatureAccessMode, string> = {
+  Inherit: 'Tier default',
+  Granted: 'Granted',
+  Denied: 'Denied',
 }
 
 // ---- Account sharing ----
@@ -190,6 +250,14 @@ export interface AdminUser {
   roles: AppRole[]
   isAdmin: boolean
   isSelf: boolean
+  // ---- Feature tags (see the Feature section below) ----
+  subscriptionLevel: SubscriptionLevel
+  // Keys granted to this user individually, on top of their tier.
+  grantedFeatureKeys: string[]
+  // Keys denied to this user individually, overriding their tier.
+  deniedFeatureKeys: string[]
+  // The net result: tier ∪ grants − denials.
+  effectiveFeatureKeys: string[]
 }
 
 /** A non-English name for an ingredient, matched by the ingredient finder. */

@@ -7,6 +7,65 @@ public enum AppRole
     AppAdmin = 1
 }
 
+/// <summary>
+/// The subscription tier a user is on. Deliberately a small, strictly ORDERED ladder: a feature declares
+/// the lowest tier that includes it (<see cref="Features.FeatureDefinition.MinimumSubscriptionLevel"/>) and
+/// every higher tier inherits it, so adding a tier never requires revisiting every feature. The ordinals
+/// carry that ordering and must stay ascending; the values are persisted by NAME, so they can be reordered
+/// in source only if the ordinals keep the same relative order.
+/// </summary>
+public enum SubscriptionLevel
+{
+    /// <summary>The default tier every account starts on (and what a legacy/unset value means).</summary>
+    Free = 0,
+
+    /// <summary>The paid everyday tier.</summary>
+    Plus = 1,
+
+    /// <summary>The top tier; includes everything Plus does.</summary>
+    Pro = 2
+}
+
+/// <summary>
+/// Where a feature sits in its lifecycle. Status is not just a label — it participates in resolution
+/// (see <see cref="Features.FeatureAccess"/>):
+/// <list type="bullet">
+/// <item><see cref="Planned"/> — listed for visibility only; never enabled for anyone, not even by grant.</item>
+/// <item><see cref="Alpha"/> — internal dogfooding; NEVER included by a subscription tier, only reachable
+///   through an explicit per-user grant.</item>
+/// <item><see cref="Beta"/> — shipping but not final; included by tier, and the UI badges it "Beta".</item>
+/// <item><see cref="Released"/> — generally available at its tier.</item>
+/// <item><see cref="Deprecated"/> — still behaves like <see cref="Released"/> so nobody loses access
+///   mid-flight, but is badged as going away.</item>
+/// <item><see cref="Disabled"/> — operational kill switch; off for everyone regardless of tier or grant.</item>
+/// </list>
+/// </summary>
+public enum FeatureStatus
+{
+    Planned = 0,
+    Alpha = 1,
+    Beta = 2,
+    Released = 3,
+    Deprecated = 4,
+    Disabled = 5
+}
+
+/// <summary>
+/// A single user's override for one feature, on top of whatever their subscription tier includes.
+/// <see cref="Denied"/> always wins over both the tier and <see cref="Granted"/>.
+/// </summary>
+public enum FeatureAccessMode
+{
+    /// <summary>No override — the user gets whatever their subscription tier includes.</summary>
+    Inherit = 0,
+
+    /// <summary>Individually granted, even if the tier doesn't include it.</summary>
+    Granted = 1,
+
+    /// <summary>Individually denied, even if the tier does include it.</summary>
+    Denied = 2
+}
+
 /// <summary>The health goal a user is targeting. Captured on first login.</summary>
 public enum GoalType
 {

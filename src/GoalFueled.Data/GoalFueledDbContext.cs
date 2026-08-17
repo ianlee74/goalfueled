@@ -83,6 +83,11 @@ public class GoalFueledDbContext : DbContext
             // UnitsPreference property) materialize as null instead of throwing; callers fall back to
             // UsImperial. A non-nullable conversion here threw "Nullable object must have a value" on read.
             e.Property(u => u.UnitsPreference).HasConversion<string?>();
+            // Feature tags: the subscription tier is persisted by its string name like the enums above,
+            // and nullable for exactly the same reason (documents predating the field must not throw on
+            // read; null is interpreted as Free). GrantedFeatureKeys/DeniedFeatureKeys are nullable
+            // primitive string collections both providers map natively, like FavoriteIngredientIds.
+            e.Property(u => u.SubscriptionLevel).HasConversion<string?>();
         });
 
         // --- Ingredients ---

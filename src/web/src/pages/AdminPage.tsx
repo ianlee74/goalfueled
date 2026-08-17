@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { visionModelApi } from '../api/services'
 import type { VisionModelSettings } from '../api/types'
-import { IconUsers, IconRecipe, IconIngredient } from '../components/icons'
+import { IconUsers, IconRecipe, IconIngredient, IconLevel } from '../components/icons'
 
 /**
  * Admin tools, split out of the You tab into a dedicated top-level page.
@@ -28,7 +28,13 @@ export function AdminPage() {
           to="/users"
           icon={<IconUsers size={22} />}
           title="Manage users"
-          description="View members and promote or demote the App Admin role."
+          description="Members, the App Admin role, subscription tiers, and per-user feature access."
+        />
+        <AdminTool
+          to="/features"
+          icon={<IconLevel size={22} />}
+          title="Feature tags"
+          description="The feature catalog: lifecycle status and which subscription tiers include each one."
         />
         <AdminTool
           to="/recipes/review-queue"

@@ -1,6 +1,7 @@
 using GoalFueled.Api.Auth;
 using GoalFueled.Api.Common;
 using GoalFueled.Api.Services.Nutrition;
+using GoalFueled.Domain.Features;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
@@ -37,8 +38,11 @@ public sealed class NutritionLabelFunctions
     [Function("ReadNutritionLabel")]
     public Task<IActionResult> Read(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "nutrition-label-ocr")] HttpRequest req) =>
-        ApiEndpoint.RunAuthenticated(req, _auth, async _ =>
+        ApiEndpoint.RunAuthenticated(req, _auth, async user =>
         {
+            // Feature-tagged capability: label OCR must be enabled for this account.
+            FeatureGuard.EnsureFeature(user, FeatureKeys.NutritionLabelOcr);
+
             if (!req.HasFormContentType)
                 throw new ValidationException("Expected a multipart/form-data upload.");
 

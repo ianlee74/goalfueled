@@ -28,7 +28,18 @@ public sealed record CurrentUserDto(
     /// </summary>
     bool IsActingViaShare = false,
     /// <summary>The permissions the acting guest holds over this account; empty when not acting via a share.</summary>
-    IReadOnlyList<SharePermission>? ActingPermissions = null);
+    IReadOnlyList<SharePermission>? ActingPermissions = null,
+    /// <summary>
+    /// The subscription tier this account is on. Legacy documents with no stored tier report Free.
+    /// When acting via a share this is the SHARED account's tier — feature access follows the account
+    /// being operated on, never the guest's own subscription.
+    /// </summary>
+    SubscriptionLevel SubscriptionLevel = SubscriptionLevel.Free,
+    /// <summary>
+    /// The effective feature set for this account: tier ∪ individual grants − individual denials. Only
+    /// features the user actually HAS appear here, so the client can treat presence as permission.
+    /// </summary>
+    IReadOnlyList<UserFeatureDto>? Features = null);
 
 /// <summary>
 /// A user's recurring weight-measurement schedule as returned to clients. Drives the recurring
@@ -101,7 +112,15 @@ public sealed record AdminUserDto(
     string? AvatarUrl,
     IReadOnlyList<AppRole> Roles,
     bool IsAdmin,
-    bool IsSelf);
+    bool IsSelf,
+    /// <summary>The user's subscription tier (Free for accounts with none stored yet).</summary>
+    SubscriptionLevel SubscriptionLevel = SubscriptionLevel.Free,
+    /// <summary>Feature keys granted to this user individually, on top of their tier.</summary>
+    IReadOnlyList<string>? GrantedFeatureKeys = null,
+    /// <summary>Feature keys denied to this user individually, overriding their tier.</summary>
+    IReadOnlyList<string>? DeniedFeatureKeys = null,
+    /// <summary>The resolved feature set (tier ∪ grants − denials), so the admin sees the net result.</summary>
+    IReadOnlyList<string>? EffectiveFeatureKeys = null);
 
 /// <summary>Payload for an admin promoting/demoting a user's App Admin role.</summary>
 public sealed record SetAdminRoleInput(bool IsAdmin);

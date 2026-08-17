@@ -3,11 +3,13 @@ using GoalFueled.Data.Repositories;
 using GoalFueled.Domain;
 using GoalFueled.Domain.Contracts;
 using GoalFueled.Domain.Entities;
+using GoalFueled.Domain.Features;
 
 namespace GoalFueled.Api.Services;
 
 /// <summary>
-/// Admin-only user management: listing users and promoting/demoting the App Admin role. All
+/// Admin-only user management: listing users, promoting/demoting the App Admin role, and administering
+/// feature tags (a user's subscription tier plus their individual feature grants/denials). All
 /// authorization is enforced here (acting-admin required) so the Function endpoints stay thin.
 /// </summary>
 public sealed class UserAdminService
@@ -85,6 +87,63 @@ public sealed class UserAdminService
             target.Roles.Add(AppRole.AppAdmin);
         }
 
+        await _users.UpdateAsync(target, ct);
+        return ToDto(target, actor);
+    }
+
+    /// <summary>
+    /// The full feature-tag catalog, for the admin catalog screen. Acting-admin only. The catalog is
+    /// static reference data compiled into the build, so no repository is involved — a feature's status or
+    /// minimum tier changes by editing <see cref="FeatureCatalog"/> and deploying, never at runtime.
+    /// </summary>
+    public IReadOnlyList<FeatureDto> ListFeatures(AppUser actor)
+    {
+        EnsureActingAdmin(actor);
+        return FeatureCatalog.All
+            .Select(f => new FeatureDto(f.Key, f.Name, f.Description, f.Status,
+                f.MinimumSubscriptionLevel, f.IncludedLevels))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Moves a user to a different subscription tier, which changes the baseline set of features they get.
+    /// Acting-admin only — a user can never change their own tier, so this can't be self-served into a
+    /// paid feature set.
+    /// </summary>
+    public async Task<AdminUserDto> SetSubscriptionLevelAsync(
+        AppUser actor, string userId, SubscriptionLevel level, CancellationToken ct)
+    {
+        EnsureActingAdmin(actor);
+        if (!Enum.IsDefined(typeof(SubscriptionLevel), level))
+            throw new ValidationException("Unknown subscription level.");
+
+        var target = await _users.GetByIdAsync(userId, ct) ?? throw new NotFoundException("User not found.");
+
+        target.SubscriptionLevel = level;
+        await _users.UpdateAsync(target, ct);
+        return ToDto(target, actor);
+    }
+
+    /// <summary>
+    /// Sets one user's individual override for one feature: granted (on top of their tier), denied
+    /// (overriding their tier), or inherit (clear the override). Acting-admin only.
+    /// </summary>
+    /// <remarks>
+    /// The key must name a feature in the catalog — an unknown key is rejected rather than stored, so the
+    /// grant/denial lists can never accumulate junk that silently does nothing.
+    /// </remarks>
+    public async Task<AdminUserDto> SetFeatureAccessAsync(
+        AppUser actor, string userId, SetFeatureAccessInput input, CancellationToken ct)
+    {
+        EnsureActingAdmin(actor);
+        if (!Enum.IsDefined(typeof(FeatureAccessMode), input.Mode))
+            throw new ValidationException("Unknown feature access mode.");
+        if (!FeatureCatalog.IsKnown(input.Key))
+            throw new ValidationException($"Unknown feature '{input.Key}'.");
+
+        var target = await _users.GetByIdAsync(userId, ct) ?? throw new NotFoundException("User not found.");
+
+        FeatureAccess.SetOverride(target, input.Key, input.Mode);
         await _users.UpdateAsync(target, ct);
         return ToDto(target, actor);
     }
@@ -201,5 +260,11 @@ public sealed class UserAdminService
     }
 
     private static AdminUserDto ToDto(AppUser u, AppUser actor) => new(
-        u.Id, u.Email, u.DisplayName, u.AvatarUrl, u.Roles, u.IsAdmin, u.Id == actor.Id);
+        u.Id, u.Email, u.DisplayName, u.AvatarUrl, u.Roles, u.IsAdmin, u.Id == actor.Id,
+        // Legacy documents have no stored tier/overrides; EffectiveSubscriptionLevel resolves null to Free
+        // and the null lists surface as empty so the admin screen never has to special-case them.
+        u.EffectiveSubscriptionLevel,
+        u.GrantedFeatureKeys ?? new List<string>(),
+        u.DeniedFeatureKeys ?? new List<string>(),
+        FeatureAccess.ResolveKeys(u));
 }

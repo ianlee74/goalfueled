@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { gamificationApi, userApi } from '../api/services'
-import type { GamificationSummary } from '../api/types'
+import { FEATURE_STATUS_LABELS, SUBSCRIPTION_LEVEL_LABELS, type GamificationSummary } from '../api/types'
 import { ProfileFields, type ProfileFieldsValue } from '../components/ProfileFields'
 import { WeightScheduleEditor } from '../components/WeightScheduleEditor'
 import { AccountSwitcher } from '../components/AccountSwitcher'
@@ -86,6 +86,9 @@ export function YouPage() {
         </Link>
       )}
 
+      {/* Plan: the subscription tier and the feature tags it (plus any individual grants) turns on. */}
+      <PlanCard />
+
       {/* Appearance. */}
       <div className="card stack">
         <h2>Appearance</h2>
@@ -126,6 +129,37 @@ export function YouPage() {
               <Link className="btn btn-sm" to="/admin">Open Admin tools</Link>
             </div>
           )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * The account's subscription tier and the feature tags currently switched on for it. Read-only — tiers
+ * and individual grants are set by an admin; this is just so a user can see what they have and which of
+ * it is still in beta.
+ */
+function PlanCard() {
+  const { profile } = useAuth()
+  if (!profile) return null
+
+  return (
+    <div className="card stack">
+      <h2>Plan</h2>
+      <div className="row spread">
+        <span className="small muted">Subscription</span>
+        <span className="badge app">{SUBSCRIPTION_LEVEL_LABELS[profile.subscriptionLevel]}</span>
+      </div>
+      {profile.features.length === 0 ? (
+        <div className="small muted">No features are switched on for this account yet.</div>
+      ) : (
+        <div className="row wrap feature-card-levels">
+          {profile.features.map((f) => (
+            <span key={f.key} className={`badge ${f.status === 'Beta' || f.status === 'Alpha' ? 'beta' : ''}`}>
+              {f.name}{f.status === 'Beta' || f.status === 'Alpha' ? ` · ${FEATURE_STATUS_LABELS[f.status]}` : ''}
+            </span>
+          ))}
         </div>
       )}
     </div>
