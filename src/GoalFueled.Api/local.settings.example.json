@@ -1,0 +1,40 @@
+{
+    "IsEncrypted": false,
+    "Values": {
+        "//copy-me": "Copy this file to local.settings.json (gitignored) and adjust. Every value below is safe to commit; never put real secrets in this example.",
+
+        "//storage": "Azurite (the local storage emulator) satisfies AzureWebJobsStorage for free and is auto-started by the 'azurite' task in .vscode/tasks.json. Azure uses a real storage account set by infra.",
+        "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+        "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+
+        "//auth": "Dev auth lets the SPA log in by sending X-Dev-* headers. NEVER enable in production.",
+        "GoalFueled:Auth:EnableDevAuth": "true",
+
+        "//entra": "Production sign-in via Microsoft Entra External ID. Leave Authority/Audience blank locally to keep the provider inert.",
+        "GoalFueled:Auth:Entra:Authority": "",
+        "GoalFueled:Auth:Entra:Audience": "",
+
+        "//store": "UseInMemoryStore=true uses the ephemeral in-memory store (no setup). Set it to false to use the Cosmos DB Emulator at the well-known connection string below, which persists data across restarts.",
+        "GoalFueled:UseInMemoryStore": "true",
+        "GoalFueled:Cosmos:Database": "goalfueled",
+        "GoalFueled:Cosmos:ConnectionString": "AccountEndpoint=https://localhost:8081/;AccountKey=C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==",
+
+        "//nutrition": "USDA FoodData Central key. DEMO_KEY is shared and rate-limited (~10/hr); get a free key at https://fdc.nal.usda.gov/api-key-signup.html.",
+        "GoalFueled:Nutrition:FdcApiKey": "DEMO_KEY",
+
+        "//openfoodfacts": "Barcode reads work out of the box. Contribution (write-back) requires BOTH EnableContribution=true AND UserId/Password; WriteBaseUrl defaults to the .net STAGING host.",
+        "GoalFueled:OpenFoodFacts:ReadBaseUrl": "https://world.openfoodfacts.org",
+        "GoalFueled:OpenFoodFacts:WriteBaseUrl": "https://world.openfoodfacts.net",
+        "GoalFueled:OpenFoodFacts:EnableContribution": "false",
+        "GoalFueled:OpenFoodFacts:UserId": "",
+        "GoalFueled:OpenFoodFacts:Password": "",
+
+        "//anthropic": "One Anthropic key powers label OCR and the AI assistant. Both degrade gracefully (and say so) while it is blank.",
+        "GoalFueled:Anthropic:ApiKey": "",
+        "GoalFueled:Anthropic:AssistantEffort": "medium"
+    },
+    "Host": {
+        "CORS": "*",
+        "CORSCredentials": false
+    }
+}

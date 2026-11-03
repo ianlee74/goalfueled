@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GoalFueled — Fuel your goals</title>
+  <meta name="description" content="GoalFueled is a free, open-source meal planner and fuel tracker. Log what you eat and burn, follow a plan, and see exactly where you stand against your weight goal — every day." />
+  <meta property="og:title" content="GoalFueled — Fuel your goals" />
+  <meta property="og:description" content="Free, open-source meal planning and fuel tracking toward a weight goal." />
+  <meta property="og:image" content="screenshots/desktop-today.png" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="#top" aria-label="GoalFueled home">
+        <img src="favicon.svg" alt="" width="32" height="32" />
+        <span>GoalFueled</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="#features">Features</a>
+        <a href="#screens">Screens</a>
+        <a href="#open-source">Open source</a>
+        <a class="btn btn-sm btn-primary" href="https://goalfueled.com">Open the app</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="wrap hero-inner">
+        <div class="hero-copy">
+          <p class="eyebrow">Free &amp; open source</p>
+          <h1>Fuel in. Burn out.<br /><span class="grad">Hit your goal.</span></h1>
+          <p class="lede">
+            GoalFueled turns your weight goal into one number you can act on today. Log what you eat
+            and what you burn, follow a meal plan if you want one, and watch the gauge tell you exactly
+            how much fuel is left before you break even.
+          </p>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="https://goalfueled.com">Start fueling — it's free</a>
+            <a class="btn btn-ghost" href="https://github.com/ianlee74/goalfueled">View on GitHub</a>
+          </div>
+          <p class="fine">Mobile-first web app · No install · Sign in with Google</p>
+        </div>
+        <div class="hero-shot">
+          <figure class="phone">
+            <img src="screenshots/today.png" alt="The Today screen: a fuel gauge showing 1,024 kcal to break even, with fuel, burn and net totals." width="390" height="844" />
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="strip" aria-label="How it works">
+      <div class="wrap strip-inner">
+        <div class="step"><span class="num">1</span><div><h3>Set a goal</h3><p>Lose, maintain or gain. Your profile sets your daily “kindle” — the calories you burn just by living.</p></div></div>
+        <div class="step"><span class="num">2</span><div><h3>Log fuel &amp; burn</h3><p>Tap a favorite, scan a barcode, or just say “I had oatmeal with berries.”</p></div></div>
+        <div class="step"><span class="num">3</span><div><h3>Read the gauge</h3><p>Fuel − burn − kindle = net. One glance tells you if today is on track.</p></div></div>
+      </div>
+    </section>
+
+    <section id="features" class="section">
+      <div class="wrap">
+        <h2 class="section-title">Everything you need. Nothing you don't.</h2>
+        <div class="grid">
+          <article class="card">
+            <div class="icon ic-green" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M4 16a8 8 0 0 1 16 0"/><path d="M12 16l4-5"/></svg>
+            </div>
+            <h3>The fuel gauge</h3>
+            <p>Your whole day in one dial: fuel logged, calories burned, and what's left to break even — with an hourly view of actual vs. expected.</p>
+          </article>
+          <article class="card">
+            <div class="icon ic-orange" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+            </div>
+            <h3>Talk to log</h3>
+            <p>An AI assistant turns “a quarter pounder with fries” into real logged fuel — and asks before it creates anything.</p>
+          </article>
+          <article class="card">
+            <div class="icon ic-green" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M4 6v12M7 6v12M11 6v12M14 6v12M18 6v12M20 6v12"/></svg>
+            </div>
+            <h3>Barcode &amp; label scan</h3>
+            <p>Scan a product to pull nutrition from Open Food Facts, or photograph a label and let vision OCR read it for you.</p>
+          </article>
+          <article class="card">
+            <div class="icon ic-orange" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M9 9h6M9 13h6M9 17h3"/></svg>
+            </div>
+            <h3>Recipes &amp; meal plans</h3>
+            <p>Build recipes from a USDA-backed ingredient library, bundle them into fuel sources, and schedule daily or weekly plans.</p>
+          </article>
+          <article class="card">
+            <div class="icon ic-green" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/></svg>
+            </div>
+            <h3>Goals that track themselves</h3>
+            <p>Weight targets and daily nutrient goals — protein, fiber, sodium, anything on the label — with live progress from what you log.</p>
+          </article>
+          <article class="card">
+            <div class="icon ic-orange" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M5 4v16M5 5h11l-2 4 2 4H5"/></svg>
+            </div>
+            <h3>Your week in fuel</h3>
+            <p>A weekly review scores consistency, budget adherence and weigh-ins. Earn Fuel Points, level up, keep the streak alive.</p>
+          </article>
+          <article class="card">
+            <div class="icon ic-green" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M4 18l5-6 4 3 7-9"/></svg>
+            </div>
+            <h3>Weight trend</h3>
+            <p>Log weigh-ins on your own schedule and see the trend line that actually matters, not the daily noise.</p>
+          </article>
+          <article class="card">
+            <div class="icon ic-orange" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><circle cx="8" cy="9" r="3"/><circle cx="17" cy="9" r="3"/><path d="M3 19a5 5 0 0 1 10 0M12 19a5 5 0 0 1 10 0"/></svg>
+            </div>
+            <h3>Share with a coach</h3>
+            <p>Invite a partner, coach or dietitian to view your log or manage your meal plans — and revoke access any time.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="screens" class="section section-alt">
+      <div class="wrap">
+        <h2 class="section-title">Built for your phone. Great on a big screen.</h2>
+        <div class="gallery">
+          <figure class="phone"><img src="screenshots/goals.png" alt="Goals screen with fiber, protein and weight goals and progress bars." loading="lazy" width="390" height="844" /><figcaption>Goals</figcaption></figure>
+          <figure class="phone"><img src="screenshots/review.png" alt="Week in fuel review with a week score of 96 and a day-by-day breakdown." loading="lazy" width="390" height="844" /><figcaption>Week in fuel</figcaption></figure>
+          <figure class="phone"><img src="screenshots/weight.png" alt="Weight screen with a downward trend chart and weigh-in history." loading="lazy" width="390" height="844" /><figcaption>Weight trend</figcaption></figure>
+          <figure class="phone"><img src="screenshots/fuel.png" alt="Fuel sources library with favorite meals and calorie totals." loading="lazy" width="390" height="844" /><figcaption>Fuel library</figcaption></figure>
+        </div>
+        <figure class="desktop">
+          <img src="screenshots/desktop-today.png" alt="GoalFueled on a desktop browser showing the Today dashboard and sidebar navigation." width="1440" height="900" />
+        </figure>
+      </div>
+    </section>
+
+    <section id="open-source" class="section">
+      <div class="wrap os">
+        <div>
+          <h2 class="section-title left">Open source, MIT licensed.</h2>
+          <p>
+            GoalFueled is built in the open. Read the code, run it yourself, or help make it better.
+            The whole stack runs locally with no cloud account — an in-memory store and preset dev
+            logins get you from clone to working app in minutes.
+          </p>
+          <ul class="stack">
+            <li><strong>Web</strong> React 19 + TypeScript + Vite</li>
+            <li><strong>API</strong> Azure Functions on .NET 8</li>
+            <li><strong>Data</strong> Cosmos DB via EF Core</li>
+            <li><strong>Infra</strong> Bicep + GitHub Actions</li>
+          </ul>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="https://github.com/ianlee74/goalfueled">Star it on GitHub</a>
+            <a class="btn btn-ghost" href="https://github.com/ianlee74/goalfueled#running-locally">Run it locally</a>
+          </div>
+        </div>
+        <pre class="code" aria-label="Quick start commands"><code><span class="c"># API (port 7071)</span>
+cd src/GoalFueled.Api
+cp local.settings.example.json local.settings.json
+func start
+
+<span class="c"># Web (port 5173)</span>
+cd src/web
+npm install
+npm run dev</code></pre>
+      </div>
+    </section>
+
+    <section class="final">
+      <div class="wrap final-inner">
+        <h2>Your goal is waiting. Go fuel it.</h2>
+        <a class="btn btn-accent" href="https://goalfueled.com">Open GoalFueled</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <span>© 2026 GoalFueled contributors · <a href="https://github.com/ianlee74/goalfueled/blob/main/LICENSE">MIT License</a></span>
+      <span>Nutrition data from <a href="https://fdc.nal.usda.gov/">USDA FoodData Central</a> and <a href="https://world.openfoodfacts.org/">Open Food Facts</a>.</span>
+    </div>
+  </footer>
+</body>
+</html>

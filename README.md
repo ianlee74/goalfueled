@@ -1,12 +1,46 @@
 # GoalFueled
 
-A serverless web app for defining and tracking meal plans toward a health goal (weight loss,
-management, or gain). Mobile-first, also usable on larger screens.
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![CI](https://github.com/ianlee74/goalfueled/actions/workflows/ci.yml/badge.svg)](https://github.com/ianlee74/goalfueled/actions/workflows/ci.yml)
 
-This repository contains the **MVP scaffold plus a complete vertical slice**: the full stack is
-wired end-to-end and the **Ingredients** feature is fully implemented (with authentication, roles,
-and nutrition). Recipes, Meals, and Meal Plans are scaffolded (models, API stubs, and "coming soon"
-screens) and ready to be built out following the Ingredients pattern.
+**Fuel in. Burn out. Hit your goal.** GoalFueled is a free, open-source, serverless web app for
+planning meals and tracking fuel (what you eat) and burn (what you exercise off) toward a weight goal —
+loss, management, or gain. It's mobile-first and works just as well on a big screen.
+
+**Try it:** <https://goalfueled.com> · **Landing site:** [`site/`](site/index.html)
+
+<p align="center">
+  <img src="site/screenshots/today.png" alt="Today: the fuel gauge" width="200" />
+  <img src="site/screenshots/goals.png" alt="Goals with live progress" width="200" />
+  <img src="site/screenshots/review.png" alt="Week in fuel review" width="200" />
+  <img src="site/screenshots/weight.png" alt="Weight trend" width="200" />
+</p>
+
+## Features
+
+- **Fuel gauge** — one dial for the day: fuel − burn − *kindle* (your resting burn, from your profile) =
+  net, plus an hourly actual-vs-expected view.
+- **Fuel & burn logging** — favorites, free-form entries, burn activities with autocomplete.
+- **AI assistant** — say or type *"I had oatmeal with berries"* and it logs it, asking before it creates
+  anything (optional; needs an Anthropic API key).
+- **Barcode scan & label OCR** — Open Food Facts lookups by barcode; photograph a nutrition label to
+  read it with Claude vision.
+- **Ingredient library** — 78 seeded ingredients with FDA-label nutrition, USDA FoodData Central lookup,
+  user-owned items and an admin review queue for publishing them.
+- **Recipes, fuel sources & meal plans** — compose ingredients into recipes, bundle recipes into fuel
+  sources, and schedule daily or weekly plans that show up as tasks on Today.
+- **Goals** — weight targets and recurring nutrient goals (protein, fiber, sodium…) with progress
+  computed from what you actually log.
+- **Weight tracking** — weigh-in schedule, trend chart, history.
+- **Gamification** — Fuel Points, levels, a weekly score and a "week in fuel" review.
+- **Account sharing** — invite a coach or partner to view your log or manage your plans.
+- **Admin** — user management, subscription tiers and per-user feature tags.
+
+## License
+
+GoalFueled is released under the [MIT License](LICENSE). Contributions are welcome — open an issue or a
+pull request. Please run `dotnet test` and `npm run lint` / `npm run build` in `src/web` before
+submitting.
 
 ## Architecture
 
@@ -28,6 +62,7 @@ src/
 tests/
   GoalFueled.Tests/    xUnit tests (auth provisioning, RBAC, validation, DI graph)
 infra/                 Bicep modules (Cosmos, Storage, Functions, Static Web App, monitoring)
+site/                  Static marketing/landing site (published to GitHub Pages)
 ```
 
 ## Prerequisites
@@ -93,11 +128,15 @@ Two terminals.
 
 ```bash
 cd src/GoalFueled.Api
+cp local.settings.example.json local.settings.json   # first time only; gitignored
 func start
 ```
 
-By default the API runs against the **in-memory store** with **dev auth enabled**
-(see `local.settings.json`). It seeds a few app-level ingredients on first start.
+With the example settings the API runs against the **in-memory store** with **dev auth enabled**.
+It seeds the app-level ingredient library on first start. The Functions host also needs
+[Azurite](https://learn.microsoft.com/azure/storage/common/storage-use-azurite) for
+`AzureWebJobsStorage` (`npm install -g azurite`, then `azurite --silent --location .azurite`; the VS
+Code launch configs start it for you).
 
 **2. Web** (Vite dev server, port 5173):
 
@@ -239,68 +278,61 @@ enable optional features (nutrition lookup, barcode contribution, label OCR) or 
 
 ## Authentication & authorization
 
-Auth is built behind a provider seam (`IIdentityProvider`) so the local dev login can be swapped for
-real social login without touching the rest of the app.
+Auth is built behind a provider seam (`IIdentityProvider`), so the local dev login and real social
+login are interchangeable without touching the rest of the app.
 
-- **Today (dev):** `DevIdentityProvider` reads `X-Dev-*` headers sent by the SPA. Enabled only when
-  `GoalFueled:Auth:EnableDevAuth=true`. **Never enable this in a real deployment.**
-- **Later (production):** `EntraExternalIdProvider` is a documented stub for Microsoft Entra External
-  ID, which federates **Google, Microsoft, and Facebook**. Implement JWT validation there, register
-  it in `Program.cs`, and set `EnableDevAuth=false`. The frontend's `authHeaders()` (in
-  `src/web/src/api/client.ts`) is the single place to switch to `Authorization: Bearer <token>`.
+- **Local dev:** `DevIdentityProvider` reads `X-Dev-*` headers sent by the SPA's preset dev users.
+  Enabled only when `GoalFueled:Auth:EnableDevAuth=true`. **Never enable this in a real deployment.**
+- **Production:** `EntraExternalIdProvider` validates bearer tokens from Microsoft Entra External ID
+  (which federates Google and other social providers). Set the `GoalFueled:Auth:Entra:*` settings on
+  the API and the three `VITE_ENTRA_*` variables on the SPA build, and set `EnableDevAuth=false`. See
+  [Deployment.md](Deployment.md).
 
 **Roles:** `User` (own data only) and `AppAdmin` (view/modify all data, manage app-level content,
 promote others). The first user is auto-promoted to admin. Admins can toggle their **admin view**
-off to use the app as a regular user (header toggle in the app).
-
-## What's implemented
-
-- ✅ **Auth & profiles** — dev login, profile provisioning, first-user-becomes-admin, admin-view toggle
-- ✅ **Onboarding** — first-login welcome page that captures the user's goal
-- ✅ **Ingredients** — full CRUD, image URL, unit of measure, per-serving nutrition editor backed by
-  an FDA-label nutrient catalog; app-level vs user-owned scoping and RBAC
-- 🟨 **Recipes / Meals / Meal Plans** — domain models + API stubs + "coming soon" screens
-
-### API endpoints
-
-| Method | Route | Notes |
-| --- | --- | --- |
-| GET | `/api/health` | Liveness (anonymous) |
-| GET | `/api/me` | Current profile (provisions on first call) |
-| POST | `/api/me/onboarding` | Set first goal |
-| POST | `/api/me/admin-view` | Toggle admin view (admin only) |
-| GET | `/api/nutrients` | Nutrient catalog (reference data) |
-| GET/POST | `/api/ingredients` | List (with `?search=`) / create |
-| GET/PUT/DELETE | `/api/ingredients/{id}` | Read / update / delete |
-| GET | `/api/recipes`, `/api/meals`, `/api/mealplans` | Stubs (coming soon) |
+off to use the app as a regular user.
 
 ## Testing
 
 ```bash
 dotnet test
+cd src/web && npm run lint && npm run build
 ```
 
-Covers user provisioning & the first-user-admin rule, ingredient RBAC (owner vs other vs admin),
-app-level visibility, validation, search, and a DI-graph resolution check that mirrors `Program.cs`.
+The xUnit suite covers user provisioning and the first-user-admin rule, RBAC and visibility across
+ingredients/recipes/fuel sources, validation, nutrition lookup and goal math, Open Food Facts, the AI assistant, gamification, and a
+DI-graph resolution check that mirrors `Program.cs`.
 
 ## Infrastructure & deployment
 
 `infra/main.bicep` provisions Cosmos DB (serverless), Storage (Functions backend + image blobs),
-the Function App, a Static Web App, and App Insights / Log Analytics.
+the Function App, a Static Web App, and App Insights / Log Analytics. Full steps are in
+[Deployment.md](Deployment.md).
 
 ```bash
 az group create -n goalfueled-rg-dev -l eastus2
 az deployment group create -g goalfueled-rg-dev -f infra/main.bicep -p infra/main.parameters.json
 ```
 
-CI (`.github/workflows/ci.yml` and `azure-pipelines.yml`) builds and tests the API and web on every
-push/PR. Deploy workflows are present but **manual-only and inert** until you configure the
-documented secrets/variables — nothing deploys automatically.
+| Workflow | Trigger | What it does |
+| --- | --- | --- |
+| `ci.yml` / `azure-pipelines.yml` | push / PR to `main` or `dev` | Build and test the API and web |
+| `deploy-dev.yml` | push to `dev` | Build, test, deploy to the `dev` GitHub Environment |
+| `deploy-prod.yml` | push to `main` | Build, test, deploy to the `prod` GitHub Environment |
+| `deploy-infra.yml` | manual | Deploy the Bicep templates to dev / test / prod |
+| `pages.yml` | push to `main` touching `site/` | Publish the landing site to GitHub Pages |
 
-## Roadmap (next features)
+Deploy workflows need the Azure variables and secrets documented at the top of each file; forks without
+them will see those jobs fail, which is harmless.
 
-1. **Recipes** — compose ingredients, roll up nutrition totals, public-recipe review workflow.
-2. **Meals** — portions of prepared recipes with a per-meal nutrition summary.
-3. **Meal Plans** — daily/weekly schedules, timed & untimed items, daily nutrition summary vs goal.
-4. **Image upload** — replace the image-URL field with direct upload to the `images` blob container.
-5. **Real social auth** — implement `EntraExternalIdProvider` and switch the SPA to bearer tokens.
+### Landing site
+
+`site/` is a dependency-free static page (HTML + CSS + screenshots). Open `site/index.html` directly to
+preview it. To publish, enable **Settings → Pages → Source: GitHub Actions** once; `pages.yml` deploys it
+on every change to `site/` on `main`.
+
+## Roadmap
+
+- **Shopping lists** generated from the week's meal plan.
+- **Recipes scaled for the week** by the servings the plan needs.
+- **Health platform sync** (e.g. Google Health) for weight and activity.
